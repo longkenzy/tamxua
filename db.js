@@ -44,7 +44,10 @@ async function setupDatabase() {
 
     // Add image_url column if not exists
     await client.query(`
-      ALTER TABLE menu ADD COLUMN IF NOT EXISTS image_url VARCHAR(255)
+      ALTER TABLE menu ADD COLUMN IF NOT EXISTS image_url TEXT
+    `);
+    await client.query(`
+      ALTER TABLE menu ALTER COLUMN image_url TYPE TEXT
     `);
 
     // 3. Create tables table

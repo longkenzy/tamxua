@@ -12,18 +12,13 @@ const mammoth = require('mammoth');
 
 const app = express();
 
-// Multer Storage Configuration for Dish Photos
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, path.join(__dirname, 'public/images/dishes'));
-  },
-  filename: function (req, file, cb) {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    const ext = path.extname(file.originalname);
-    cb(null, 'dish-' + uniqueSuffix + ext);
+// Multer memory storage configuration to support base64 conversion (avoiding read-only filesystem errors on Vercel)
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 5 * 1024 * 1024 // Limit image file size to 5MB
   }
 });
-const upload = multer({ storage: storage });
 const server = http.createServer(app);
 const io = new Server(server);
 
@@ -234,7 +229,7 @@ app.post('/api/menu', requireManager, upload.single('image'), async (req, res) =
   }
 
   const id = 'dish-' + Date.now();
-  const imageUrl = req.file ? 'images/dishes/' + req.file.filename : null;
+  const imageUrl = req.file ? `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}` : null;
 
   try {
     await db.query(`
@@ -270,7 +265,7 @@ app.post('/api/menu/:id', requireManager, upload.single('image'), async (req, re
 
     let imageUrl = existingItem.image_url;
     if (req.file) {
-      imageUrl = 'images/dishes/' + req.file.filename;
+      imageUrl = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
     }
 
     await db.query(`
