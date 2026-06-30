@@ -255,6 +255,21 @@ a {
   transform: scale(0.98);
 }
 
+.btn-danger {
+  background-color: var(--primary-error-text);
+  color: var(--on-primary);
+  border: none;
+}
+
+.btn-danger:hover {
+  background-color: var(--primary-error-text-hover);
+}
+
+.btn-danger:active {
+  transform: scale(0.98);
+  background-color: #9c1c04;
+}
+
 .btn-tertiary {
   background-color: transparent;
   color: var(--ink);

@@ -293,6 +293,33 @@ app.post('/api/menu/:id', requireManager, upload.single('image'), async (req, re
   }
 });
 
+// Delete food/drink menu item
+app.delete('/api/menu/:id', requireManager, async (req, res) => {
+  const { id } = req.params;
+  try {
+    // 1. Delete active order items referencing this dish
+    await db.query('DELETE FROM order_items WHERE menu_id = $1', [id]);
+    
+    // 2. Delete the menu item itself
+    const deleteRes = await db.query('DELETE FROM menu WHERE id = $1', [id]);
+    if (deleteRes.rowCount === 0) {
+      return res.status(404).json({ error: 'Không tìm thấy món ăn.' });
+    }
+
+    // 3. Broadcast updated menu and tables list
+    const menuRes = await db.query('SELECT * FROM menu ORDER BY category, id');
+    io.emit('menu_updated', menuRes.rows);
+    
+    const updatedTables = await getTablesWithOrders();
+    io.emit('tables_updated', updatedTables);
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Lỗi xóa món ăn:', error);
+    res.status(500).json({ error: 'Lỗi hệ thống.' });
+  }
+});
+
 // Get tables
 app.get('/api/tables', async (req, res) => {
   try {

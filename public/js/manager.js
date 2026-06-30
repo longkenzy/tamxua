@@ -89,6 +89,7 @@ const menuItemEmojiInput = document.getElementById('menu-item-emoji-input');
 const menuItemImageInput = document.getElementById('menu-item-image-input');
 const btnCancelMenuItemModal = document.getElementById('btn-cancel-menu-item-modal');
 const btnCloseMenuItemModal = document.getElementById('btn-close-menu-item-modal');
+const btnDeleteMenuItem = document.getElementById('btn-delete-menu-item');
 const menuItemEmojiPreview = document.getElementById('menu-item-emoji-preview');
 const menuItemImagePreview = document.getElementById('menu-item-image-preview');
 const imageUploadCardZone = document.getElementById('image-upload-card-zone');
@@ -1626,6 +1627,7 @@ function openMenuItemModal(item = null) {
   // If item is null: Create Mode. Otherwise: Edit Mode
   if (item) {
     menuItemModalTitle.textContent = 'Chỉnh sửa món ăn';
+    btnDeleteMenuItem.style.display = 'block';
     menuItemIdInput.value = item.id;
     menuItemNameInput.value = item.name;
     menuItemPriceInput.value = item.price;
@@ -1646,6 +1648,7 @@ function openMenuItemModal(item = null) {
     }
   } else {
     menuItemModalTitle.textContent = 'Thêm món ăn mới';
+    btnDeleteMenuItem.style.display = 'none';
     menuItemIdInput.value = '';
     menuItemForm.reset();
     menuItemCategoryInput.value = 'main';
@@ -1665,6 +1668,51 @@ function openMenuItemModal(item = null) {
 function closeMenuItemModal() {
   menuItemModal.style.display = 'none';
 }
+
+// Delete menu item click handler
+btnDeleteMenuItem.addEventListener('click', async () => {
+  const id = menuItemIdInput.value;
+  if (!id) return;
+  
+  if (confirm(`Bạn có chắc chắn muốn xóa món "${menuItemNameInput.value}" không? Mọi yêu cầu gọi món này ở các bàn hiện tại cũng sẽ bị xóa.`)) {
+    try {
+      btnDeleteMenuItem.disabled = true;
+      btnDeleteMenuItem.textContent = 'Đang xóa...';
+      
+      const response = await fetch(`/api/menu/${id}`, {
+        method: 'DELETE'
+      });
+      
+      const result = await response.json();
+      if (result.success) {
+        showToast('✅ Đã xóa món ăn thành công!');
+        closeMenuItemModal();
+        
+        // Refresh local menu list immediately
+        const menuRes = await fetch('/api/menu');
+        if (menuRes.ok) {
+          menuItems = await menuRes.json();
+          renderMenuMgmtGrid();
+        }
+        
+        // Refresh tables list because orders might have been removed
+        const tablesRes = await fetch('/api/tables');
+        if (tablesRes.ok) {
+          tables = await tablesRes.json();
+          renderTables();
+        }
+      } else {
+        showToast(`❌ Không thể xóa món ăn: ${result.error || 'Vui lòng thử lại.'}`);
+      }
+    } catch (err) {
+      console.error('Lỗi khi xóa món ăn:', err);
+      showToast('❌ Không thể kết nối tới server.');
+    } finally {
+      btnDeleteMenuItem.disabled = false;
+      btnDeleteMenuItem.textContent = 'Xóa món';
+    }
+  }
+});
 
 // Form Submission (Multipart data to support file uploads)
 menuItemForm.addEventListener('submit', async (e) => {
