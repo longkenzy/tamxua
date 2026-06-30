@@ -22,6 +22,12 @@ const activeTableName = document.getElementById('active-table-name');
 const activeTableStatusSubtitle = document.getElementById('active-table-status-subtitle');
 const btnBackTables = document.getElementById('btn-back-tables');
 const btnAddTable = document.getElementById('btn-add-table');
+const addTableModal = document.getElementById('add-table-modal');
+const addTableForm = document.getElementById('add-table-form');
+const addTableNameInput = document.getElementById('add-table-name-input');
+const addTableErrorMsg = document.getElementById('add-table-error-msg');
+const btnCloseAddTableModal = document.getElementById('btn-close-add-table-modal');
+const btnCancelAddTableModal = document.getElementById('btn-cancel-add-table-modal');
 const menuItemsContainer = document.getElementById('menu-items-container');
 const categoryStripContainer = document.getElementById('category-strip-container');
 const menuSearchInput = document.getElementById('menu-search-input');
@@ -595,22 +601,40 @@ if (btnLogoutHeader) {
   });
 }
 
-// Add Table click handler
+// Add Table Modal handlers
 if (btnAddTable) {
-  btnAddTable.addEventListener('click', async () => {
-    const name = prompt('Nhập số hoặc tên bàn ăn mới muốn thêm (ví dụ: 15, Bàn 12):');
-    if (name === null) return; // Cancelled
+  btnAddTable.addEventListener('click', () => {
+    addTableNameInput.value = '';
+    addTableErrorMsg.style.display = 'none';
+    addTableErrorMsg.textContent = '';
+    addTableModal.style.display = 'flex';
+    addTableNameInput.focus();
+  });
+}
+
+const closeAddTableModal = () => {
+  addTableModal.style.display = 'none';
+};
+if (btnCloseAddTableModal) btnCloseAddTableModal.addEventListener('click', closeAddTableModal);
+if (btnCancelAddTableModal) btnCancelAddTableModal.addEventListener('click', closeAddTableModal);
+
+if (addTableForm) {
+  addTableForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    addTableErrorMsg.style.display = 'none';
     
-    const cleanName = name.trim();
-    if (!cleanName) {
-      alert('Tên số bàn không được để trống.');
+    const name = addTableNameInput.value.trim();
+    if (!name) {
+      addTableErrorMsg.textContent = 'Tên số bàn không được để trống.';
+      addTableErrorMsg.style.display = 'block';
       return;
     }
     
     // Client-side duplicate check
-    const isDuplicate = tables.some(t => t.name.toLowerCase() === cleanName.toLowerCase());
+    const isDuplicate = tables.some(t => t.name.toLowerCase() === name.toLowerCase());
     if (isDuplicate) {
-      alert('Số bàn này đã tồn tại. Vui lòng nhập số bàn khác.');
+      addTableErrorMsg.textContent = 'Số bàn này đã tồn tại. Vui lòng nhập số bàn khác.';
+      addTableErrorMsg.style.display = 'block';
       return;
     }
     
@@ -618,12 +642,14 @@ if (btnAddTable) {
       const response = await fetch('/api/tables', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: cleanName })
+        body: JSON.stringify({ name })
       });
       
       const result = await response.json();
       if (result.success) {
-        showToast(`✅ Đã thêm bàn "${cleanName}" thành công!`);
+        showToast(`✅ Đã thêm bàn "${name}" thành công!`);
+        closeAddTableModal();
+        
         // Refresh local tables list immediately
         const tablesRes = await fetch('/api/tables');
         if (tablesRes.ok) {
@@ -631,11 +657,13 @@ if (btnAddTable) {
           renderTables();
         }
       } else {
-        showToast(`❌ Không thể thêm bàn: ${result.error}`);
+        addTableErrorMsg.textContent = result.error || 'Không thể thêm bàn.';
+        addTableErrorMsg.style.display = 'block';
       }
     } catch (err) {
-      console.error('Lỗi khi thêm bàn:', err);
-      showToast('❌ Không thể kết nối tới server.');
+      console.error(err);
+      addTableErrorMsg.textContent = 'Không thể kết nối tới server.';
+      addTableErrorMsg.style.display = 'block';
     }
   });
 }

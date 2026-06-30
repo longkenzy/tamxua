@@ -354,8 +354,12 @@ app.post('/api/tables', requireAuth, async (req, res) => {
       return res.status(400).json({ error: 'Số bàn này đã tồn tại.' });
     }
 
-    // 2. Insert new table
-    await db.query("INSERT INTO tables (name, status) VALUES ($1, 'empty')", [cleanName]);
+    // 2. Programmatically determine next primary key ID
+    const maxIdRes = await db.query('SELECT MAX(id) AS max_id FROM tables');
+    const nextId = (maxIdRes.rows[0].max_id || 0) + 1;
+
+    // 3. Insert new table
+    await db.query("INSERT INTO tables (id, name, status) VALUES ($1, $2, 'empty')", [nextId, cleanName]);
 
     // 3. Broadcast updated tables list to all clients
     const updatedTables = await getTablesWithOrders();

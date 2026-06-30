@@ -611,6 +611,29 @@
     </div>
   </div>
 
+  <!-- MODAL: Add Table -->
+  <div class="modal-backdrop" id="add-table-modal" style="display: none;">
+    <div class="modal-content" style="max-width: 400px; border-radius: var(--rounded-lg);">
+      <div class="modal-header" style="border-bottom: 1px solid var(--hairline-soft); padding: 16px 24px;">
+        <h3 class="modal-title" style="font-size: 18px; font-weight: 700;">Thêm bàn ăn mới</h3>
+        <button class="btn-close" id="btn-close-add-table-modal" style="font-size: 24px;">&times;</button>
+      </div>
+      <form id="add-table-form" style="margin: 0;">
+        <div class="modal-body" style="padding: 24px;">
+          <div class="text-input-container">
+            <span class="text-input-label">Số hoặc tên bàn ăn</span>
+            <input type="text" id="add-table-name-input" class="text-input" placeholder="Ví dụ: 15, Bàn 12, VIP 1..." required autocomplete="off">
+          </div>
+          <div id="add-table-error-msg" style="color: var(--primary-error-text); font-size: 12px; margin-top: 8px; display: none; font-weight: 500;"></div>
+        </div>
+        <div class="modal-footer" style="background-color: var(--surface-soft); border-top: 1px solid var(--hairline-soft); padding: 12px 24px; display: flex; justify-content: flex-end; gap: var(--space-base);">
+          <button type="button" class="btn btn-secondary btn-pill" id="btn-cancel-add-table-modal" style="height: 38px; padding: 0 16px;">Hủy</button>
+          <button type="submit" class="btn btn-primary btn-pill" id="btn-submit-add-table" style="height: 38px; padding: 0 20px; font-weight: 600;">Thêm bàn</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- Logic JS -->
   <script src="js/waiter.js"></script>
 </body>
