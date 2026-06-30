@@ -1711,7 +1711,7 @@ if (btnLogoutHeader) {
 }
 
 // Convert native select to custom select with Airbnb styling
-function makeSelectCustom(selectEl, labelText) {
+function makeSelectCustom(selectEl, labelText, showChevron = true) {
   if (!selectEl) return;
   
   // Hide native select
@@ -1733,13 +1733,16 @@ function makeSelectCustom(selectEl, labelText) {
   valueText.className = 'custom-select-value';
   valueText.textContent = selectEl.options[selectEl.selectedIndex] ? selectEl.options[selectEl.selectedIndex].text : '';
   
-  const chevron = document.createElement('span');
-  chevron.className = 'custom-select-chevron';
-  chevron.textContent = '▼';
-  
   trigger.appendChild(label);
   trigger.appendChild(valueText);
-  trigger.appendChild(chevron);
+
+  if (showChevron) {
+    const chevron = document.createElement('span');
+    chevron.className = 'custom-select-chevron';
+    chevron.textContent = '▼';
+    trigger.appendChild(chevron);
+  }
+
   wrapper.appendChild(trigger);
   
   // Create options menu dropdown
@@ -1812,8 +1815,8 @@ function initCustomSelects() {
   const discountSelect = document.getElementById('checkout-discount-type');
   const categorySelect = document.getElementById('menu-item-category-input');
   
-  makeSelectCustom(discountSelect, 'Loại giảm giá');
-  makeSelectCustom(categorySelect, 'Phân loại món');
+  makeSelectCustom(discountSelect, 'Loại giảm giá', false);
+  makeSelectCustom(categorySelect, 'Phân loại món', true);
 }
 
 // Close custom dropdown menus when clicking outside
