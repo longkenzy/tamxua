@@ -63,68 +63,73 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // Database helper functions to format data for client
 async function getTablesWithOrders() {
-  const tablesRes = await db.query('SELECT * FROM tables ORDER BY id');
-  const tables = tablesRes.rows;
-  
-  const orderItemsRes = await db.query(`
-    SELECT oi.*, m.name, m.price, m.emoji 
-    FROM order_items oi
-    JOIN menu m ON oi.menu_id = m.id
-    ORDER BY oi.id
+  const res = await db.query(`
+    SELECT t.id, t.name, t.status, t.updated_at,
+           COALESCE(
+             json_agg(
+               json_build_object(
+                 'id', m.id,
+                 'name', m.name,
+                 'price', m.price,
+                 'emoji', m.emoji,
+                 'quantity', oi.quantity,
+                 'notes', COALESCE(oi.notes, '')
+               )
+             ) FILTER (WHERE oi.id IS NOT NULL),
+             '[]'::json
+           ) as "order"
+    FROM tables t
+    LEFT JOIN order_items oi ON t.id = oi.table_id
+    LEFT JOIN menu m ON oi.menu_id = m.id
+    GROUP BY t.id, t.name, t.status, t.updated_at
+    ORDER BY t.id;
   `);
-  const orderItems = orderItemsRes.rows;
-  
-  return tables.map(t => {
-    const tableOrder = orderItems
-      .filter(oi => oi.table_id === t.id)
-      .map(oi => ({
-        id: oi.menu_id,
-        name: oi.name,
-        price: oi.price,
-        emoji: oi.emoji,
-        quantity: oi.quantity,
-        notes: oi.notes || ''
-      }));
-    return {
-      id: t.id,
-      name: t.name,
-      status: t.status,
-      updatedAt: t.updated_at ? t.updated_at.toISOString() : '',
-      order: tableOrder
-    };
-  });
+
+  return res.rows.map(row => ({
+    id: row.id,
+    name: row.name,
+    status: row.status,
+    updatedAt: row.updated_at ? row.updated_at.toISOString() : '',
+    order: row.order
+  }));
 }
 
 async function getTransactionsWithItems() {
-  const txRes = await db.query('SELECT * FROM transactions ORDER BY timestamp DESC');
-  const txs = txRes.rows;
-  
-  const itemsRes = await db.query('SELECT * FROM transaction_items ORDER BY id');
-  const items = itemsRes.rows;
-  
-  return txs.map(tx => {
-    const txItems = items
-      .filter(i => i.transaction_id === tx.id)
-      .map(i => ({
-        name: i.name,
-        emoji: i.emoji,
-        price: i.price,
-        quantity: i.quantity,
-        notes: i.notes || ''
-      }));
-    return {
-      id: tx.id,
-      tableId: tx.table_id,
-      tableName: tx.table_name,
-      subtotal: tx.subtotal,
-      receivedAmount: tx.received_amount,
-      changeAmount: tx.change_amount,
-      discountAmount: tx.discount_amount || 0,
-      paymentMethod: tx.payment_method || 'cash',
-      timestamp: tx.timestamp ? tx.timestamp.toISOString() : '',
-      items: txItems
-    };
-  });
+  const res = await db.query(`
+    SELECT tx.id, tx.table_id as "tableId", tx.table_name as "tableName", 
+           tx.subtotal, tx.received_amount as "receivedAmount", 
+           tx.change_amount as "changeAmount", tx.discount_amount as "discountAmount", 
+           tx.payment_method as "paymentMethod", tx.timestamp,
+           COALESCE(
+             json_agg(
+               json_build_object(
+                 'name', ti.name,
+                 'emoji', ti.emoji,
+                 'price', ti.price,
+                 'quantity', ti.quantity,
+                 'notes', COALESCE(ti.notes, '')
+               )
+             ) FILTER (WHERE ti.id IS NOT NULL),
+             '[]'::json
+           ) as items
+    FROM transactions tx
+    LEFT JOIN transaction_items ti ON tx.id = ti.transaction_id
+    GROUP BY tx.id, tx.table_id, tx.table_name, tx.subtotal, tx.received_amount, tx.change_amount, tx.discount_amount, tx.payment_method, tx.timestamp
+    ORDER BY tx.timestamp DESC;
+  `);
+
+  return res.rows.map(row => ({
+    id: row.id,
+    tableId: row.tableId,
+    tableName: row.tableName,
+    subtotal: row.subtotal,
+    receivedAmount: row.receivedAmount,
+    changeAmount: row.changeAmount,
+    discountAmount: row.discountAmount || 0,
+    paymentMethod: row.paymentMethod || 'cash',
+    timestamp: row.timestamp ? row.timestamp.toISOString() : '',
+    items: row.items
+  }));
 }
 
 // REST APIs
@@ -240,9 +245,11 @@ app.post('/api/menu', requireManager, upload.single('image'), async (req, res) =
       VALUES ($1, $2, $3, $4, $5, $6, $7)
     `, [id, name, parseInt(price), category, emoji || '🍽️', description || '', imageUrl]);
 
-    // Broadcast updated menu to all clients
-    const menuRes = await db.query('SELECT * FROM menu ORDER BY category, id');
-    io.emit('menu_updated', menuRes.rows);
+    // Broadcast updated menu to all clients if anyone is connected via WebSockets
+    if (io.engine.clientsCount > 0) {
+      const menuRes = await db.query('SELECT * FROM menu ORDER BY category, id');
+      io.emit('menu_updated', menuRes.rows);
+    }
 
     res.json({ success: true, id });
   } catch (error) {
@@ -277,9 +284,11 @@ app.post('/api/menu/:id', requireManager, upload.single('image'), async (req, re
       WHERE id = $7
     `, [name, parseInt(price), category, emoji || '🍽️', description || '', imageUrl, id]);
 
-    // Broadcast updated menu to all clients
-    const menuRes = await db.query('SELECT * FROM menu ORDER BY category, id');
-    io.emit('menu_updated', menuRes.rows);
+    // Broadcast updated menu to all clients if anyone is connected via WebSockets
+    if (io.engine.clientsCount > 0) {
+      const menuRes = await db.query('SELECT * FROM menu ORDER BY category, id');
+      io.emit('menu_updated', menuRes.rows);
+    }
 
     res.json({ success: true });
   } catch (error) {
@@ -360,10 +369,12 @@ app.post('/api/order', async (req, res) => {
 
     await client.query('COMMIT');
 
-    // Broadcast update
-    const updatedTables = await getTablesWithOrders();
-    io.emit('tables_updated', updatedTables);
-    io.emit('order_submitted', { tableName: table.name });
+    // Broadcast update if any client is connected via WebSockets
+    if (io.engine.clientsCount > 0) {
+      const updatedTables = await getTablesWithOrders();
+      io.emit('tables_updated', updatedTables);
+      io.emit('order_submitted', { tableName: table.name });
+    }
 
     res.json({ success: true });
   } catch (error) {
@@ -441,12 +452,15 @@ app.post('/api/checkout', async (req, res) => {
 
     await client.query('COMMIT');
 
-    // Broadcast updates to all clients
-    const updatedTables = await getTablesWithOrders();
-    const updatedTxs = await getTransactionsWithItems();
-    
-    io.emit('tables_updated', updatedTables);
-    io.emit('transactions_updated', updatedTxs);
+    // Broadcast updates to all clients if any client is connected via WebSockets
+    if (io.engine.clientsCount > 0) {
+      const [updatedTables, updatedTxs] = await Promise.all([
+        getTablesWithOrders(),
+        getTransactionsWithItems()
+      ]);
+      io.emit('tables_updated', updatedTables);
+      io.emit('transactions_updated', updatedTxs);
+    }
 
     res.json({ success: true, transaction: { id: txId, changeAmount } });
   } catch (error) {
