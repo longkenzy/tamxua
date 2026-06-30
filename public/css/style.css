@@ -1025,7 +1025,8 @@ a {
     font-size: 13px;
     font-weight: bold;
   }
-  
+}
+
 .location-segment:active .location-icon {
   transform: scale(1.15);
 }
