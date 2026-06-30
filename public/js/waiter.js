@@ -78,10 +78,28 @@ async function init() {
     renderTables();
     
     // Initialize WebSockets or Polling fallback
-    initConnection();
+    loadSocketScript(() => {
+      initConnection();
+    });
   } catch (error) {
     console.error('Lỗi khi tải dữ liệu ban đầu:', error);
   }
+}
+
+// Dynamically load socket.io script when not on Vercel
+function loadSocketScript(callback) {
+  if (isVercel) {
+    callback();
+    return;
+  }
+  const script = document.createElement('script');
+  script.src = '/socket.io/socket.io.js';
+  script.onload = () => callback();
+  script.onerror = () => {
+    console.warn('Failed to load socket.io script. Using polling.');
+    callback();
+  };
+  document.head.appendChild(script);
 }
 
 // Initialize WebSockets or HTTP Polling Fallback
