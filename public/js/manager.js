@@ -13,6 +13,7 @@ let selectedTransactionId = null;
 let currentTab = 'tables'; // 'tables' or 'reports'
 let currentDiscountAmount = 0; // Discount applied in checkout modal
 let currentPaymentMethod = 'cash'; // Payment method in checkout modal ('cash' or 'bank')
+let notificationAudioContext = null;
 let revenueChartInstance = null;
 let revenueBarChartInstance = null;
 let dishesChartInstance = null;
@@ -133,6 +134,9 @@ async function init() {
 
     // Initialize custom selects
     initCustomSelects();
+
+    // Prepare audio context on user gesture to bypass autoplay blocks
+    initAudioOnUserInteraction();
   } catch (error) {
     console.error('Lỗi tải dữ liệu ban đầu:', error);
   }
@@ -249,6 +253,7 @@ async function fetchDataPoll() {
             const oldQty = oldTable.order.reduce((sum, item) => sum + item.quantity, 0);
             const newQty = newTable.order.reduce((sum, item) => sum + item.quantity, 0);
             if (newQty > oldQty) {
+              console.log(`[Order Alert] Table ${newTable.name} updated: items increased from ${oldQty} to ${newQty}`);
               showToast(`🔔 Bàn ${newTable.name} vừa gọi thêm món mới!`);
               playNotificationSound();
             }
@@ -308,7 +313,13 @@ function playNotificationSound() {
   try {
     const AudioContext = window.AudioContext || window.webkitAudioContext;
     if (!AudioContext) return;
-    const ctx = new AudioContext();
+    
+    // Use user-gesture initialized context or fallback to new instance
+    const ctx = notificationAudioContext || new AudioContext();
+    if (ctx.state === 'suspended') {
+      console.warn('[AudioContext] Suspended! Resuming context...');
+      ctx.resume();
+    }
     
     // Play first tone (D5 note, 587.33Hz)
     const osc1 = ctx.createOscillator();
@@ -339,9 +350,34 @@ function playNotificationSound() {
     
     osc2.start(ctx.currentTime + 0.12);
     osc2.stop(ctx.currentTime + 0.45);
+    console.log('[Audio] Notification sound chime triggered successfully.');
   } catch (e) {
     console.warn('Cannot play synthesized audio notification:', e);
   }
+}
+
+// User interaction gesture binds to unlock/resume AudioContext
+function initAudioOnUserInteraction() {
+  const resumeAudio = () => {
+    if (!notificationAudioContext) {
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      if (AudioContext) {
+        notificationAudioContext = new AudioContext();
+        console.log('[AudioContext] Initialized via user gesture');
+      }
+    }
+    if (notificationAudioContext && notificationAudioContext.state === 'suspended') {
+      notificationAudioContext.resume().then(() => {
+        console.log('[AudioContext] Resumed successfully via user gesture');
+      });
+    }
+    // Remove listeners once active
+    document.removeEventListener('click', resumeAudio);
+    document.removeEventListener('touchstart', resumeAudio);
+  };
+  
+  document.addEventListener('click', resumeAudio);
+  document.addEventListener('touchstart', resumeAudio);
 }
 
 // Tab Navigation logic

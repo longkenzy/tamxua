@@ -245,11 +245,9 @@ app.post('/api/menu', requireManager, upload.single('image'), async (req, res) =
       VALUES ($1, $2, $3, $4, $5, $6, $7)
     `, [id, name, parseInt(price), category, emoji || '🍽️', description || '', imageUrl]);
 
-    // Broadcast updated menu to all clients if anyone is connected via WebSockets
-    if (io.engine.clientsCount > 0) {
-      const menuRes = await db.query('SELECT * FROM menu ORDER BY category, id');
-      io.emit('menu_updated', menuRes.rows);
-    }
+    // Broadcast updated menu to all clients
+    const menuRes = await db.query('SELECT * FROM menu ORDER BY category, id');
+    io.emit('menu_updated', menuRes.rows);
 
     res.json({ success: true, id });
   } catch (error) {
@@ -284,11 +282,9 @@ app.post('/api/menu/:id', requireManager, upload.single('image'), async (req, re
       WHERE id = $7
     `, [name, parseInt(price), category, emoji || '🍽️', description || '', imageUrl, id]);
 
-    // Broadcast updated menu to all clients if anyone is connected via WebSockets
-    if (io.engine.clientsCount > 0) {
-      const menuRes = await db.query('SELECT * FROM menu ORDER BY category, id');
-      io.emit('menu_updated', menuRes.rows);
-    }
+    // Broadcast updated menu to all clients
+    const menuRes = await db.query('SELECT * FROM menu ORDER BY category, id');
+    io.emit('menu_updated', menuRes.rows);
 
     res.json({ success: true });
   } catch (error) {
@@ -369,12 +365,10 @@ app.post('/api/order', async (req, res) => {
 
     await client.query('COMMIT');
 
-    // Broadcast update if any client is connected via WebSockets
-    if (io.engine.clientsCount > 0) {
-      const updatedTables = await getTablesWithOrders();
-      io.emit('tables_updated', updatedTables);
-      io.emit('order_submitted', { tableName: table.name });
-    }
+    // Broadcast update
+    const updatedTables = await getTablesWithOrders();
+    io.emit('tables_updated', updatedTables);
+    io.emit('order_submitted', { tableName: table.name });
 
     res.json({ success: true });
   } catch (error) {
@@ -452,15 +446,13 @@ app.post('/api/checkout', async (req, res) => {
 
     await client.query('COMMIT');
 
-    // Broadcast updates to all clients if any client is connected via WebSockets
-    if (io.engine.clientsCount > 0) {
-      const [updatedTables, updatedTxs] = await Promise.all([
-        getTablesWithOrders(),
-        getTransactionsWithItems()
-      ]);
-      io.emit('tables_updated', updatedTables);
-      io.emit('transactions_updated', updatedTxs);
-    }
+    // Broadcast updates to all clients
+    const [updatedTables, updatedTxs] = await Promise.all([
+      getTablesWithOrders(),
+      getTransactionsWithItems()
+    ]);
+    io.emit('tables_updated', updatedTables);
+    io.emit('transactions_updated', updatedTxs);
 
     res.json({ success: true, transaction: { id: txId, changeAmount } });
   } catch (error) {
