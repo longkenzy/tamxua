@@ -1,5 +1,7 @@
 // Waiter App Logic
-const socket = io();
+let socket = null;
+let isPollingMode = false;
+const isVercel = window.location.hostname.endsWith('vercel.app');
 
 // State variables
 let menu = [];
@@ -74,33 +76,109 @@ async function init() {
     tables = await tablesRes.json();
     
     renderTables();
+    
+    // Initialize WebSockets or Polling fallback
+    initConnection();
   } catch (error) {
     console.error('Lỗi khi tải dữ liệu ban đầu:', error);
   }
 }
 
-// Socket.io updates (Real-time updates)
-socket.on('connect', () => {
-  connectionDot.className = 'status-dot';
-});
-
-socket.on('disconnect', () => {
-  connectionDot.className = 'status-dot offline';
-});
-
-socket.on('tables_updated', (updatedTables) => {
-  tables = updatedTables;
-  // Re-render table selection if we are on step 1
-  if (tableSelectionView.style.display !== 'none') {
-    renderTables();
-  } else {
-    // If we are looking at menu, update the active table details subtitle if changed
-    const currentTable = tables.find(t => t.id === activeTableId);
-    if (currentTable) {
-      updateActiveTableSubtitle(currentTable);
+// Initialize WebSockets or HTTP Polling Fallback
+function initConnection() {
+  if (typeof io !== 'undefined' && !isVercel) {
+    try {
+      socket = io({
+        reconnectionAttempts: 2,
+        timeout: 3000
+      });
+      
+      socket.on('connect', () => {
+        connectionDot.className = 'status-dot';
+        console.log('⚡ Connected via WebSockets.');
+      });
+      
+      socket.on('disconnect', () => {
+        connectionDot.className = 'status-dot offline';
+      });
+      
+      socket.on('tables_updated', (updatedTables) => {
+        tables = updatedTables;
+        if (tableSelectionView.style.display !== 'none') {
+          renderTables();
+        } else {
+          const currentTable = tables.find(t => t.id === activeTableId);
+          if (currentTable) {
+            updateActiveTableSubtitle(currentTable);
+          }
+        }
+      });
+      
+      socket.on('menu_updated', (updatedMenu) => {
+        menu = updatedMenu;
+        if (menuOrderingView.style.display !== 'none') {
+          renderMenuItems();
+        }
+      });
+      
+      socket.on('connect_error', () => {
+        console.warn('WebSocket connection failed. Switching to Polling.');
+        activatePolling();
+      });
+    } catch (e) {
+      console.warn('Socket initialization failed, using Polling.', e);
+      activatePolling();
     }
+  } else {
+    console.log('🌐 Vercel or Socket.io not available. Active HTTP Polling Mode.');
+    activatePolling();
   }
-});
+}
+
+function activatePolling() {
+  if (isPollingMode) return;
+  isPollingMode = true;
+  connectionDot.className = 'status-dot offline';
+  
+  if (socket) {
+    socket.disconnect();
+  }
+  
+  // Initial fetch
+  fetchDataPoll();
+  
+  // Periodic poll every 4 seconds
+  setInterval(fetchDataPoll, 4000);
+}
+
+async function fetchDataPoll() {
+  try {
+    const [menuRes, tablesRes] = await Promise.all([
+      fetch('/api/menu'),
+      fetch('/api/tables')
+    ]);
+    
+    if (menuRes.ok && tablesRes.ok) {
+      menu = await menuRes.json();
+      tables = await tablesRes.json();
+      
+      if (tableSelectionView.style.display !== 'none') {
+        renderTables();
+      } else {
+        const currentTable = tables.find(t => t.id === activeTableId);
+        if (currentTable) {
+          updateActiveTableSubtitle(currentTable);
+        }
+      }
+      
+      if (menuOrderingView.style.display !== 'none') {
+        renderMenuItems();
+      }
+    }
+  } catch (err) {
+    console.error('Polling error:', err);
+  }
+}
 
 // Render Table List
 function renderTables() {

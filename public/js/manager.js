@@ -1,5 +1,7 @@
 // Manager Dashboard Logic
-const socket = io();
+let socket = null;
+let isPollingMode = false;
+const isVercel = window.location.hostname.endsWith('vercel.app');
 
 // State variables
 let tables = [];
@@ -122,39 +124,116 @@ async function init() {
     renderTables();
     renderTransactionsList();
     updateAnalytics();
+    
+    // Initialize WebSockets or Polling
+    initConnection();
   } catch (error) {
     console.error('Lỗi tải dữ liệu ban đầu:', error);
   }
 }
 
-// Socket.io Real-Time Updates
-socket.on('connect', () => {
-  connectionDot.className = 'status-dot';
-});
+// Initialize WebSockets or HTTP Polling Fallback
+function initConnection() {
+  if (typeof io !== 'undefined' && !isVercel) {
+    try {
+      socket = io({
+        reconnectionAttempts: 2,
+        timeout: 3000
+      });
+      
+      socket.on('connect', () => {
+        connectionDot.className = 'status-dot';
+        console.log('⚡ Connected via WebSockets.');
+      });
+      
+      socket.on('disconnect', () => {
+        connectionDot.className = 'status-dot offline';
+      });
+      
+      socket.on('tables_updated', (updatedTables) => {
+        tables = updatedTables;
+        renderTables();
+        if (selectedTableId !== null) {
+          const table = tables.find(t => t.id === selectedTableId);
+          renderTableDetails(table);
+        }
+      });
+      
+      socket.on('menu_updated', (updatedMenu) => {
+        menuItems = updatedMenu;
+        if (currentTab === 'menu-mgmt') {
+          renderMenuMgmtGrid();
+        }
+      });
+      
+      socket.on('order_submitted', (data) => {
+        showToast(`🔔 ${data.tableName} vừa gọi món thành công!`);
+      });
+      
+      socket.on('transactions_updated', (updatedTransactions) => {
+        transactions = updatedTransactions;
+        applyDateFilter();
+      });
+      
+      socket.on('connect_error', () => {
+        console.warn('WebSocket connection failed. Switching to Polling.');
+        activatePolling();
+      });
+    } catch (e) {
+      console.warn('Socket initialization failed, using Polling.', e);
+      activatePolling();
+    }
+  } else {
+    console.log('🌐 Vercel or Socket.io not available. Active HTTP Polling Mode.');
+    activatePolling();
+  }
+}
 
-socket.on('disconnect', () => {
+function activatePolling() {
+  if (isPollingMode) return;
+  isPollingMode = true;
   connectionDot.className = 'status-dot offline';
-});
-
-// Update tables in real time
-socket.on('tables_updated', (updatedTables) => {
-  tables = updatedTables;
-  renderTables();
   
-  // Update details panel if a table is currently selected
-  if (selectedTableId !== null) {
-    const table = tables.find(t => t.id === selectedTableId);
-    renderTableDetails(table);
+  if (socket) {
+    socket.disconnect();
   }
-});
+  
+  // Initial fetch
+  fetchDataPoll();
+  
+  // Periodic poll every 4 seconds
+  setInterval(fetchDataPoll, 4000);
+}
 
-// Update menu items in real time
-socket.on('menu_updated', (updatedMenu) => {
-  menuItems = updatedMenu;
-  if (currentTab === 'menu-mgmt') {
-    renderMenuMgmtGrid();
+async function fetchDataPoll() {
+  try {
+    const [tablesRes, transactionsRes, menuRes] = await Promise.all([
+      fetch('/api/tables'),
+      fetch('/api/transactions'),
+      fetch('/api/menu')
+    ]);
+    
+    if (tablesRes.ok && transactionsRes.ok && menuRes.ok) {
+      tables = await tablesRes.json();
+      transactions = await transactionsRes.json();
+      menuItems = await menuRes.json();
+      
+      renderTables();
+      applyDateFilter(); // This calls renderTransactionsList and updateAnalytics inside it
+      
+      if (selectedTableId !== null) {
+        const table = tables.find(t => t.id === selectedTableId);
+        renderTableDetails(table);
+      }
+      
+      if (currentTab === 'menu-mgmt') {
+        renderMenuMgmtGrid();
+      }
+    }
+  } catch (err) {
+    console.error('Polling error:', err);
   }
-});
+}
 
 // Toast notification function
 function showToast(message) {
@@ -181,17 +260,6 @@ function showToast(message) {
     toast.remove();
   }, 4500);
 }
-
-// Listen to new orders submitted in real time
-socket.on('order_submitted', (data) => {
-  showToast(`🔔 ${data.tableName} vừa gọi món thành công!`);
-});
-
-// Update transactions and reports in real time
-socket.on('transactions_updated', (updatedTransactions) => {
-  transactions = updatedTransactions;
-  applyDateFilter();
-});
 
 // Tab Navigation logic
 tabTables.addEventListener('click', () => {
