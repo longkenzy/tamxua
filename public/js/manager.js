@@ -190,6 +190,7 @@ function initConnection() {
       
       socket.on('order_submitted', (data) => {
         showToast(`🔔 ${data.tableName} vừa gọi món thành công!`);
+        playNotificationSound();
       });
       
       socket.on('transactions_updated', (updatedTransactions) => {
@@ -236,9 +237,28 @@ async function fetchDataPoll() {
     ]);
     
     if (tablesRes.ok && transactionsRes.ok && menuRes.ok) {
-      tables = await tablesRes.json();
-      transactions = await transactionsRes.json();
-      menuItems = await menuRes.json();
+      const newTables = await tablesRes.json();
+      const newTransactions = await transactionsRes.json();
+      const newMenuItems = await menuRes.json();
+      
+      // Check if there is any new order before updating local cache
+      if (tables && tables.length > 0) {
+        newTables.forEach(newTable => {
+          const oldTable = tables.find(t => t.id === newTable.id);
+          if (oldTable) {
+            const oldQty = oldTable.order.reduce((sum, item) => sum + item.quantity, 0);
+            const newQty = newTable.order.reduce((sum, item) => sum + item.quantity, 0);
+            if (newQty > oldQty) {
+              showToast(`🔔 Bàn ${newTable.name} vừa gọi thêm món mới!`);
+              playNotificationSound();
+            }
+          }
+        });
+      }
+      
+      tables = newTables;
+      transactions = newTransactions;
+      menuItems = newMenuItems;
       
       renderTables();
       applyDateFilter(); // This calls renderTransactionsList and updateAnalytics inside it
@@ -281,6 +301,47 @@ function showToast(message) {
   setTimeout(() => {
     toast.remove();
   }, 4500);
+}
+
+// Synthesize a beautiful double-beep chime using HTML5 Web Audio API
+function playNotificationSound() {
+  try {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContext) return;
+    const ctx = new AudioContext();
+    
+    // Play first tone (D5 note, 587.33Hz)
+    const osc1 = ctx.createOscillator();
+    const gain1 = ctx.createGain();
+    osc1.connect(gain1);
+    gain1.connect(ctx.destination);
+    
+    osc1.type = 'sine';
+    osc1.frequency.setValueAtTime(587.33, ctx.currentTime);
+    gain1.gain.setValueAtTime(0, ctx.currentTime);
+    gain1.gain.linearRampToValueAtTime(0.2, ctx.currentTime + 0.05);
+    gain1.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+    
+    osc1.start(ctx.currentTime);
+    osc1.stop(ctx.currentTime + 0.3);
+    
+    // Play second tone (A5 note, 880Hz) after a short delay
+    const osc2 = ctx.createOscillator();
+    const gain2 = ctx.createGain();
+    osc2.connect(gain2);
+    gain2.connect(ctx.destination);
+    
+    osc2.type = 'sine';
+    osc2.frequency.setValueAtTime(880, ctx.currentTime + 0.12);
+    gain2.gain.setValueAtTime(0, ctx.currentTime + 0.12);
+    gain2.gain.linearRampToValueAtTime(0.2, ctx.currentTime + 0.17);
+    gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.45);
+    
+    osc2.start(ctx.currentTime + 0.12);
+    osc2.stop(ctx.currentTime + 0.45);
+  } catch (e) {
+    console.warn('Cannot play synthesized audio notification:', e);
+  }
 }
 
 // Tab Navigation logic
