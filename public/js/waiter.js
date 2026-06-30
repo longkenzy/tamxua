@@ -575,7 +575,9 @@ const headerLogoEmoji = document.getElementById('header-logo-emoji');
 if (headerLogoImg) {
   headerLogoImg.onload = function() {
     headerLogoImg.style.display = 'block';
-    headerLogoEmoji.style.display = 'none';
+    if (headerLogoEmoji) {
+      headerLogoEmoji.style.display = 'none';
+    }
   };
   if (headerLogoImg.complete) {
     headerLogoImg.onload();

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Phục vụ - Tam Xưa Order</title>
+  <title>Phục vụ - TẤM XƯA Order</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📱</text></svg>">
   <link rel="stylesheet" href="css/style.css">
   <style>
@@ -468,17 +468,20 @@
 
   <!-- Top Nav -->
   <header class="top-nav">
-    <div class="brand" onclick="location.href='index.html'" style="cursor:pointer;">
-      <img id="header-logo-img" class="brand-logo" src="images/logo.png" alt="Logo" style="width: 32px; height: 32px; border-radius: var(--rounded-full); display: none; object-fit: cover; margin-right: 4px;">
-      <span id="header-logo-emoji" class="brand-icon">🍜</span>
-      <span>Tam Xưa Order</span>
+    <div class="brand" onclick="location.href='index.html'" style="cursor:pointer; display: flex; align-items: center; gap: 8px;">
+      <img id="header-logo-img" class="brand-logo" src="images/logo.png" alt="TẤM XƯA" style="width: 38px; height: 38px; border-radius: 8px; object-fit: cover; box-shadow: 0 2px 8px rgba(0,0,0,0.06);">
+      <span style="font-weight: 800; font-size: 22px; letter-spacing: -0.5px; color: var(--ink);">TẤM XƯA</span>
     </div>
-    <div class="user-profile">
-      <span class="role-badge waiter">Phục vụ</span>
-      <div class="connection-status">
-        <div id="connection-dot" class="status-dot"></div>
+    <div class="user-profile" style="display: flex; align-items: center; gap: 12px;">
+      <div style="display: flex; align-items: center; gap: 6px; background-color: var(--surface-soft); border: 1px solid var(--hairline); border-radius: var(--rounded-full); padding: 4px 10px;">
+        <span class="role-badge waiter" style="margin: 0; padding: 0; background: none; color: var(--ink); font-weight: 600; font-size: 12px;">🚶 Phục vụ</span>
+        <span style="width: 1px; height: 12px; background-color: var(--hairline); margin: 0 4px;"></span>
+        <div class="connection-status" style="display: flex; align-items: center; gap: 4px;">
+          <div id="connection-dot" class="status-dot" style="margin: 0;"></div>
+          <span style="font-size: 11px; font-weight: 500; color: var(--muted);">Trực tuyến</span>
+        </div>
       </div>
-      <button class="btn btn-secondary btn-pill" id="btn-logout-header" style="height: 32px; padding: 0 12px; font-size: 12px; border-color: var(--hairline); margin-left: 4px;">Đăng xuất</button>
+      <button class="btn btn-secondary btn-pill" id="btn-logout-header" style="height: 34px; padding: 0 16px; font-weight: 600; font-size: 12px; border-color: var(--border-strong); transition: all 0.2s ease;">Đăng xuất</button>
     </div>
   </header>
 
