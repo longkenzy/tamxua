@@ -584,18 +584,16 @@ io.on('connection', async (socket) => {
   }
 });
 
-// Start Server with Database Setup
-db.setupDatabase().then(() => {
-  if (!process.env.VERCEL) {
+// Start Server with Database Setup (Only run setupDatabase and server.listen if not on Vercel)
+if (!process.env.VERCEL) {
+  db.setupDatabase().then(() => {
     server.listen(PORT, () => {
       console.log(`Server is running in real-time at http://localhost:${PORT}`);
     });
-  }
-}).catch(err => {
-  console.error('Database connection failed. Exiting...', err);
-  if (!process.env.VERCEL) {
+  }).catch(err => {
+    console.error('Database connection failed. Exiting...', err);
     process.exit(1);
-  }
-});
+  });
+}
 
 module.exports = app;

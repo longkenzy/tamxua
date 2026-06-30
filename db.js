@@ -4,14 +4,25 @@ const connectionString = process.env.DATABASE_URL || 'postgresql://neondb_owner:
 
 const pool = new Pool({
   connectionString: connectionString,
+  max: 2, // Limit pool size to prevent connection exhaustion on Vercel/Neon
+  connectionTimeoutMillis: 5000, // Timeout after 5 seconds instead of hanging
+  idleTimeoutMillis: 10000, // Close idle clients after 10 seconds
+  ssl: {
+    rejectUnauthorized: false // Ensure SSL works properly on Vercel/Neon
+  }
 });
 
 async function query(text, params) {
   const start = Date.now();
-  const res = await pool.query(text, params);
-  const duration = Date.now() - start;
-  // console.log('executed query', { text, duration, rows: res.rowCount });
-  return res;
+  try {
+    const res = await pool.query(text, params);
+    const duration = Date.now() - start;
+    // console.log('executed query', { text, duration, rows: res.rowCount });
+    return res;
+  } catch (error) {
+    console.error('Database query error:', error);
+    throw error;
+  }
 }
 
 // Automatically create tables and seed them if empty
