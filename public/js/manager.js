@@ -21,10 +21,19 @@ let activeMenuMgmtCategory = 'all'; // Filter state for menu management categori
 
 // DOM Elements
 const connectionDot = document.getElementById('connection-dot');
-const tabTables = document.getElementById('tab-tables');
+const tabTables = document.getElementById('tab-overview');
 const tabReports = document.getElementById('tab-reports');
+const tabInvoices = document.getElementById('tab-invoices');
+const tabBookings = document.getElementById('tab-bookings');
+const tabStaff = document.getElementById('tab-staff');
+const tabMenuMgmt = document.getElementById('tab-items');
+
 const tablesDashboardView = document.getElementById('tables-dashboard-view');
 const reportsDashboardView = document.getElementById('reports-dashboard-view');
+const invoicesDashboardView = document.getElementById('invoices-dashboard-view');
+const bookingsDashboardView = document.getElementById('bookings-dashboard-view');
+const staffDashboardView = document.getElementById('staff-dashboard-view');
+const menuMgmtDashboardView = document.getElementById('menu-mgmt-dashboard-view');
 
 // Active Tables Elements
 const managerTablesContainer = document.getElementById('manager-tables-container');
@@ -62,8 +71,7 @@ const filterEndDate = document.getElementById('filter-end-date');
 const btnApplyFilter = document.getElementById('btn-apply-filter');
 
 // Staff Management Elements
-const tabStaff = document.getElementById('tab-staff');
-const staffDashboardView = document.getElementById('staff-dashboard-view');
+// Staff list variables defined at top level
 const staffListContainer = document.getElementById('staff-list-container');
 const createStaffForm = document.getElementById('create-staff-form');
 const staffUsernameInput = document.getElementById('staff-username-input');
@@ -74,8 +82,7 @@ const staffSuccessBanner = document.getElementById('staff-success-banner');
 const btnCreateStaffSubmit = document.getElementById('btn-create-staff-submit');
 
 // Menu Management Elements
-const tabMenuMgmt = document.getElementById('tab-menu-mgmt');
-const menuMgmtDashboardView = document.getElementById('menu-mgmt-dashboard-view');
+// Menu management variables defined at top level
 const menuMgmtGridContainer = document.getElementById('menu-mgmt-grid-container');
 const btnCreateMenuItem = document.getElementById('btn-create-menu-item');
 const menuMgmtCategoryStrip = document.getElementById('menu-mgmt-category-strip');
@@ -391,61 +398,80 @@ function initAudioOnUserInteraction() {
 }
 
 // Tab Navigation logic
-tabTables.addEventListener('click', () => {
-  currentTab = 'tables';
-  tabTables.classList.add('active');
-  tabReports.classList.remove('active');
-  tabStaff.classList.remove('active');
-  tabMenuMgmt.classList.remove('active');
-  tablesDashboardView.style.display = 'grid';
-  reportsDashboardView.style.display = 'none';
-  staffDashboardView.style.display = 'none';
-  menuMgmtDashboardView.style.display = 'none';
-});
+// Tab Navigation logic
+const tabs = {
+  'tables': { el: document.getElementById('tab-overview'), view: document.getElementById('tables-dashboard-view'), title: 'Tổng quan' },
+  'reports': { el: document.getElementById('tab-reports'), view: document.getElementById('reports-dashboard-view'), title: 'Báo cáo doanh thu' },
+  'invoices': { el: document.getElementById('tab-invoices'), view: document.getElementById('invoices-dashboard-view'), title: 'Lịch sử hóa đơn' },
+  'menu-mgmt': { el: document.getElementById('tab-items'), view: document.getElementById('menu-mgmt-dashboard-view'), title: 'Quản lý mặt hàng' },
+  'bookings': { el: document.getElementById('tab-bookings'), view: document.getElementById('bookings-dashboard-view'), title: 'Đặt lịch' },
+  'staff': { el: document.getElementById('tab-staff'), view: document.getElementById('staff-dashboard-view'), title: 'Quản lý nhân viên' }
+};
 
-tabReports.addEventListener('click', () => {
-  currentTab = 'reports';
-  tabReports.classList.add('active');
-  tabTables.classList.remove('active');
-  tabStaff.classList.remove('active');
-  tabMenuMgmt.classList.remove('active');
-  tablesDashboardView.style.display = 'none';
-  reportsDashboardView.style.display = 'grid';
-  staffDashboardView.style.display = 'none';
-  menuMgmtDashboardView.style.display = 'none';
-  applyDateFilter();
-});
-
-tabStaff.addEventListener('click', () => {
-  currentTab = 'staff';
-  tabStaff.classList.add('active');
-  tabTables.classList.remove('active');
-  tabReports.classList.remove('active');
-  tabMenuMgmt.classList.remove('active');
-  tablesDashboardView.style.display = 'none';
-  reportsDashboardView.style.display = 'none';
-  staffDashboardView.style.display = 'grid';
-  menuMgmtDashboardView.style.display = 'none';
-  loadStaffList();
+function switchTab(tabKey) {
+  currentTab = tabKey;
   
-  // Clear staff banners & input
-  staffErrorBanner.style.display = 'none';
-  staffSuccessBanner.style.display = 'none';
-  staffUsernameInput.value = '';
-  staffPasswordInput.value = '';
-});
+  // Update active-tab-title in topbar
+  const activeTabTitle = document.getElementById('active-tab-title');
+  if (activeTabTitle && tabs[tabKey]) {
+    activeTabTitle.textContent = tabs[tabKey].title;
+  }
+  
+  // Toggle classes and views visibility
+  Object.keys(tabs).forEach(key => {
+    const tabObj = tabs[key];
+    if (tabObj.el) {
+      if (key === tabKey) {
+        tabObj.el.classList.add('active');
+      } else {
+        tabObj.el.classList.remove('active');
+      }
+    }
+    if (tabObj.view) {
+      if (key === tabKey) {
+        if (key === 'tables' || key === 'staff') {
+          tabObj.view.style.display = 'grid';
+        } else {
+          tabObj.view.style.display = 'block';
+        }
+      } else {
+        tabObj.view.style.display = 'none';
+      }
+    }
+  });
 
-tabMenuMgmt.addEventListener('click', () => {
-  currentTab = 'menu-mgmt';
-  tabMenuMgmt.classList.add('active');
-  tabTables.classList.remove('active');
-  tabReports.classList.remove('active');
-  tabStaff.classList.remove('active');
-  tablesDashboardView.style.display = 'none';
-  reportsDashboardView.style.display = 'none';
-  staffDashboardView.style.display = 'none';
-  menuMgmtDashboardView.style.display = 'block';
-  renderMenuMgmtGrid();
+  // Toggle filter toolbar visibility (only for reports and invoices)
+  const filterToolbar = document.querySelector('.filter-toolbar-container');
+  if (filterToolbar) {
+    if (tabKey === 'reports' || tabKey === 'invoices') {
+      filterToolbar.style.display = 'flex';
+    } else {
+      filterToolbar.style.display = 'none';
+    }
+  }
+
+  // Trigger tab-specific loaders
+  if (tabKey === 'reports' || tabKey === 'invoices') {
+    applyDateFilter();
+  } else if (tabKey === 'staff') {
+    loadStaffList();
+    if (staffErrorBanner) staffErrorBanner.style.display = 'none';
+    if (staffSuccessBanner) staffSuccessBanner.style.display = 'none';
+    if (staffUsernameInput) staffUsernameInput.value = '';
+    if (staffPasswordInput) staffPasswordInput.value = '';
+  } else if (tabKey === 'menu-mgmt') {
+    renderMenuMgmtGrid();
+  }
+}
+
+window.switchTab = switchTab;
+
+// Bind click events
+Object.keys(tabs).forEach(key => {
+  const tabObj = tabs[key];
+  if (tabObj.el) {
+    tabObj.el.addEventListener('click', () => switchTab(key));
+  }
 });
 
 // Render Active Tables Grid Map

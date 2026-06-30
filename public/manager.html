@@ -931,33 +931,138 @@
   <!-- Global Toast Container -->
   <div id="toast-container" class="toast-container"></div>
 
-  <!-- Top Nav -->
-  <header class="top-nav">
-    <div class="brand" onclick="location.href='index.html'" style="cursor:pointer; gap: 12px;">
-      <img id="header-logo-img" class="brand-logo" src="images/logo.png" alt="Logo" style="width: 44px; height: 44px; border-radius: var(--rounded-md); display: none; object-fit: cover;">
-      <span id="header-logo-emoji" class="brand-icon" style="font-size: 36px; line-height: 1;">🍜</span>
-      <span style="font-weight: 800; letter-spacing: 0.5px; font-size: 24px;">TẤM XƯA</span>
-    </div>
+  <!-- App Layout -->
+  <div class="app-layout">
     
-    <!-- Desktop Center Tabs -->
-    <div class="nav-tabs">
-      <div id="tab-tables" class="product-tab active">🗺️ Sơ đồ bàn ăn</div>
-      <div id="tab-reports" class="product-tab">📊 Hóa đơn & Báo cáo</div>
-      <div id="tab-staff" class="product-tab">👥 Nhân viên</div>
-      <div id="tab-menu-mgmt" class="product-tab">🍳 Quản lý món ăn</div>
-    </div>
-
-    <div class="user-profile">
-      <span class="role-badge manager">Quản lý</span>
-      <div class="connection-status">
-        <div id="connection-dot" class="status-dot"></div>
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <span class="brand-icon" style="font-size: 28px; line-height: 1;">🍜</span>
+        <span class="sidebar-logo-text">TẤM XƯA</span>
       </div>
-      <button class="btn btn-secondary btn-pill" id="btn-logout-header" style="height: 32px; padding: 0 12px; font-size: 12px; border-color: var(--hairline); margin-left: 12px;">Đăng xuất</button>
-    </div>
-  </header>
+      <nav class="sidebar-nav">
+        <div id="tab-overview" class="sidebar-link active">
+          <div class="sidebar-link-content">
+            <span class="sidebar-link-icon">🗺️</span>
+            <span>Tổng quan</span>
+          </div>
+        </div>
+        <div id="tab-reports" class="sidebar-link">
+          <div class="sidebar-link-content">
+            <span class="sidebar-link-icon">📊</span>
+            <span>Báo cáo</span>
+          </div>
+          <span class="sidebar-link-chevron">❯</span>
+        </div>
+        <div id="tab-invoices" class="sidebar-link">
+          <div class="sidebar-link-content">
+            <span class="sidebar-link-icon">🧾</span>
+            <span>Hóa đơn</span>
+          </div>
+          <span class="sidebar-link-chevron">❯</span>
+        </div>
+        <div id="tab-items" class="sidebar-link">
+          <div class="sidebar-link-content">
+            <span class="sidebar-link-icon">🍳</span>
+            <span>Mặt hàng</span>
+          </div>
+          <span class="sidebar-link-chevron">❯</span>
+        </div>
+        <div id="tab-bookings" class="sidebar-link">
+          <div class="sidebar-link-content">
+            <span class="sidebar-link-icon">📅</span>
+            <span>Đặt lịch</span>
+          </div>
+          <span class="sidebar-link-chevron">❯</span>
+        </div>
+        <div id="tab-staff" class="sidebar-link">
+          <div class="sidebar-link-content">
+            <span class="sidebar-link-icon">👥</span>
+            <span>Nhân viên</span>
+          </div>
+          <span class="sidebar-link-chevron">❯</span>
+        </div>
+      </nav>
+      
+      <!-- Sidebar Footer (Logout button) -->
+      <div style="padding: 16px 12px; border-top: 1px solid #1e293b;">
+        <button id="btn-logout-header" class="btn btn-secondary" style="width: 100%; border-color: #334155; color: #94a3b8; background-color: transparent; border-radius: var(--rounded-md);">Đăng xuất</button>
+      </div>
+    </aside>
+    
+    <!-- Main content wrapper -->
+    <div class="main-wrapper">
+      <!-- Topbar -->
+      <header class="topbar">
+        <div class="topbar-left">
+          <span class="topbar-title" id="active-tab-title">Tổng quan</span>
+        </div>
+        <div class="topbar-actions">
+          <!-- Notification -->
+          <div class="topbar-notif">
+            <span style="font-size: 20px;">🔔</span>
+            <span class="notif-badge">3</span>
+          </div>
+          
+          <!-- Profile -->
+          <div class="topbar-profile">
+            <div class="profile-avatar">TX</div>
+            <div class="profile-info">
+              <span class="profile-name">Tấm Xưa Quán</span>
+              <div style="display: flex; align-items: center; gap: 6px; margin-top: 1px;">
+                <span class="profile-status">Gói Pro</span>
+                <span id="connection-dot" class="status-dot" style="width: 6px; height: 6px; display: inline-block;"></span>
+              </div>
+            </div>
+            <span style="font-size: 10px; color: var(--muted); margin-left: 4px;">▼</span>
+          </div>
+        </div>
+      </header>
+      
+      <!-- Shared Time Filter Toolbar -->
+      <div class="filter-toolbar-container" style="margin: 24px 32px 0 32px; display: none;">
+        <div class="filter-title-block">
+          <span class="filter-icon">📅</span>
+          <span class="filter-title">Bộ lọc thời gian</span>
+        </div>
+        
+        <div class="filter-controls-block">
+          <!-- Hidden Select for JS bindings compatibility -->
+          <select id="filter-preset" style="display: none;">
+            <option value="all">Tất cả</option>
+            <option value="today" selected>Hôm nay</option>
+            <option value="month">Tháng này</option>
+            <option value="year">Năm nay</option>
+            <option value="custom">Tự chọn</option>
+          </select>
 
-  <!-- Main Container -->
-  <main class="manager-container">
+          <!-- Segmented Control for visual preset selection -->
+          <div class="filter-segmented-control">
+            <button type="button" class="filter-segment" data-preset="all">Tất cả</button>
+            <button type="button" class="filter-segment active" data-preset="today">Hôm nay</button>
+            <button type="button" class="filter-segment" data-preset="month">Tháng này</button>
+            <button type="button" class="filter-segment" data-preset="year">Năm nay</button>
+            <button type="button" class="filter-segment" data-preset="custom">Tự chọn...</button>
+          </div>
+
+          <!-- Custom Date Range Inputs -->
+          <div id="filter-custom-dates" style="display: none; gap: 8px; align-items: center; background-color: var(--surface-soft); border-radius: var(--rounded-full); padding: 4px 12px; border: 1px solid var(--hairline); animation: fadeIn 0.2s ease;">
+            <div class="date-picker-compact">
+              <span class="date-label">Từ</span>
+              <input type="date" id="filter-start-date" class="date-input-field">
+            </div>
+            <span class="date-arrow">➔</span>
+            <div class="date-picker-compact">
+              <span class="date-label">Đến</span>
+              <input type="date" id="filter-end-date" class="date-input-field">
+            </div>
+            <button type="button" class="btn btn-primary btn-pill" id="btn-apply-filter" style="height: 32px; font-size: 12px; padding: 0 16px; margin-left: 4px; font-weight: 600;">Lọc</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Content Area -->
+      <main class="content-area">
     
     <!-- VIEW 1: Active Tables Map Dashboard (Default) -->
     <div id="tables-dashboard-view" class="dashboard-view">
@@ -998,189 +1103,156 @@
 
     </div>
 
-    <!-- VIEW 2: History & Reports Dashboard (Hidden by default) -->
-    <div id="reports-dashboard-view" class="reports-view" style="display: none;">
-      
-      <!-- Redesigned Time Filter Toolbar -->
-      <div class="filter-toolbar-container">
-        <div class="filter-title-block">
-          <span class="filter-icon">📅</span>
-          <span class="filter-title">Bộ lọc thời gian</span>
+    <!-- VIEW 2: Reports Dashboard (Hidden by default) -->
+    <div id="reports-dashboard-view" class="reports-view-full" style="display: none;">
+      <!-- Top Analytics Row (4x1 Grid) -->
+      <div class="analytics-row" style="grid-template-columns: repeat(4, 1fr); gap: var(--space-base); margin-bottom: var(--space-lg);">
+        
+        <!-- Dynamic Revenue -->
+        <div class="analytics-card" style="border-color: var(--primary);">
+          <span class="analytics-card-label" id="stat-revenue-label" style="color: var(--primary); font-weight: 700;">Doanh thu Hôm nay</span>
+          <span class="analytics-card-value" id="stat-revenue" style="color: var(--primary);">0đ</span>
+        </div>
+
+        <!-- Total Discount -->
+        <div class="analytics-card" style="border-color: #fca5a5;">
+          <span class="analytics-card-label" style="color: #ef4444;">Tổng Giảm giá</span>
+          <span class="analytics-card-value" id="stat-total-discount" style="color: #ef4444;">0đ</span>
+        </div>
+
+        <!-- Total Bills -->
+        <div class="analytics-card">
+          <span class="analytics-card-label">Tổng số Hóa đơn</span>
+          <span class="analytics-card-value" id="stat-total-bills">0</span>
+        </div>
+
+        <!-- Best Seller -->
+        <div class="analytics-card">
+          <span class="analytics-card-label">Bán chạy nhất</span>
+          <span class="analytics-card-value" id="stat-best-seller" style="font-size: 15px; font-weight: 600; margin-top: 4px;">--</span>
+        </div>
+
+      </div>
+
+      <!-- Payment Methods Summary -->
+      <div style="margin-bottom: var(--space-lg);">
+        <h3 style="font-size: 14px; font-weight: 600; margin-bottom: 8px; color: var(--ink); display: flex; align-items: center; gap: 6px;">
+          <span>💳</span> Chi tiết theo phương thức thanh toán
+        </h3>
+        <div class="analytics-row" style="grid-template-columns: repeat(4, 1fr); gap: var(--space-base); margin-bottom: 0;">
+          <!-- Cash Bills Count -->
+          <div class="analytics-card" style="border-left: 4px solid #10b981;">
+            <span class="analytics-card-label" style="color: #059669; font-weight: 600;">Số đơn Tiền mặt</span>
+            <span class="analytics-card-value" id="stat-cash-bills" style="font-size: 20px;">0</span>
+          </div>
+          <!-- Cash Amount -->
+          <div class="analytics-card" style="border-left: 4px solid #10b981;">
+            <span class="analytics-card-label" style="color: #059669; font-weight: 600;">Tiền mặt (Thực thu)</span>
+            <span class="analytics-card-value" id="stat-cash-amount" style="font-size: 20px;">0đ</span>
+          </div>
+          <!-- Bank Bills Count -->
+          <div class="analytics-card" style="border-left: 4px solid #3b82f6;">
+            <span class="analytics-card-label" style="color: #2563eb; font-weight: 600;">Số đơn Chuyển khoản</span>
+            <span class="analytics-card-value" id="stat-bank-bills" style="font-size: 20px;">0</span>
+          </div>
+          <!-- Bank Amount -->
+          <div class="analytics-card" style="border-left: 4px solid #3b82f6;">
+            <span class="analytics-card-label" style="color: #2563eb; font-weight: 600;">Chuyển khoản (Thực thu)</span>
+            <span class="analytics-card-value" id="stat-bank-amount" style="font-size: 20px;">0đ</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Visual Analytics Charts Panel -->
+      <div class="sticky-panel" style="margin-bottom: var(--space-lg); position: static; box-shadow: none; border-color: var(--hairline); padding: var(--space-base);">
+        <div class="panel-header" style="border-bottom: none; padding-bottom: 0;">
+          <div class="panel-header-title">
+            <h2 style="font-size: 16px; font-weight: 600;">Biểu đồ trực quan hóa</h2>
+            <p>Phân tích xu hướng doanh thu và cơ cấu món ăn đã bán</p>
+          </div>
         </div>
         
-        <div class="filter-controls-block">
-          <!-- Hidden Select for JS bindings compatibility -->
-          <select id="filter-preset" style="display: none;">
-            <option value="all">Tất cả</option>
-            <option value="today" selected>Hôm nay</option>
-            <option value="month">Tháng này</option>
-            <option value="year">Năm nay</option>
-            <option value="custom">Tự chọn</option>
-          </select>
-
-          <!-- Segmented Control for visual preset selection -->
-          <div class="filter-segmented-control">
-            <button type="button" class="filter-segment" data-preset="all">Tất cả</button>
-            <button type="button" class="filter-segment active" data-preset="today">Hôm nay</button>
-            <button type="button" class="filter-segment" data-preset="month">Tháng này</button>
-            <button type="button" class="filter-segment" data-preset="year">Năm nay</button>
-            <button type="button" class="filter-segment" data-preset="custom">Tự chọn...</button>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--space-base); margin-top: 12px;">
+          <!-- Left: Revenue Trend Line Chart -->
+          <div style="border: 1px solid var(--hairline-soft); border-radius: var(--rounded-sm); padding: var(--space-sm); background-color: var(--surface-soft);">
+            <h3 style="font-size: 12px; font-weight: 600; margin-bottom: 8px; color: var(--ink);">Biểu diễn doanh thu (Đường)</h3>
+            <div style="height: 180px; position: relative;">
+              <canvas id="revenue-chart"></canvas>
+            </div>
           </div>
 
-          <!-- Custom Date Range Inputs -->
-          <div id="filter-custom-dates" style="display: none; gap: 8px; align-items: center; background-color: var(--surface-soft); border-radius: var(--rounded-full); padding: 4px 12px; border: 1px solid var(--hairline); animation: fadeIn 0.2s ease;">
-            <div class="date-picker-compact">
-              <span class="date-label">Từ</span>
-              <input type="date" id="filter-start-date" class="date-input-field">
+          <!-- Center: Revenue Comparison Bar Chart -->
+          <div style="border: 1px solid var(--hairline-soft); border-radius: var(--rounded-sm); padding: var(--space-sm); background-color: var(--surface-soft);">
+            <h3 style="font-size: 12px; font-weight: 600; margin-bottom: 8px; color: var(--ink);">So sánh doanh thu (Cột)</h3>
+            <div style="height: 180px; position: relative;">
+              <canvas id="revenue-bar-chart"></canvas>
             </div>
-            <span class="date-arrow">➔</span>
-            <div class="date-picker-compact">
-              <span class="date-label">Đến</span>
-              <input type="date" id="filter-end-date" class="date-input-field">
+          </div>
+          
+          <!-- Right: Dish Sales Doughnut Chart -->
+          <div style="border: 1px solid var(--hairline-soft); border-radius: var(--rounded-sm); padding: var(--space-sm); background-color: var(--surface-soft);">
+            <h3 style="font-size: 12px; font-weight: 600; margin-bottom: 8px; color: var(--ink);">Tỷ lệ món ăn đã bán</h3>
+            <div style="height: 180px; position: relative; display: flex; align-items: center; justify-content: center;">
+              <canvas id="dishes-chart"></canvas>
             </div>
-            <button type="button" class="btn btn-primary btn-pill" id="btn-apply-filter" style="height: 32px; font-size: 12px; padding: 0 16px; margin-left: 4px; font-weight: 600;">Lọc</button>
           </div>
         </div>
+      </div>
+
+      <!-- Menu Item Sales Statistics Panel -->
+      <div class="sticky-panel" style="margin-bottom: var(--space-lg); position: static; box-shadow: none; border-color: var(--hairline); padding: var(--space-base);">
+        <div class="panel-header" style="border-bottom: none; padding-bottom: 0;">
+          <div class="panel-header-title">
+            <h2 style="font-size: 16px; font-weight: 600;">Thống kê món ăn đã bán</h2>
+            <p>Số lượng và doanh thu từng món ăn tích lũy</p>
+          </div>
+        </div>
+        
+        <div style="max-height: 220px; overflow-y: auto; border: 1px solid var(--hairline-soft); border-radius: var(--rounded-sm); background-color: var(--surface-soft); margin-top: 10px;">
+          <table class="checkout-bill-table" style="margin: 0; font-size: 13px;">
+            <thead>
+              <tr style="background-color: var(--surface-strong);">
+                <th style="padding: 10px 12px; font-weight: 600;">Món ăn</th>
+                <th class="text-center" style="width: 100px; padding: 10px 12px; font-weight: 600;">Số lượng</th>
+                <th class="text-right" style="width: 140px; padding: 10px 12px; font-weight: 600;">Tổng doanh thu</th>
+              </tr>
+            </thead>
+            <tbody id="menu-sales-stats-body">
+              <!-- Rendered dynamically -->
+              <tr>
+                <td colspan="3" class="text-center text-muted" style="padding: var(--space-base);">Chưa có dữ liệu bán hàng.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- VIEW 3: Hóa đơn Dashboard (Hidden by default) -->
+    <div id="invoices-dashboard-view" style="display: none; width: 100%;">
+      <div class="dashboard-header-block">
+        <h1 class="section-title-v2">Lịch sử hóa đơn</h1>
+        <p style="margin: 4px 0 0 0; color: var(--muted); font-size: 13px;">Tra cứu, xem chi tiết và in lại hóa đơn thanh toán</p>
+      </div>
+      <div class="history-list" id="history-list-container" style="width: 100%; max-width: 100%;">
+        <!-- Rendered dynamically -->
+        <div class="text-center text-muted p-md">Chưa có hóa đơn nào được thanh toán.</div>
+      </div>
+    </div>
+
+    <!-- VIEW 5: Reservations (Bookings) Dashboard (Hidden by default) -->
+    <div id="bookings-dashboard-view" style="display: none; width: 100%;">
+      <div class="dashboard-header-block">
+        <h1 class="section-title-v2">Đặt lịch</h1>
+        <p style="margin: 4px 0 0 0; color: var(--muted); font-size: 13px;">Quản lý bàn đặt trước và lịch hẹn của khách hàng</p>
       </div>
       
-      <!-- Left side: Bills list -->
-      <div class="left-section">
-        <div class="dashboard-header-block">
-          <h1 class="section-title-v2">Lịch sử hóa đơn</h1>
-          <p style="margin: 4px 0 0 0; color: var(--muted); font-size: 13px;">Tra cứu, xem chi tiết và in lại hóa đơn thanh toán</p>
-        </div>
-        <div class="history-list" id="history-list-container">
-          <!-- Rendered dynamically -->
-          <div class="text-center text-muted p-md">Chưa có hóa đơn nào được thanh toán.</div>
-        </div>
+      <div style="background-color: var(--canvas); border-radius: var(--rounded-lg); padding: var(--space-xl); text-align: center; border: 1px solid var(--hairline); box-shadow: var(--shadow-sm); display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 400px;">
+        <span style="font-size: 64px; margin-bottom: 16px;">📅</span>
+        <h2 style="font-size: 20px; font-weight: 700; color: var(--ink); margin-bottom: 8px;">Tính năng Đặt lịch đang phát triển</h2>
+        <p style="color: var(--muted); max-width: 420px; font-size: 14px; line-height: 1.5; margin-bottom: 24px;">Hệ thống đang được nâng cấp để hỗ trợ đặt bàn trước, xếp lịch theo ca và thông báo SMS/Zalo cho khách hàng. Vui lòng quay lại sau.</p>
+        <button class="btn btn-primary btn-pill" onclick="switchTab('tables')" style="height: 40px; padding: 0 24px; font-weight: 600;">Quay lại Tổng quan</button>
       </div>
-
-      <!-- Right side: Statistics & Selected Bill details -->
-      <div class="right-section">
-        <!-- Top Analytics Row (4x1 Grid) -->
-        <div class="analytics-row" style="grid-template-columns: repeat(4, 1fr); gap: var(--space-base); margin-bottom: var(--space-lg);">
-          
-          <!-- Dynamic Revenue -->
-          <div class="analytics-card" style="border-color: var(--primary);">
-            <span class="analytics-card-label" id="stat-revenue-label" style="color: var(--primary); font-weight: 700;">Doanh thu Hôm nay</span>
-            <span class="analytics-card-value" id="stat-revenue" style="color: var(--primary);">0đ</span>
-          </div>
-
-          <!-- Total Discount -->
-          <div class="analytics-card" style="border-color: #fca5a5;">
-            <span class="analytics-card-label" style="color: #ef4444;">Tổng Giảm giá</span>
-            <span class="analytics-card-value" id="stat-total-discount" style="color: #ef4444;">0đ</span>
-          </div>
-
-          <!-- Total Bills -->
-          <div class="analytics-card">
-            <span class="analytics-card-label">Tổng số Hóa đơn</span>
-            <span class="analytics-card-value" id="stat-total-bills">0</span>
-          </div>
-
-          <!-- Best Seller -->
-          <div class="analytics-card">
-            <span class="analytics-card-label">Bán chạy nhất</span>
-            <span class="analytics-card-value" id="stat-best-seller" style="font-size: 15px; font-weight: 600; margin-top: 4px;">--</span>
-          </div>
-
-        </div>
-
-        <!-- Payment Methods Summary -->
-        <div style="margin-bottom: var(--space-lg);">
-          <h3 style="font-size: 14px; font-weight: 600; margin-bottom: 8px; color: var(--ink); display: flex; align-items: center; gap: 6px;">
-            <span>💳</span> Chi tiết theo phương thức thanh toán
-          </h3>
-          <div class="analytics-row" style="grid-template-columns: repeat(4, 1fr); gap: var(--space-base); margin-bottom: 0;">
-            <!-- Cash Bills Count -->
-            <div class="analytics-card" style="border-left: 4px solid #10b981;">
-              <span class="analytics-card-label" style="color: #059669; font-weight: 600;">Số đơn Tiền mặt</span>
-              <span class="analytics-card-value" id="stat-cash-bills" style="font-size: 20px;">0</span>
-            </div>
-            <!-- Cash Amount -->
-            <div class="analytics-card" style="border-left: 4px solid #10b981;">
-              <span class="analytics-card-label" style="color: #059669; font-weight: 600;">Tiền mặt (Thực thu)</span>
-              <span class="analytics-card-value" id="stat-cash-amount" style="font-size: 20px;">0đ</span>
-            </div>
-            <!-- Bank Bills Count -->
-            <div class="analytics-card" style="border-left: 4px solid #3b82f6;">
-              <span class="analytics-card-label" style="color: #2563eb; font-weight: 600;">Số đơn Chuyển khoản</span>
-              <span class="analytics-card-value" id="stat-bank-bills" style="font-size: 20px;">0</span>
-            </div>
-            <!-- Bank Amount -->
-            <div class="analytics-card" style="border-left: 4px solid #3b82f6;">
-              <span class="analytics-card-label" style="color: #2563eb; font-weight: 600;">Chuyển khoản (Thực thu)</span>
-              <span class="analytics-card-value" id="stat-bank-amount" style="font-size: 20px;">0đ</span>
-            </div>
-          </div>
-        </div>
-
-
-        <!-- Visual Analytics Charts Panel -->
-        <div class="sticky-panel" style="margin-bottom: var(--space-lg); position: static; box-shadow: none; border-color: var(--hairline); padding: var(--space-base);">
-          <div class="panel-header" style="border-bottom: none; padding-bottom: 0;">
-            <div class="panel-header-title">
-              <h2 style="font-size: 16px; font-weight: 600;">Biểu đồ trực quan hóa</h2>
-              <p>Phân tích xu hướng doanh thu và cơ cấu món ăn đã bán</p>
-            </div>
-          </div>
-          
-          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--space-base); margin-top: 12px;">
-            <!-- Left: Revenue Trend Line Chart -->
-            <div style="border: 1px solid var(--hairline-soft); border-radius: var(--rounded-sm); padding: var(--space-sm); background-color: var(--surface-soft);">
-              <h3 style="font-size: 12px; font-weight: 600; margin-bottom: 8px; color: var(--ink);">Biểu diễn doanh thu (Đường)</h3>
-              <div style="height: 180px; position: relative;">
-                <canvas id="revenue-chart"></canvas>
-              </div>
-            </div>
-
-            <!-- Center: Revenue Comparison Bar Chart -->
-            <div style="border: 1px solid var(--hairline-soft); border-radius: var(--rounded-sm); padding: var(--space-sm); background-color: var(--surface-soft);">
-              <h3 style="font-size: 12px; font-weight: 600; margin-bottom: 8px; color: var(--ink);">So sánh doanh thu (Cột)</h3>
-              <div style="height: 180px; position: relative;">
-                <canvas id="revenue-bar-chart"></canvas>
-              </div>
-            </div>
-            
-            <!-- Right: Dish Sales Doughnut Chart -->
-            <div style="border: 1px solid var(--hairline-soft); border-radius: var(--rounded-sm); padding: var(--space-sm); background-color: var(--surface-soft);">
-              <h3 style="font-size: 12px; font-weight: 600; margin-bottom: 8px; color: var(--ink);">Tỷ lệ món ăn đã bán</h3>
-              <div style="height: 180px; position: relative; display: flex; align-items: center; justify-content: center;">
-                <canvas id="dishes-chart"></canvas>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Menu Item Sales Statistics Panel -->
-        <div class="sticky-panel" style="margin-bottom: var(--space-lg); position: static; box-shadow: none; border-color: var(--hairline); padding: var(--space-base);">
-          <div class="panel-header" style="border-bottom: none; padding-bottom: 0;">
-            <div class="panel-header-title">
-              <h2 style="font-size: 16px; font-weight: 600;">Thống kê món ăn đã bán</h2>
-              <p>Số lượng và doanh thu từng món ăn tích lũy</p>
-            </div>
-          </div>
-          
-          <div style="max-height: 220px; overflow-y: auto; border: 1px solid var(--hairline-soft); border-radius: var(--rounded-sm); background-color: var(--surface-soft); margin-top: 10px;">
-            <table class="checkout-bill-table" style="margin: 0; font-size: 13px;">
-              <thead>
-                <tr style="background-color: var(--surface-strong);">
-                  <th style="padding: 10px 12px; font-weight: 600;">Món ăn</th>
-                  <th class="text-center" style="width: 100px; padding: 10px 12px; font-weight: 600;">Số lượng</th>
-                  <th class="text-right" style="width: 140px; padding: 10px 12px; font-weight: 600;">Tổng doanh thu</th>
-                </tr>
-              </thead>
-              <tbody id="menu-sales-stats-body">
-                <!-- Rendered dynamically -->
-                <tr>
-                  <td colspan="3" class="text-center text-muted" style="padding: var(--space-base);">Chưa có dữ liệu bán hàng.</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
     </div>
 
     <!-- VIEW 3: Staff Management Dashboard (Hidden by default) -->
@@ -1274,7 +1346,9 @@
       </div>
     </div>
 
-  </main>
+      </main>
+    </div>
+  </div>
 
   <!-- CALCULATOR MODAL: Checkout / Calculating Change -->
   <div class="modal-backdrop" id="checkout-modal">

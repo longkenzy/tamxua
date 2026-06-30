@@ -1026,11 +1026,261 @@ a {
     font-weight: bold;
   }
   
-  .receipt-footer {
-    text-align: center;
-    margin-top: 20px;
-    font-size: 10px;
-  }
+.location-segment:active .location-icon {
+  transform: scale(1.15);
+}
+
+/* App Layout & Sidebar Navigation */
+.app-layout {
+  display: flex;
+  min-height: 100vh;
+  background-color: #f8fafc;
+  font-family: inherit;
+}
+
+.sidebar {
+  width: 240px;
+  background-color: #0c192c; /* Deep premium navy color matching Sapo */
+  color: #94a3b8;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  height: 100vh;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  border-right: 1px solid #1e293b;
+  box-shadow: 4px 0 16px rgba(0, 0, 0, 0.03);
+}
+
+.sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 20px 24px;
+  border-bottom: 1px solid #1e293b;
+  background-color: #0a1424;
+}
+
+.sidebar-logo-text {
+  font-weight: 800;
+  font-size: 20px;
+  color: #f8fafc;
+  letter-spacing: 0.5px;
+}
+
+.sidebar-nav {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 24px 16px;
+  overflow-y: auto;
+}
+
+.sidebar-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-radius: var(--rounded-md);
+  color: #94a3b8;
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 14px;
+  transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+  cursor: pointer;
+  user-select: none;
+}
+
+.sidebar-link-content {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.sidebar-link-icon {
+  font-size: 18px;
+  filter: grayscale(100%);
+  opacity: 0.7;
+  transition: all 0.2s ease;
+}
+
+.sidebar-link-chevron {
+  font-size: 10px;
+  color: #475569;
+  transition: transform 0.25s ease, color 0.2s ease;
+}
+
+.sidebar-link:hover {
+  color: #ffffff;
+  background-color: #16253b;
+}
+
+.sidebar-link:hover .sidebar-link-icon {
+  filter: none;
+  opacity: 1;
+  transform: translateX(2px);
+}
+
+.sidebar-link.active {
+  color: #ffffff;
+  background-color: var(--primary); /* Airbnb Rausch red `#ff385c` */
+  font-weight: 600;
+  box-shadow: 0 4px 12px rgba(255, 56, 92, 0.25);
+}
+
+.sidebar-link.active .sidebar-link-icon {
+  filter: none;
+  opacity: 1;
+}
+
+.sidebar-link.active .sidebar-link-chevron {
+  color: #ffffff;
+  transform: rotate(90deg);
+}
+
+/* Main Wrapper & Topbar Styling */
+.main-wrapper {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.topbar {
+  height: 70px;
+  background-color: #ffffff;
+  border-bottom: 1px solid var(--hairline-soft);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 32px;
+  position: sticky;
+  top: 0;
+  z-index: 90;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+}
+
+.topbar-title {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--ink);
+  letter-spacing: -0.5px;
+}
+
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.topbar-notif {
+  position: relative;
+  cursor: pointer;
+  width: 42px;
+  height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--rounded-full);
+  background-color: var(--surface-soft);
+  border: 1px solid var(--hairline-soft);
+  transition: all 0.2s ease;
+}
+
+.topbar-notif:hover {
+  background-color: #e2e8f0;
+  transform: scale(1.05);
+}
+
+.notif-badge {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  background-color: var(--primary);
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 800;
+  min-width: 18px;
+  height: 18px;
+  border-radius: var(--rounded-full);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  border: 2px solid #ffffff;
+  box-shadow: 0 2px 6px rgba(255, 56, 92, 0.4);
+}
+
+.topbar-profile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  padding: 6px 16px 6px 8px;
+  border-radius: var(--rounded-full);
+  border: 1px solid var(--hairline);
+  background-color: #ffffff;
+  transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+  user-select: none;
+}
+
+.topbar-profile:hover {
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+  border-color: var(--border-strong);
+  transform: translateY(-1px);
+}
+
+.profile-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: var(--rounded-full);
+  background-color: var(--primary);
+  color: #ffffff;
+  font-weight: 800;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: inset 0 -2px 4px rgba(0,0,0,0.15);
+}
+
+.profile-info {
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+}
+
+.profile-name {
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--ink);
+  line-height: 1.2;
+}
+
+.profile-status {
+  font-size: 10px;
+  color: #3b82f6;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-top: 1px;
+}
+
+.content-area {
+  padding: 32px;
+  flex-grow: 1;
+  overflow-y: auto;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.reports-view-full {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xl);
+  width: 100%;
 }
 
 /* Location Segmented Control */
