@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Đăng nhập - TẤM XƯA Order</title>
+  <title>Đăng nhập - Tam Xưa Order</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🔑</text></svg>">
   <link rel="stylesheet" href="css/style.css">
   <style>
@@ -46,10 +46,9 @@
     .login-logo {
       width: 80px;
       height: 80px;
-      border-radius: 16px;
+      border-radius: var(--rounded-full);
       object-fit: cover;
       display: none; /* Will show if image loads */
-      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
     }
     
     .login-logo-emoji {
@@ -111,11 +110,12 @@
 
   <!-- Top Nav (Simple) -->
   <header class="top-nav">
-    <div class="brand" style="display: flex; align-items: center; gap: 8px;">
-      <img id="header-logo-img" class="brand-logo" src="images/logo.png" alt="TẤM XƯA" style="width: 38px; height: 38px; border-radius: 8px; object-fit: cover; box-shadow: 0 2px 8px rgba(0,0,0,0.06);">
-      <span style="font-weight: 800; font-size: 22px; letter-spacing: -0.5px; color: var(--ink);">TẤM XƯA</span>
+    <div class="brand">
+      <img id="header-logo-img" class="brand-logo" src="images/logo.png" alt="Logo" style="width: 32px; height: 32px; border-radius: var(--rounded-md); display: none; object-fit: cover;">
+      <span id="header-logo-emoji" class="brand-icon">🍜</span>
+      <span style="font-weight: 700; letter-spacing: 0.5px;">TẤM XƯA</span>
     </div>
-    <div class="connection-status" style="background-color: var(--surface-strong); border: 1px solid var(--hairline); border-radius: var(--rounded-full); padding: 4px 12px; font-size: 12px; font-weight: 600; color: var(--ink);">
+    <div class="connection-status">
       <span>Đăng nhập hệ thống</span>
     </div>
   </header>
@@ -159,7 +159,7 @@
       </form>
 
       <div class="login-footer">
-        <p>© 2026 TẤM XƯA Restaurant, Inc. Mọi quyền được bảo lưu.</p>
+        <p>© 2026 Tam Xưa Restaurant, Inc. Mọi quyền được bảo lưu.</p>
       </div>
     </div>
   </main>
@@ -173,16 +173,12 @@
 
     logoImg.onload = function() {
       logoImg.style.display = 'block';
-      if (logoEmoji) {
-        logoEmoji.style.display = 'none';
-      }
+      logoEmoji.style.display = 'none';
     };
     
     headerLogoImg.onload = function() {
       headerLogoImg.style.display = 'block';
-      if (headerLogoEmoji) {
-        headerLogoEmoji.style.display = 'none';
-      }
+      headerLogoEmoji.style.display = 'none';
     };
 
     // Handle form login
