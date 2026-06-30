@@ -119,41 +119,48 @@ a {
 .nav-tabs {
   display: flex;
   align-items: center;
-  gap: var(--space-xl);
-  height: 100%;
+  background-color: var(--surface-soft);
+  padding: 4px;
+  border-radius: var(--rounded-full);
+  gap: 6px;
+  border: 1px solid var(--hairline-soft);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.02);
 }
 
 .product-tab {
-  height: 100%;
   display: flex;
   align-items: center;
-  justify-content: center;
-  position: relative;
-  font-size: 16px;
-  font-weight: 500;
+  gap: var(--space-xs);
+  font-size: 14px;
+  font-weight: 600;
   color: var(--muted);
   cursor: pointer;
-  padding: 0 var(--space-xs);
-  transition: color 0.2s ease;
+  padding: 8px 16px;
+  border-radius: var(--rounded-full);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+  user-select: none;
+}
+
+.product-tab::after {
+  display: none !important;
 }
 
 .product-tab:hover {
-  color: var(--ink);
+  color: var(--primary);
+  background-color: rgba(255, 56, 92, 0.05);
 }
 
 .product-tab.active {
-  color: var(--ink);
-  font-weight: 600;
+  color: var(--on-primary);
+  background-color: var(--primary);
+  box-shadow: 0 4px 14px rgba(255, 56, 92, 0.25);
+  transform: scale(1.02);
 }
 
-.product-tab.active::after {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background-color: var(--ink);
+.product-tab:active {
+  transform: scale(0.96);
 }
 
 .user-profile {

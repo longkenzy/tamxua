@@ -43,14 +43,16 @@ const btnConfirmCheckoutPay = document.getElementById('btn-confirm-checkout-pay'
 
 // History & Analytics Elements
 const historyListContainer = document.getElementById('history-list-container');
-const billDetailsPanel = document.getElementById('bill-details-panel');
-const statTodayRevenue = document.getElementById('stat-today-revenue');
-const statMonthRevenue = document.getElementById('stat-month-revenue');
-const statYearRevenue = document.getElementById('stat-year-revenue');
+const statRevenue = document.getElementById('stat-revenue');
+const statRevenueLabel = document.getElementById('stat-revenue-label');
 const statTotalDiscount = document.getElementById('stat-total-discount');
 const statTotalBills = document.getElementById('stat-total-bills');
 const statBestSeller = document.getElementById('stat-best-seller');
 const menuSalesStatsBody = document.getElementById('menu-sales-stats-body');
+const statCashBills = document.getElementById('stat-cash-bills');
+const statCashAmount = document.getElementById('stat-cash-amount');
+const statBankBills = document.getElementById('stat-bank-bills');
+const statBankAmount = document.getElementById('stat-bank-amount');
 
 // Time Filters Elements
 const filterPreset = document.getElementById('filter-preset');
@@ -70,28 +72,6 @@ const staffErrorBanner = document.getElementById('staff-error-banner');
 const staffErrorMessage = document.getElementById('staff-error-message');
 const staffSuccessBanner = document.getElementById('staff-success-banner');
 const btnCreateStaffSubmit = document.getElementById('btn-create-staff-submit');
-const staffSearchInput = document.getElementById('staff-search-input');
-const staffCountBadge = document.getElementById('staff-count-badge');
-
-// Staff Modals Elements
-const confirmDeleteStaffModal = document.getElementById('confirm-delete-staff-modal');
-const btnConfirmDeleteStaff = document.getElementById('btn-confirm-delete-staff');
-const btnCancelDeleteStaffModal = document.getElementById('btn-cancel-delete-staff-modal');
-const btnCloseDeleteStaffModal = document.getElementById('btn-close-delete-staff-modal');
-const deleteStaffUsernameDisplay = document.getElementById('delete-staff-username-display');
-
-const changePasswordStaffModal = document.getElementById('change-password-staff-modal');
-const changePasswordStaffForm = document.getElementById('change-password-staff-form');
-const changePasswordStaffIdInput = document.getElementById('change-password-staff-id-input');
-const changePasswordStaffUsernameInput = document.getElementById('change-password-staff-username-input');
-const changePasswordStaffNewPass = document.getElementById('change-password-staff-new-pass');
-const changePasswordStaffConfirmPass = document.getElementById('change-password-staff-confirm-pass');
-const changePasswordErrorMsg = document.getElementById('change-password-error-msg');
-const btnCancelChangePasswordModal = document.getElementById('btn-cancel-change-password-modal');
-const btnCloseChangePasswordModal = document.getElementById('btn-close-change-password-modal');
-
-let currentStaffList = []; // State array for client-side search/filtering
-let staffToDelete = null; // State object of user target for deletion
 
 // Menu Management Elements
 const tabMenuMgmt = document.getElementById('tab-menu-mgmt');
@@ -167,9 +147,6 @@ async function init() {
 
     // Prepare audio context on user gesture to bypass autoplay blocks
     initAudioOnUserInteraction();
-    
-    // Initialize redesigned staff management events
-    initStaffManagementEvents();
   } catch (error) {
     console.error('Lỗi tải dữ liệu ban đầu:', error);
   }
@@ -1057,153 +1034,139 @@ function renderTransactionsList() {
 
   filteredTransactions.forEach(tx => {
     const card = document.createElement('div');
-    card.className = `history-card ${selectedTransactionId === tx.id ? 'active' : ''}`;
+    const isActive = selectedTransactionId === tx.id;
+    card.className = `history-card ${isActive ? 'active' : ''}`;
     
     const itemsCount = tx.items.reduce((sum, item) => sum + item.quantity, 0);
     const cleanTime = formatTime(tx.timestamp).replace(' - ', ' • ');
+    const finalPaid = tx.subtotal - (tx.discountAmount || 0);
+    const paymentMethodLabel = tx.paymentMethod === 'bank' ? '🏦 Chuyển khoản' : '💵 Tiền mặt';
     
+    let detailsHtml = '';
+    if (isActive) {
+      detailsHtml = `
+        <div class="history-card-detail" style="margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--hairline); font-size: 13px; cursor: default; width: 100%; display: flex; flex-direction: column; gap: 8px;" onclick="event.stopPropagation();">
+          <!-- Info -->
+          <div class="flex justify-between">
+            <span class="text-muted">Mã HĐ:</span>
+            <span class="bold">${tx.id}</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-muted">Hình thức:</span>
+            <span class="bold">${paymentMethodLabel}</span>
+          </div>
+
+          <!-- Items list -->
+          <div style="margin: 4px 0; border: 1px solid var(--hairline-soft); border-radius: var(--rounded-sm); background-color: var(--surface-soft); padding: 8px 10px; max-height: 150px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px;">
+            ${tx.items.map(item => `
+              <div class="flex justify-between" style="line-height: 1.3;">
+                <div>
+                  <span class="bold">${item.emoji} ${item.name}</span>
+                  <div style="font-size: 11px; color: var(--muted); margin-top: 2px;">SL: ${item.quantity} × ${formatVND(item.price)}</div>
+                  ${item.notes ? `<div style="font-size: 11px; color: #ef4444; font-style: italic;">Ghi chú: ${item.notes}</div>` : ''}
+                </div>
+                <span class="bold">${formatVND(item.price * item.quantity)}</span>
+              </div>
+            `).join('')}
+          </div>
+
+          <!-- Calculation -->
+          <div class="flex-col" style="gap: 4px; border-top: 1px dashed var(--hairline); padding-top: 6px;">
+            <div class="flex justify-between">
+              <span class="text-muted">Tiền món:</span>
+              <span>${formatVND(tx.subtotal)}</span>
+            </div>
+            ${tx.discountAmount > 0 ? `
+              <div class="flex justify-between" style="color: var(--primary);">
+                <span>Giảm giá:</span>
+                <span>-${formatVND(tx.discountAmount)}</span>
+              </div>
+            ` : ''}
+            <div class="flex justify-between" style="border-top: 1px dashed var(--hairline); padding-top: 4px; font-weight: 700;">
+              <span style="font-weight: 700;">Thực thu:</span>
+              <span style="color: var(--primary); font-weight: 700;">${formatVND(finalPaid)}</span>
+            </div>
+            <div class="flex justify-between" style="font-size: 12px; color: var(--muted);">
+              <span>Khách đưa:</span>
+              <span>${formatVND(tx.receivedAmount)}</span>
+            </div>
+            <div class="flex justify-between" style="font-size: 12px; color: var(--muted);">
+              <span>Trả lại:</span>
+              <span class="text-success bold">${formatVND(tx.changeAmount)}</span>
+            </div>
+          </div>
+
+          <!-- Reprint Button -->
+          <button class="btn btn-secondary full-width btn-reprint-inline" style="height: 34px; font-size: 12px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 4px; border-color: var(--primary); color: var(--primary); margin-top: 6px;">
+            🖨️ In lại hóa đơn
+          </button>
+        </div>
+      `;
+    }
+
     card.innerHTML = `
-      <div class="history-card-left">
-        <div class="history-card-title" title="${tx.tableName}">${tx.tableName}</div>
-        <div class="history-card-time">${cleanTime}</div>
+      <div class="history-card-summary" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+        <div class="history-card-left">
+          <div class="history-card-title" title="${tx.tableName}">${tx.tableName}</div>
+          <div class="history-card-time">${cleanTime}</div>
+        </div>
+        <div class="history-card-right">
+          <div class="history-card-price">${formatVND(finalPaid)}</div>
+          <div class="history-card-qty">${itemsCount} món</div>
+        </div>
       </div>
-      <div class="history-card-right">
-        <div class="history-card-price">${formatVND(tx.subtotal - (tx.discountAmount || 0))}</div>
-        <div class="history-card-qty">${itemsCount} món</div>
-      </div>
+      ${detailsHtml}
     `;
     
     card.addEventListener('click', () => {
-      selectedTransactionId = tx.id;
+      if (selectedTransactionId === tx.id) {
+        selectedTransactionId = null;
+      } else {
+        selectedTransactionId = tx.id;
+      }
       renderTransactionsList();
-      renderTransactionDetails(tx);
+      renderTransactionDetails(selectedTransactionId ? tx : null);
     });
+    
+    if (isActive) {
+      const btnReprintInline = card.querySelector('.btn-reprint-inline');
+      if (btnReprintInline) {
+        btnReprintInline.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const tableObj = { name: tx.tableName };
+          printReceipt(tableObj, tx.items, tx.discountAmount || 0, tx.receivedAmount, tx.id, tx.timestamp);
+        });
+      }
+    }
     
     historyListContainer.appendChild(card);
   });
 }
 
-// Render detailed page for a selected transaction record
-function renderTransactionDetails(tx) {
-  billDetailsPanel.innerHTML = '';
-  
-  if (!tx) {
-    billDetailsPanel.innerHTML = `
-      <div class="no-table-selected" style="padding: var(--space-xl) 0;">
-        <div class="no-table-icon">🧾</div>
-        <div class="bold" style="font-size: 16px;">Chi tiết hóa đơn</div>
-        <p style="font-size:14px; line-height: 1.4;">Chọn một hóa đơn trong danh sách lịch sử bên trái để xem chi tiết thống kê thanh toán.</p>
-      </div>
-    `;
-    return;
-  }
-
-  const itemsQty = tx.items.reduce((sum, item) => sum + item.quantity, 0);
-  const finalPaid = tx.subtotal - (tx.discountAmount || 0);
-
-  const paymentMethodLabel = tx.paymentMethod === 'bank' ? '🏦 Chuyển khoản' : '💵 Tiền mặt';
-
-  billDetailsPanel.innerHTML = `
-    <div class="panel-header">
-      <div class="panel-header-title">
-        <h2>${tx.tableName}</h2>
-        <p>Mã HĐ: <span class="bold">${tx.id}</span></p>
-        <p>Thời gian: ${formatTime(tx.timestamp)}</p>
-        <p>Hình thức: <span class="bold">${paymentMethodLabel}</span></p>
-      </div>
-      <div class="panel-header-price">
-        <div class="panel-price-amount" style="color: var(--ink);">${formatVND(finalPaid)}</div>
-        <div class="panel-price-label">Thực thu</div>
-      </div>
-    </div>
-
-    <h4 class="bold" style="font-size: 15px; margin-top: var(--space-xs);">Món ăn đã thanh toán (${itemsQty})</h4>
-    
-    <div class="panel-items-list" style="max-height: 220px;">
-      ${tx.items.map(item => `
-        <div class="panel-item-row">
-          <div>
-            <span class="panel-item-name">${item.emoji} ${item.name}</span>
-            <div class="panel-item-qty">Số lượng: ${item.quantity} × ${formatVND(item.price)}</div>
-            ${item.notes ? `<div class="panel-item-note">Ghi chú: ${item.notes}</div>` : ''}
-          </div>
-          <span class="panel-item-subtotal">${formatVND(item.price * item.quantity)}</span>
-        </div>
-      `).join('')}
-    </div>
-
-    <div class="checkout-calculation-box" style="margin-top: 4px; gap: 8px;">
-      <div class="flex justify-between" style="font-size: 14px;">
-        <span class="text-muted">Tổng cộng tiền món:</span>
-        <span class="bold">${formatVND(tx.subtotal)}</span>
-      </div>
-      ${tx.discountAmount > 0 ? `
-        <div class="flex justify-between" style="font-size: 14px; color: var(--primary-error-text);">
-          <span>Được giảm giá:</span>
-          <span class="bold">-${formatVND(tx.discountAmount)}</span>
-        </div>
-        <div class="flex justify-between" style="font-size: 14px; font-weight: 700; border-top: 1px dashed var(--border-strong); padding-top: 4px;">
-          <span>Tổng số thực thu:</span>
-          <span class="bold">${formatVND(finalPaid)}</span>
-        </div>
-      ` : ''}
-      <div class="flex justify-between" style="font-size: 14px; ${tx.discountAmount > 0 ? '' : 'border-top: 1px dashed var(--border-strong); padding-top: 4px;'}">
-        <span class="text-muted">Khách đưa:</span>
-        <span class="bold">${formatVND(tx.receivedAmount)}</span>
-      </div>
-      <div class="flex justify-between" style="font-size: 14px; padding-top: var(--space-sm); border-top: 1px dashed var(--border-strong);">
-        <span class="bold">Tiền thối lại:</span>
-        <span class="bold text-success" style="font-size: 16px;">${formatVND(tx.changeAmount)}</span>
-      </div>
-    </div>
-    <button class="btn btn-secondary full-width mt-md" id="btn-reprint-bill" style="margin-top: 16px; height: 42px; border-color: var(--primary); color: var(--primary); font-weight: 600;">
-      🖨️ In lại hóa đơn
-    </button>
-  `;
-
-  // Attach click listener for reprint
-  const btnReprint = document.getElementById('btn-reprint-bill');
-  if (btnReprint) {
-    btnReprint.onclick = () => {
-      const tableObj = { name: tx.tableName };
-      printReceipt(tableObj, tx.items, tx.discountAmount || 0, tx.receivedAmount, tx.id, tx.timestamp);
-    };
-  }
-}
+// Render detailed page for a selected transaction record (No-op as details are shown inline)
+function renderTransactionDetails(tx) {}
 
 // Compute Statistics Widgets
 function updateAnalytics() {
-  const now = new Date();
-  const todayDay = now.getDate();
-  const todayMonth = now.getMonth();
-  const todayYear = now.getFullYear();
-
-  // Absolute revenues (always calculated on full transactions list)
-  let todayRev = 0;
-  let monthRev = 0;
-  let yearRev = 0;
-
-  transactions.forEach(tx => {
-    const txDate = new Date(tx.timestamp);
-    const amount = tx.subtotal - (tx.discountAmount || 0);
-    
-    if (txDate.getDate() === todayDay && txDate.getMonth() === todayMonth && txDate.getFullYear() === todayYear) {
-      todayRev += amount;
-    }
-    if (txDate.getMonth() === todayMonth && txDate.getFullYear() === todayYear) {
-      monthRev += amount;
-    }
-    if (txDate.getFullYear() === todayYear) {
-      yearRev += amount;
-    }
-  });
-
   // Filtered statistics (calculated on filteredTransactions list)
   let totalDiscount = 0;
+  let cashBills = 0;
+  let bankBills = 0;
+  let cashAmount = 0;
+  let bankAmount = 0;
   const itemStats = {};
 
   filteredTransactions.forEach(tx => {
     totalDiscount += (tx.discountAmount || 0);
+    const amount = tx.subtotal - (tx.discountAmount || 0);
+
+    if (tx.paymentMethod === 'bank') {
+      bankBills++;
+      bankAmount += amount;
+    } else {
+      cashBills++;
+      cashAmount += amount;
+    }
 
     tx.items.forEach(item => {
       if (!itemStats[item.name]) {
@@ -1219,12 +1182,36 @@ function updateAnalytics() {
     });
   });
 
+  // Determine label dynamically based on active filter preset
+  const preset = filterPreset.value;
+  let labelText = 'Doanh thu';
+  if (preset === 'today') {
+    labelText = 'Doanh thu Hôm nay';
+  } else if (preset === 'month') {
+    labelText = 'Doanh thu Tháng này';
+  } else if (preset === 'year') {
+    labelText = 'Doanh thu Năm nay';
+  } else if (preset === 'all') {
+    labelText = 'Tổng Doanh thu';
+  } else if (preset === 'custom') {
+    labelText = 'Doanh thu (Lọc)';
+  }
+
+  if (statRevenueLabel) {
+    statRevenueLabel.textContent = labelText;
+  }
+  if (statRevenue) {
+    statRevenue.textContent = formatVND(cashAmount + bankAmount);
+  }
+
   // Render Stats widgets
-  statTodayRevenue.textContent = formatVND(todayRev);
-  statMonthRevenue.textContent = formatVND(monthRev);
-  statYearRevenue.textContent = formatVND(yearRev);
   statTotalDiscount.textContent = formatVND(totalDiscount);
   statTotalBills.textContent = filteredTransactions.length;
+
+  if (statCashBills) statCashBills.textContent = cashBills;
+  if (statCashAmount) statCashAmount.textContent = formatVND(cashAmount);
+  if (statBankBills) statBankBills.textContent = bankBills;
+  if (statBankAmount) statBankAmount.textContent = formatVND(bankAmount);
 
   // Render Menu Item Sales list
   const sortedStats = Object.values(itemStats).sort((a, b) => b.qty - a.qty);
@@ -1554,25 +1541,6 @@ function renderCharts(sortedStats) {
   });
 }
 
-// Hash colors for staff avatars
-function getAvatarColor(username) {
-  const colors = [
-    '#FF5A5F', // Rausch
-    '#008489', // Teal
-    '#3C5A99', // Classic Blue
-    '#F5A623', // Warm yellow/orange
-    '#8A2BE2', // Purple
-    '#1E6B3F', // Forest green
-    '#911D4C'  // Plus
-  ];
-  let hash = 0;
-  for (let i = 0; i < username.length; i++) {
-    hash = username.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  const index = Math.abs(hash) % colors.length;
-  return colors[index];
-}
-
 // Load Staff accounts list
 async function loadStaffList() {
   try {
@@ -1582,32 +1550,20 @@ async function loadStaffList() {
       return;
     }
     const staff = await res.json();
-    
-    // Clear search input on full reload
-    if (staffSearchInput) staffSearchInput.value = '';
-    
-    renderStaffList(staff, true);
+    renderStaffList(staff);
   } catch (error) {
     console.error('Lỗi lấy danh sách nhân viên:', error);
   }
 }
 
 // Render Staff accounts list
-function renderStaffList(staff, updateState = false) {
-  if (updateState) {
-    currentStaffList = staff;
-  }
-  
-  if (staffCountBadge) {
-    staffCountBadge.textContent = staff.length;
-  }
-
+function renderStaffList(staff) {
   staffListContainer.innerHTML = '';
   
   if (staff.length === 0) {
     staffListContainer.innerHTML = `
-      <div class="text-center text-muted p-md" style="grid-column: 1 / -1; width: 100%;">
-        Không có tài khoản nhân viên nào được tìm thấy.
+      <div class="text-center text-muted p-md">
+        Chưa có tài khoản nhân viên nào được tạo.
       </div>
     `;
     return;
@@ -1615,40 +1571,16 @@ function renderStaffList(staff, updateState = false) {
 
   staff.forEach(user => {
     const card = document.createElement('div');
-    card.className = 'staff-card';
-    
-    const initial = user.username.charAt(0).toUpperCase();
-    const avatarBg = getAvatarColor(user.username);
-    
+    card.className = 'history-card';
+    card.style.cursor = 'default';
     card.innerHTML = `
-      <div class="staff-card-header">
-        <div class="staff-avatar" style="background-color: ${avatarBg};">
-          ${initial}
-        </div>
-        <div class="staff-info">
-          <div class="staff-name" title="${user.username}">${user.username}</div>
-          <span class="staff-role-badge">Phục vụ</span>
-        </div>
+      <div class="history-card-left">
+        <div class="history-card-title">👤 ${user.username}</div>
       </div>
-      <div class="staff-card-actions">
-        <button class="btn-staff-action btn-change-pw" title="Đổi mật khẩu">
-          🔑 Đổi mật khẩu
-        </button>
-        <button class="btn-staff-action danger btn-delete-staff" title="Xóa tài khoản">
-          🗑️ Xóa
-        </button>
+      <div class="history-card-right">
+        <span class="role-badge waiter" style="font-size:11px; padding:3px 8px; margin-left:0;">Phục vụ</span>
       </div>
     `;
-    
-    // Event listeners
-    card.querySelector('.btn-change-pw').addEventListener('click', () => {
-      openChangePasswordModal(user.id, user.username);
-    });
-    
-    card.querySelector('.btn-delete-staff').addEventListener('click', () => {
-      openConfirmDeleteModal(user.id, user.username);
-    });
-
     staffListContainer.appendChild(card);
   });
 }
@@ -1698,141 +1630,6 @@ async function handleCreateStaff(event) {
   } finally {
     btnCreateStaffSubmit.disabled = false;
     btnCreateStaffSubmit.textContent = 'Tạo tài khoản';
-  }
-}
-
-// REDESIGNED STAFF MANAGEMENT MODAL EVENTS & API HANDLERS
-function initStaffManagementEvents() {
-  if (staffSearchInput) {
-    staffSearchInput.addEventListener('input', (e) => {
-      const query = e.target.value.toLowerCase().trim();
-      const filtered = currentStaffList.filter(user => user.username.toLowerCase().includes(query));
-      renderStaffList(filtered, false);
-    });
-  }
-
-  // Delete Staff Modal Buttons
-  if (btnCancelDeleteStaffModal) btnCancelDeleteStaffModal.addEventListener('click', closeConfirmDeleteModal);
-  if (btnCloseDeleteStaffModal) btnCloseDeleteStaffModal.addEventListener('click', closeConfirmDeleteModal);
-  if (btnConfirmDeleteStaff) btnConfirmDeleteStaff.addEventListener('click', submitDeleteStaff);
-
-  // Change Password Modal Buttons
-  if (btnCancelChangePasswordModal) btnCancelChangePasswordModal.addEventListener('click', closeChangePasswordModal);
-  if (btnCloseChangePasswordModal) btnCloseChangePasswordModal.addEventListener('click', closeChangePasswordModal);
-  if (changePasswordStaffForm) changePasswordStaffForm.addEventListener('submit', submitChangePassword);
-}
-
-function openConfirmDeleteModal(userId, username) {
-  staffToDelete = { id: userId, username: username };
-  deleteStaffUsernameDisplay.textContent = username;
-  confirmDeleteStaffModal.style.display = 'flex';
-}
-
-function closeConfirmDeleteModal() {
-  staffToDelete = null;
-  confirmDeleteStaffModal.style.display = 'none';
-}
-
-function openChangePasswordModal(userId, username) {
-  changePasswordStaffIdInput.value = userId;
-  changePasswordStaffUsernameInput.value = username;
-  changePasswordStaffNewPass.value = '';
-  changePasswordStaffConfirmPass.value = '';
-  changePasswordErrorMsg.style.display = 'none';
-  changePasswordStaffModal.style.display = 'flex';
-}
-
-function closeChangePasswordModal() {
-  changePasswordStaffModal.style.display = 'none';
-}
-
-async function submitDeleteStaff() {
-  if (!staffToDelete) return;
-  
-  btnConfirmDeleteStaff.disabled = true;
-  btnConfirmDeleteStaff.textContent = 'Đang xóa...';
-  
-  try {
-    const res = await fetch(`/api/users/${staffToDelete.id}`, {
-      method: 'DELETE'
-    });
-    
-    if (res.status === 401) {
-      window.location.href = '/login.html';
-      return;
-    }
-    
-    const result = await res.json();
-    if (res.ok && result.success) {
-      showToast(`🗑️ Đã xóa tài khoản nhân viên "${staffToDelete.username}"`);
-      closeConfirmDeleteModal();
-      loadStaffList();
-    } else {
-      showToast(`❌ Lỗi: ${result.error || 'Không thể xóa tài khoản.'}`);
-    }
-  } catch (error) {
-    console.error('Lỗi khi xóa nhân viên:', error);
-    showToast('❌ Không thể kết nối máy chủ.');
-  } finally {
-    btnConfirmDeleteStaff.disabled = false;
-    btnConfirmDeleteStaff.textContent = 'Đồng ý xóa';
-  }
-}
-
-async function submitChangePassword(event) {
-  event.preventDefault();
-  
-  const userId = changePasswordStaffIdInput.value;
-  const username = changePasswordStaffUsernameInput.value;
-  const newPass = changePasswordStaffNewPass.value;
-  const confirmPass = changePasswordStaffConfirmPass.value;
-  
-  if (newPass !== confirmPass) {
-    changePasswordErrorMsg.textContent = 'Mật khẩu xác nhận không khớp.';
-    changePasswordErrorMsg.style.display = 'block';
-    return;
-  }
-  
-  if (newPass.length < 4) {
-    changePasswordErrorMsg.textContent = 'Mật khẩu mới phải chứa ít nhất 4 ký tự.';
-    changePasswordErrorMsg.style.display = 'block';
-    return;
-  }
-  
-  changePasswordErrorMsg.style.display = 'none';
-  const submitBtn = changePasswordStaffForm.querySelector('button[type="submit"]');
-  submitBtn.disabled = true;
-  submitBtn.textContent = 'Đang đổi...';
-  
-  try {
-    const res = await fetch(`/api/users/${userId}/password`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ password: newPass })
-    });
-    
-    if (res.status === 401) {
-      window.location.href = '/login.html';
-      return;
-    }
-    
-    const result = await res.json();
-    if (res.ok && result.success) {
-      showToast(`🔑 Đổi mật khẩu cho "${username}" thành công!`);
-      closeChangePasswordModal();
-    } else {
-      changePasswordErrorMsg.textContent = result.error || 'Có lỗi xảy ra.';
-      changePasswordErrorMsg.style.display = 'block';
-    }
-  } catch (error) {
-    console.error('Lỗi khi đổi mật khẩu:', error);
-    changePasswordErrorMsg.textContent = 'Không thể kết nối máy chủ.';
-    changePasswordErrorMsg.style.display = 'block';
-  } finally {
-    submitBtn.disabled = false;
-    submitBtn.textContent = 'Cập nhật mật khẩu';
   }
 }
 
@@ -2257,39 +2054,57 @@ function initCustomSelects() {
 document.addEventListener('click', closeAllCustomSelects);
 
 // Add Table Modal handlers
-if (btnAddTable) {
-  btnAddTable.addEventListener('click', () => {
-    addTableNameInput.value = '';
-    addTableErrorMsg.style.display = 'none';
-    addTableErrorMsg.textContent = '';
-    addTableModal.style.display = 'flex';
-    addTableNameInput.focus();
-  });
-}
-
-const closeAddTableModal = () => {
-  addTableModal.style.display = 'none';
+window.openAddTableModalInline = () => {
+  const modal = document.getElementById('add-table-modal');
+  const input = document.getElementById('add-table-name-input');
+  const errorMsg = document.getElementById('add-table-error-msg');
+  if (input) input.value = '';
+  if (errorMsg) {
+    errorMsg.style.display = 'none';
+    errorMsg.textContent = '';
+  }
+  if (modal) {
+    modal.style.display = 'flex';
+  }
+  if (input) input.focus();
 };
-if (btnCloseAddTableModal) btnCloseAddTableModal.addEventListener('click', closeAddTableModal);
-if (btnCancelAddTableModal) btnCancelAddTableModal.addEventListener('click', closeAddTableModal);
 
-if (addTableForm) {
-  addTableForm.addEventListener('submit', async (e) => {
+window.closeAddTableModalInline = () => {
+  const modal = document.getElementById('add-table-modal');
+  if (modal) modal.style.display = 'none';
+};
+
+const closeAddTableModal = window.closeAddTableModalInline;
+
+const closeBtn = document.getElementById('btn-close-add-table-modal');
+const cancelBtn = document.getElementById('btn-cancel-add-table-modal');
+if (closeBtn) closeBtn.addEventListener('click', closeAddTableModal);
+if (cancelBtn) cancelBtn.addEventListener('click', closeAddTableModal);
+
+const form = document.getElementById('add-table-form');
+if (form) {
+  form.addEventListener('submit', async (e) => {
     e.preventDefault();
-    addTableErrorMsg.style.display = 'none';
+    const errorMsg = document.getElementById('add-table-error-msg');
+    if (errorMsg) errorMsg.style.display = 'none';
     
-    const name = addTableNameInput.value.trim();
+    const input = document.getElementById('add-table-name-input');
+    const name = input ? input.value.trim() : '';
     if (!name) {
-      addTableErrorMsg.textContent = 'Tên số bàn không được để trống.';
-      addTableErrorMsg.style.display = 'block';
+      if (errorMsg) {
+        errorMsg.textContent = 'Tên số bàn không được để trống.';
+        errorMsg.style.display = 'block';
+      }
       return;
     }
     
     // Client-side duplicate check
     const isDuplicate = tables.some(t => t.name.toLowerCase() === name.toLowerCase());
     if (isDuplicate) {
-      addTableErrorMsg.textContent = 'Số bàn này đã tồn tại. Vui lòng nhập số bàn khác.';
-      addTableErrorMsg.style.display = 'block';
+      if (errorMsg) {
+        errorMsg.textContent = 'Số bàn này đã tồn tại. Vui lòng nhập số bàn khác.';
+        errorMsg.style.display = 'block';
+      }
       return;
     }
     
@@ -2312,13 +2127,17 @@ if (addTableForm) {
           renderTables();
         }
       } else {
-        addTableErrorMsg.textContent = result.error || 'Không thể thêm bàn.';
-        addTableErrorMsg.style.display = 'block';
+        if (errorMsg) {
+          errorMsg.textContent = result.error || 'Không thể thêm bàn.';
+          errorMsg.style.display = 'block';
+        }
       }
     } catch (err) {
       console.error(err);
-      addTableErrorMsg.textContent = 'Không thể kết nối tới server.';
-      addTableErrorMsg.style.display = 'block';
+      if (errorMsg) {
+        errorMsg.textContent = 'Không thể kết nối tới server.';
+        errorMsg.style.display = 'block';
+      }
     }
   });
 }

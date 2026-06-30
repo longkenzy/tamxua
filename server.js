@@ -227,52 +227,6 @@ app.post('/api/users', requireManager, async (req, res) => {
   }
 });
 
-// Delete waiter account
-app.delete('/api/users/:id', requireManager, async (req, res) => {
-  const userId = req.params.id;
-  try {
-    // Check if the user is a waiter first (to prevent managers deleting themselves or other managers)
-    const userCheck = await db.query('SELECT role FROM users WHERE id = $1', [userId]);
-    if (userCheck.rows.length === 0) {
-      return res.status(404).json({ error: 'Tài khoản không tồn tại.' });
-    }
-    if (userCheck.rows[0].role !== 'waiter') {
-      return res.status(400).json({ error: 'Không thể xóa tài khoản Quản lý bằng chức năng này.' });
-    }
-    
-    await db.query('DELETE FROM users WHERE id = $1', [userId]);
-    res.json({ success: true });
-  } catch (error) {
-    console.error('Lỗi khi xóa nhân viên:', error);
-    res.status(500).json({ error: 'Lỗi hệ thống.' });
-  }
-});
-
-// Change waiter password
-app.put('/api/users/:id/password', requireManager, async (req, res) => {
-  const userId = req.params.id;
-  const { password } = req.body;
-  if (!password) {
-    return res.status(400).json({ error: 'Vui lòng cung cấp mật khẩu mới.' });
-  }
-  try {
-    // Check user exists and is a waiter
-    const userCheck = await db.query('SELECT role FROM users WHERE id = $1', [userId]);
-    if (userCheck.rows.length === 0) {
-      return res.status(404).json({ error: 'Tài khoản không tồn tại.' });
-    }
-    if (userCheck.rows[0].role !== 'waiter') {
-      return res.status(400).json({ error: 'Không thể đổi mật khẩu tài khoản Quản lý bằng chức năng này.' });
-    }
-    
-    await db.query('UPDATE users SET password = $1 WHERE id = $2', [password, userId]);
-    res.json({ success: true });
-  } catch (error) {
-    console.error('Lỗi khi đổi mật khẩu nhân viên:', error);
-    res.status(500).json({ error: 'Lỗi hệ thống.' });
-  }
-});
-
 // Get menu
 app.get('/api/menu', async (req, res) => {
   try {

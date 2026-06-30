@@ -222,7 +222,7 @@
     /* History & Analytics Layout */
     .reports-view {
       display: grid;
-      grid-template-columns: 0.5fr 1.5fr;
+      grid-template-columns: 0.8fr 1.2fr;
       gap: var(--space-xl);
     }
 
@@ -303,6 +303,9 @@
     }
 
     .history-card.active {
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
       border-color: var(--primary);
       border-left: 3px solid var(--primary);
       background-color: #fff8f9;
@@ -922,123 +925,6 @@
       height: 8px;
       border-radius: var(--rounded-full);
     }
-
-    /* REDESIGNED STAFF MANAGEMENT */
-    .staff-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-      gap: 16px;
-      margin-top: 8px;
-    }
-    
-    .staff-card {
-      background-color: var(--canvas);
-      border: 1px solid var(--hairline);
-      border-radius: var(--rounded-md);
-      padding: var(--space-base);
-      display: flex;
-      flex-direction: column;
-      gap: 14px;
-      position: relative;
-      transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
-      box-shadow: 0 1px 2px rgba(0,0,0,0.02);
-    }
-    
-    .staff-card:hover {
-      box-shadow: var(--shadow);
-      border-color: var(--border-strong);
-      transform: translateY(-2px);
-    }
-    
-    .staff-card-header {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-    
-    .staff-avatar {
-      width: 44px;
-      height: 44px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 700;
-      font-size: 15px;
-      color: #ffffff;
-      text-transform: uppercase;
-      box-shadow: inset 0 -2px 4px rgba(0,0,0,0.1);
-      user-select: none;
-    }
-    
-    .staff-info {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-      overflow: hidden;
-    }
-    
-    .staff-name {
-      font-weight: 600;
-      font-size: 15px;
-      color: var(--ink);
-      white-space: nowrap;
-      text-overflow: ellipsis;
-      overflow: hidden;
-    }
-    
-    .staff-role-badge {
-      font-size: 10px;
-      font-weight: 700;
-      background-color: #fee2e2;
-      color: var(--primary);
-      border: 1px solid #fecaca;
-      padding: 2px 8px;
-      border-radius: var(--rounded-full);
-      width: fit-content;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-    
-    .staff-card-actions {
-      display: flex;
-      gap: 8px;
-      border-top: 1px solid var(--hairline-soft);
-      padding-top: 12px;
-      justify-content: flex-end;
-    }
-    
-    .btn-staff-action {
-      background: none;
-      border: 1px solid var(--hairline);
-      border-radius: var(--rounded-sm);
-      padding: 6px 12px;
-      font-size: 12.5px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.15s ease;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      color: var(--body);
-    }
-    
-    .btn-staff-action:hover {
-      background-color: var(--surface-soft);
-      border-color: var(--border-strong);
-      color: var(--ink);
-    }
-    
-    .btn-staff-action.danger {
-      color: var(--primary-error-text);
-      border-color: #fca5a5;
-    }
-    
-    .btn-staff-action.danger:hover {
-      background-color: #fef2f2;
-      border-color: var(--primary);
-      color: var(--primary-active);
-    }
   </style>
 </head>
 <body>
@@ -1055,10 +941,10 @@
     
     <!-- Desktop Center Tabs -->
     <div class="nav-tabs">
-      <div id="tab-tables" class="product-tab active">Sơ đồ bàn ăn</div>
-      <div id="tab-reports" class="product-tab">Hóa đơn & Báo cáo</div>
-      <div id="tab-staff" class="product-tab">Nhân viên</div>
-      <div id="tab-menu-mgmt" class="product-tab">Quản lý món ăn</div>
+      <div id="tab-tables" class="product-tab active">🗺️ Sơ đồ bàn ăn</div>
+      <div id="tab-reports" class="product-tab">📊 Hóa đơn & Báo cáo</div>
+      <div id="tab-staff" class="product-tab">👥 Nhân viên</div>
+      <div id="tab-menu-mgmt" class="product-tab">🍳 Quản lý món ăn</div>
     </div>
 
     <div class="user-profile">
@@ -1088,7 +974,6 @@
               <div id="tables-stats-summary" style="display: flex; gap: 8px; align-items: center;">
                 <!-- Rendered dynamically -->
               </div>
-              <button type="button" class="btn btn-primary btn-pill" id="btn-add-table" style="height: 36px; padding: 0 16px; font-weight: 600; font-size: 13px;">+ Thêm bàn</button>
             </div>
           </div>
         </div>
@@ -1171,25 +1056,13 @@
 
       <!-- Right side: Statistics & Selected Bill details -->
       <div class="right-section">
-        <!-- Top Analytics Row (3x2 Grid) -->
-        <div class="analytics-row" style="grid-template-columns: repeat(3, 1fr); gap: var(--space-base); margin-bottom: var(--space-lg);">
+        <!-- Top Analytics Row (4x1 Grid) -->
+        <div class="analytics-row" style="grid-template-columns: repeat(4, 1fr); gap: var(--space-base); margin-bottom: var(--space-lg);">
           
-          <!-- Today's Revenue -->
+          <!-- Dynamic Revenue -->
           <div class="analytics-card" style="border-color: var(--primary);">
-            <span class="analytics-card-label" style="color: var(--primary); font-weight: 700;">Doanh thu Hôm nay</span>
-            <span class="analytics-card-value" id="stat-today-revenue" style="color: var(--primary);">0đ</span>
-          </div>
-
-          <!-- Month's Revenue -->
-          <div class="analytics-card">
-            <span class="analytics-card-label">Doanh thu Tháng này</span>
-            <span class="analytics-card-value" id="stat-month-revenue">0đ</span>
-          </div>
-
-          <!-- Year's Revenue -->
-          <div class="analytics-card">
-            <span class="analytics-card-label">Doanh thu Năm nay</span>
-            <span class="analytics-card-value" id="stat-year-revenue">0đ</span>
+            <span class="analytics-card-label" id="stat-revenue-label" style="color: var(--primary); font-weight: 700;">Doanh thu Hôm nay</span>
+            <span class="analytics-card-value" id="stat-revenue" style="color: var(--primary);">0đ</span>
           </div>
 
           <!-- Total Discount -->
@@ -1211,6 +1084,36 @@
           </div>
 
         </div>
+
+        <!-- Payment Methods Summary -->
+        <div style="margin-bottom: var(--space-lg);">
+          <h3 style="font-size: 14px; font-weight: 600; margin-bottom: 8px; color: var(--ink); display: flex; align-items: center; gap: 6px;">
+            <span>💳</span> Chi tiết theo phương thức thanh toán
+          </h3>
+          <div class="analytics-row" style="grid-template-columns: repeat(4, 1fr); gap: var(--space-base); margin-bottom: 0;">
+            <!-- Cash Bills Count -->
+            <div class="analytics-card" style="border-left: 4px solid #10b981;">
+              <span class="analytics-card-label" style="color: #059669; font-weight: 600;">Số đơn Tiền mặt</span>
+              <span class="analytics-card-value" id="stat-cash-bills" style="font-size: 20px;">0</span>
+            </div>
+            <!-- Cash Amount -->
+            <div class="analytics-card" style="border-left: 4px solid #10b981;">
+              <span class="analytics-card-label" style="color: #059669; font-weight: 600;">Tiền mặt (Thực thu)</span>
+              <span class="analytics-card-value" id="stat-cash-amount" style="font-size: 20px;">0đ</span>
+            </div>
+            <!-- Bank Bills Count -->
+            <div class="analytics-card" style="border-left: 4px solid #3b82f6;">
+              <span class="analytics-card-label" style="color: #2563eb; font-weight: 600;">Số đơn Chuyển khoản</span>
+              <span class="analytics-card-value" id="stat-bank-bills" style="font-size: 20px;">0</span>
+            </div>
+            <!-- Bank Amount -->
+            <div class="analytics-card" style="border-left: 4px solid #3b82f6;">
+              <span class="analytics-card-label" style="color: #2563eb; font-weight: 600;">Chuyển khoản (Thực thu)</span>
+              <span class="analytics-card-value" id="stat-bank-amount" style="font-size: 20px;">0đ</span>
+            </div>
+          </div>
+        </div>
+
 
         <!-- Visual Analytics Charts Panel -->
         <div class="sticky-panel" style="margin-bottom: var(--space-lg); position: static; box-shadow: none; border-color: var(--hairline); padding: var(--space-base);">
@@ -1275,42 +1178,21 @@
             </table>
           </div>
         </div>
-
-        <!-- Selected Bill Details Container -->
-        <div class="sticky-panel" id="bill-details-panel">
-          <div class="no-table-selected" style="padding: var(--space-xl) 0;">
-            <div class="no-table-icon">🧾</div>
-            <div class="bold" style="font-size: 16px;">Chi tiết hóa đơn</div>
-            <p style="font-size:14px; line-height: 1.4;">Chọn một hóa đơn trong danh sách lịch sử bên trái để xem chi tiết thống kê thanh toán.</p>
-          </div>
-        </div>
       </div>
 
     </div>
 
-    <div id="staff-dashboard-view" class="reports-view" style="display: none; grid-template-columns: 1.3fr 0.7fr;">
+    <!-- VIEW 3: Staff Management Dashboard (Hidden by default) -->
+    <div id="staff-dashboard-view" class="reports-view" style="display: none;">
       <!-- Left side: Waiter list -->
       <div class="left-section">
-        <div class="dashboard-header-block" style="margin-bottom: 16px;">
+        <div class="dashboard-header-block">
           <h1 class="section-title-v2">Danh sách nhân viên</h1>
           <p style="margin: 4px 0 0 0; color: var(--muted); font-size: 13px;">Quản lý tài khoản phục vụ bàn của nhà hàng</p>
         </div>
-
-        <!-- Search & Info Bar -->
-        <div class="staff-search-container" style="margin-bottom: 20px; display: flex; gap: 12px; align-items: center;">
-          <div class="text-input-container" style="flex-grow: 1; margin: 0;">
-            <label class="text-input-label" for="staff-search-input">Tìm kiếm nhân viên</label>
-            <input type="text" id="staff-search-input" class="text-input" placeholder="Nhập tên nhân viên để tìm kiếm..." autocomplete="off" style="padding-top: 20px; height: 48px;">
-          </div>
-          <div class="stat-badge-v2" style="height: 48px; padding: 0 16px; flex-shrink: 0; display: flex; align-items: center; gap: 6px; border-radius: var(--rounded-md);">
-            <span>Tổng nhân sự:</span>
-            <strong id="staff-count-badge" style="color: var(--primary); font-size: 15px;">0</strong>
-          </div>
-        </div>
-
-        <div class="staff-grid" id="staff-list-container">
+        <div class="history-list" id="staff-list-container">
           <!-- Rendered dynamically -->
-          <div class="text-center text-muted p-md" style="grid-column: 1 / -1;">Chưa có tài khoản nhân viên nào.</div>
+          <div class="text-center text-muted p-md">Chưa có tài khoản nhân viên nào.</div>
         </div>
       </div>
 
@@ -1661,7 +1543,7 @@
     <div class="modal-content" style="max-width: 400px; border-radius: var(--rounded-lg);">
       <div class="modal-header" style="border-bottom: 1px solid var(--hairline-soft); padding: 16px 24px;">
         <h3 class="modal-title" style="font-size: 18px; font-weight: 700;">Thêm bàn ăn mới</h3>
-        <button class="btn-close" id="btn-close-add-table-modal" style="font-size: 24px;">&times;</button>
+        <button class="btn-close" id="btn-close-add-table-modal" onclick="closeAddTableModalInline()" style="font-size: 24px;">&times;</button>
       </div>
       <form id="add-table-form" style="margin: 0;">
         <div class="modal-body" style="padding: 24px;">
@@ -1672,66 +1554,8 @@
           <div id="add-table-error-msg" style="color: var(--primary-error-text); font-size: 12px; margin-top: 8px; display: none; font-weight: 500;"></div>
         </div>
         <div class="modal-footer" style="background-color: var(--surface-soft); border-top: 1px solid var(--hairline-soft); padding: 12px 24px; display: flex; justify-content: flex-end; gap: var(--space-base);">
-          <button type="button" class="btn btn-secondary btn-pill" id="btn-cancel-add-table-modal" style="height: 38px; padding: 0 16px;">Hủy</button>
+          <button type="button" class="btn btn-secondary btn-pill" id="btn-cancel-add-table-modal" onclick="closeAddTableModalInline()" style="height: 38px; padding: 0 16px;">Hủy</button>
           <button type="submit" class="btn btn-primary btn-pill" id="btn-submit-add-table" style="height: 38px; padding: 0 20px; font-weight: 600;">Thêm bàn</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- MODAL: Confirm Delete Staff -->
-  <div class="modal-backdrop" id="confirm-delete-staff-modal" style="display: none;">
-    <div class="modal-content" style="max-width: 440px; border-radius: var(--rounded-lg);">
-      <div class="modal-header" style="border-bottom: 1px solid var(--hairline-soft); padding: 16px 24px;">
-        <h3 class="modal-title" style="font-size: 18px; font-weight: 700; color: var(--primary-error-text);">Xác nhận xóa tài khoản</h3>
-        <button class="btn-close" id="btn-close-delete-staff-modal" style="font-size: 24px;">&times;</button>
-      </div>
-      <div class="modal-body" style="padding: 24px;">
-        <p style="font-size: 14px; line-height: 1.5; color: var(--ink);">
-          Bạn có chắc chắn muốn xóa tài khoản nhân viên phục vụ <strong id="delete-staff-username-display" style="color: var(--ink);"></strong>?
-        </p>
-        <p style="font-size: 13px; line-height: 1.5; color: var(--muted); margin-top: 8px;">
-          ⚠️ Hành động này sẽ xóa vĩnh viễn tài khoản này khỏi cơ sở dữ liệu. Nhân viên tương ứng sẽ không thể đăng nhập hoặc làm việc được nữa.
-        </p>
-      </div>
-      <div class="modal-footer" style="background-color: var(--surface-soft); border-top: 1px solid var(--hairline-soft); padding: 16px 24px; display: flex; justify-content: flex-end; gap: var(--space-base);">
-        <button type="button" class="btn btn-secondary btn-pill" id="btn-cancel-delete-staff-modal" style="height: 38px; padding: 0 16px;">Hủy bỏ</button>
-        <button type="button" class="btn btn-danger btn-pill" id="btn-confirm-delete-staff" style="height: 38px; padding: 0 20px; font-weight: 600;">Đồng ý xóa</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- MODAL: Change Password Staff -->
-  <div class="modal-backdrop" id="change-password-staff-modal" style="display: none;">
-    <div class="modal-content" style="max-width: 440px; border-radius: var(--rounded-lg);">
-      <div class="modal-header" style="border-bottom: 1px solid var(--hairline-soft); padding: 16px 24px;">
-        <h3 class="modal-title" style="font-size: 18px; font-weight: 700; color: var(--ink);">🔑 Đổi mật khẩu nhân viên</h3>
-        <button class="btn-close" id="btn-close-change-password-modal" style="font-size: 24px;">&times;</button>
-      </div>
-      <form id="change-password-staff-form" style="margin: 0;">
-        <div class="modal-body" style="padding: 24px; display: flex; flex-direction: column; gap: 16px;">
-          <input type="hidden" id="change-password-staff-id-input">
-          
-          <div class="text-input-container">
-            <span class="text-input-label" style="font-weight:600;">Tài khoản nhân viên</span>
-            <input type="text" id="change-password-staff-username-input" class="text-input" readonly style="background-color: var(--surface-soft); cursor: not-allowed; font-weight:600; padding-top: 24px;">
-          </div>
-          
-          <div class="text-input-container">
-            <label class="text-input-label" for="change-password-staff-new-pass">Mật khẩu mới</label>
-            <input type="password" id="change-password-staff-new-pass" class="text-input" placeholder="Nhập mật khẩu mới..." required autocomplete="off">
-          </div>
-          
-          <div class="text-input-container">
-            <label class="text-input-label" for="change-password-staff-confirm-pass">Xác nhận mật khẩu mới</label>
-            <input type="password" id="change-password-staff-confirm-pass" class="text-input" placeholder="Xác nhận lại mật khẩu..." required autocomplete="off">
-          </div>
-          
-          <div id="change-password-error-msg" style="color: var(--primary-error-text); font-size: 12.5px; display: none; font-weight: 600;"></div>
-        </div>
-        <div class="modal-footer" style="background-color: var(--surface-soft); border-top: 1px solid var(--hairline-soft); padding: 16px 24px; display: flex; justify-content: flex-end; gap: var(--space-base);">
-          <button type="button" class="btn btn-secondary btn-pill" id="btn-cancel-change-password-modal" style="height: 38px; padding: 0 16px;">Hủy</button>
-          <button type="submit" class="btn btn-primary btn-pill" style="height: 38px; padding: 0 20px; font-weight: 600;">Cập nhật mật khẩu</button>
         </div>
       </form>
     </div>
