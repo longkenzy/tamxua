@@ -1,0 +1,7 @@
+node_modules/
+.env
+public/images/dishes/*
+!public/images/dishes/.gitkeep
+.gemini/
+.agents/
+*.log

@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Đăng nhập - Tam Xưa Order</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🔑</text></svg>">
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    body {
+      background-color: var(--canvas);
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+    
+    .login-container {
+      flex-grow: 1;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: var(--space-lg);
+    }
+    
+    .login-card {
+      width: 100%;
+      max-width: 450px;
+      background-color: var(--canvas);
+      border: 1px solid var(--hairline);
+      border-radius: var(--rounded-md);
+      padding: var(--space-xl);
+      box-shadow: var(--shadow);
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-lg);
+    }
+    
+    .login-header {
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: var(--space-sm);
+    }
+    
+    .login-logo {
+      width: 80px;
+      height: 80px;
+      border-radius: var(--rounded-full);
+      object-fit: cover;
+      display: none; /* Will show if image loads */
+    }
+    
+    .login-logo-emoji {
+      font-size: 64px;
+      line-height: 1;
+      user-select: none;
+    }
+    
+    .login-title h1 {
+      font-size: 24px;
+      font-weight: 600;
+      color: var(--ink);
+      letter-spacing: -0.5px;
+    }
+    
+    .login-title p {
+      font-size: 14px;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+    
+    .login-form {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-base);
+    }
+    
+    .error-banner {
+      background-color: #fef2f2;
+      border: 1px solid #fecaca;
+      border-radius: var(--rounded-sm);
+      color: var(--primary-error-text);
+      padding: 12px;
+      font-size: 14px;
+      font-weight: 500;
+      display: none;
+      align-items: center;
+      gap: var(--space-sm);
+    }
+    
+    .error-banner svg {
+      flex-shrink: 0;
+      width: 16px;
+      height: 16px;
+      fill: currentColor;
+    }
+
+    .login-footer {
+      text-align: center;
+      font-size: 13px;
+      color: var(--muted-soft);
+      padding: var(--space-lg) 0;
+      border-top: 1px solid var(--hairline-soft);
+      margin-top: var(--space-lg);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Nav (Simple) -->
+  <header class="top-nav">
+    <div class="brand">
+      <img id="header-logo-img" class="brand-logo" src="images/logo.png" alt="Logo" style="width: 32px; height: 32px; border-radius: var(--rounded-full); display: none; object-fit: cover;">
+      <span id="header-logo-emoji" class="brand-icon">🍜</span>
+      <span>Tam Xưa Order</span>
+    </div>
+    <div class="connection-status">
+      <span>Đăng nhập hệ thống</span>
+    </div>
+  </header>
+
+  <!-- Login Main -->
+  <main class="login-container">
+    <div class="login-card">
+      <div class="login-header">
+        <img id="login-logo-img" class="login-logo" src="images/logo.png" alt="Logo">
+        <div id="login-logo-emoji" class="login-logo-emoji">🍜</div>
+        
+        <div class="login-title">
+          <h1>Chào mừng quay lại</h1>
+          <p>Đăng nhập tài khoản Nhân viên hoặc Quản lý</p>
+        </div>
+      </div>
+
+      <!-- Error Message Banner -->
+      <div class="error-banner" id="error-banner">
+        <svg viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+          <path d="M10 0C4.48 0 0 4.48 0 10s4.48 10 10 10 10-4.48 10-10S15.52 0 10 0zm1 15H9v-2h2v2zm0-4H9V5h2v6z"/>
+        </svg>
+        <span id="error-message">Mật khẩu hoặc tài khoản không chính xác.</span>
+      </div>
+
+      <!-- Login Form -->
+      <form class="login-form" id="login-form" onsubmit="handleLogin(event)">
+        <div class="text-input-container">
+          <label class="text-input-label" for="username-input">Tên đăng nhập</label>
+          <input type="text" id="username-input" class="text-input" placeholder="Nhập tên đăng nhập..." required autofocus autocomplete="username">
+        </div>
+        
+        <div class="text-input-container">
+          <label class="text-input-label" for="password-input">Mật khẩu</label>
+          <input type="password" id="password-input" class="text-input" placeholder="Nhập mật khẩu..." required autocomplete="current-password">
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-pill full-width" id="btn-login-submit" style="margin-top: 8px;">
+          Đăng nhập
+        </button>
+      </form>
+
+      <div class="login-footer">
+        <p>© 2026 Tam Xưa Restaurant, Inc. Mọi quyền được bảo lưu.</p>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    // Try to load restaurant logo images
+    const logoImg = document.getElementById('login-logo-img');
+    const logoEmoji = document.getElementById('login-logo-emoji');
+    const headerLogoImg = document.getElementById('header-logo-img');
+    const headerLogoEmoji = document.getElementById('header-logo-emoji');
+
+    logoImg.onload = function() {
+      logoImg.style.display = 'block';
+      logoEmoji.style.display = 'none';
+    };
+    
+    headerLogoImg.onload = function() {
+      headerLogoImg.style.display = 'block';
+      headerLogoEmoji.style.display = 'none';
+    };
+
+    // Handle form login
+    async function handleLogin(e) {
+      e.preventDefault();
+      
+      const usernameInput = document.getElementById('username-input');
+      const passwordInput = document.getElementById('password-input');
+      const errorBanner = document.getElementById('error-banner');
+      const errorMessage = document.getElementById('error-message');
+      const btnSubmit = document.getElementById('btn-login-submit');
+      
+      const username = usernameInput.value.trim();
+      const password = passwordInput.value;
+      
+      if (!username || !password) return;
+      
+      // UI state loading
+      btnSubmit.disabled = true;
+      btnSubmit.textContent = 'Đang đăng nhập...';
+      errorBanner.style.display = 'none';
+      
+      try {
+        const response = await fetch('/api/login', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ username, password })
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok && result.success) {
+          // Redirect based on role
+          if (result.role === 'manager') {
+            window.location.href = '/manager.html';
+          } else if (result.role === 'waiter') {
+            window.location.href = '/waiter.html';
+          } else {
+            window.location.href = '/';
+          }
+        } else {
+          errorMessage.textContent = result.error || 'Mật khẩu hoặc tên tài khoản không đúng.';
+          errorBanner.style.display = 'flex';
+          passwordInput.value = '';
+          passwordInput.focus();
+        }
+      } catch (error) {
+        console.error('Lỗi đăng nhập:', error);
+        errorMessage.textContent = 'Lỗi kết nối máy chủ. Vui lòng thử lại.';
+        errorBanner.style.display = 'flex';
+      } finally {
+        btnSubmit.disabled = false;
+        btnSubmit.textContent = 'Đăng nhập';
+      }
+    }
+  </script>
+</body>
+</html>

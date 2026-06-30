@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Phục vụ - Tam Xưa Order</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📱</text></svg>">
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    body {
+      background-color: var(--canvas);
+      padding-bottom: 80px; /* Safe space for floating cart bar */
+    }
+
+    /* Waiter Specific styles */
+    .waiter-container {
+      max-width: 600px;
+      margin: 0 auto;
+      padding: var(--space-base);
+    }
+
+    .section-title {
+      font-size: 20px;
+      font-weight: 600;
+      color: var(--ink);
+      margin: var(--space-base) 0;
+      letter-spacing: -0.4px;
+    }
+
+    /* Table Selection Grid */
+    .tables-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: var(--space-base);
+    }
+
+    .table-card {
+      border: 1px solid var(--hairline);
+      border-radius: var(--rounded-md);
+      padding: var(--space-lg) var(--space-base);
+      text-align: center;
+      cursor: pointer;
+      background-color: var(--canvas);
+      transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: var(--space-sm);
+    }
+
+    .table-card:hover {
+      box-shadow: var(--shadow);
+      border-color: var(--border-strong);
+    }
+
+    .table-card.occupied {
+      background-color: var(--surface-soft);
+      border-color: var(--primary-disabled);
+    }
+
+    .table-icon {
+      font-size: 32px;
+      user-select: none;
+    }
+
+    .table-name {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--ink);
+    }
+
+    .table-status {
+      font-size: 13px;
+      font-weight: 600;
+      padding: 4px 12px;
+      border-radius: var(--rounded-full);
+      display: inline-block;
+    }
+
+    .table-status.empty {
+      background-color: #dcfce7;
+      color: #166534;
+    }
+
+    .table-status.occupied {
+      background-color: #fee2e2;
+      color: #991b1b;
+    }
+
+    /* Active order preview inside table card */
+    .table-order-preview {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: var(--space-xxs);
+    }
+
+    /* Ordering Header */
+    .order-header {
+      display: flex;
+      align-items: center;
+      gap: var(--space-base);
+      padding: var(--space-sm) 0;
+      border-bottom: 1px solid var(--hairline);
+      margin-bottom: var(--space-base);
+    }
+
+    .btn-back-circle {
+      width: 40px;
+      height: 40px;
+      border-radius: var(--rounded-full);
+      border: 1px solid var(--border-strong);
+      background-color: var(--canvas);
+      font-size: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: var(--ink);
+      transition: background-color 0.2s ease;
+    }
+
+    .btn-back-circle:hover {
+      background-color: var(--surface-soft);
+    }
+
+    .order-title-block h2 {
+      font-size: 20px;
+      font-weight: 600;
+      color: var(--ink);
+    }
+
+    .order-title-block p {
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    /* Custom search bar */
+    .search-container {
+      margin-bottom: var(--space-base);
+    }
+
+    .search-input-pill {
+      position: relative;
+    }
+
+    .search-input-pill input {
+      height: 48px;
+      border-radius: var(--rounded-full);
+      padding-left: 44px;
+      font-size: 15px;
+    }
+
+    .search-icon-inline {
+      position: absolute;
+      left: 16px;
+      top: 14px;
+      font-size: 16px;
+      color: var(--muted);
+    }
+
+    /* Menu Lists */
+    .menu-item-list {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-base);
+    }
+
+    .menu-item-card {
+      display: flex;
+      border: 1px solid var(--hairline);
+      border-radius: var(--rounded-md);
+      overflow: hidden;
+      background-color: var(--canvas);
+      height: 120px;
+    }
+
+    .menu-item-img {
+      width: 110px;
+      background-color: var(--surface-soft);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 48px;
+      border-right: 1px solid var(--hairline-soft);
+      user-select: none;
+    }
+
+    .menu-item-details {
+      flex: 1;
+      padding: var(--space-md);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .menu-item-info {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .menu-item-name {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--ink);
+    }
+
+    .menu-item-price {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--primary);
+    }
+
+    .menu-item-desc {
+      font-size: 12px;
+      color: var(--muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 250px;
+    }
+
+    .btn-add-item {
+      align-self: flex-end;
+      height: 32px;
+      padding: 0 var(--space-base);
+      font-size: 13px;
+      font-weight: 600;
+      border-radius: var(--rounded-sm);
+    }
+
+    /* Floating Cart Bar */
+    .floating-cart-bar {
+      position: fixed;
+      bottom: var(--space-base);
+      left: 50%;
+      transform: translateX(-50%);
+      width: calc(100% - 32px);
+      max-width: 568px;
+      background-color: var(--ink);
+      color: var(--on-dark);
+      border-radius: var(--rounded-full);
+      padding: var(--space-sm) var(--space-lg);
+      display: none;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+      z-index: 500;
+    }
+
+    .cart-summary-text {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .cart-summary-qty {
+      font-weight: 600;
+      font-size: 15px;
+    }
+
+    .cart-summary-total {
+      font-size: 12px;
+      color: var(--muted-soft);
+    }
+
+    .btn-view-cart {
+      background-color: var(--primary);
+      color: var(--on-primary);
+      border: none;
+      border-radius: var(--rounded-full);
+      padding: 8px 18px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background-color 0.2s ease;
+    }
+
+    .btn-view-cart:hover {
+      background-color: var(--primary-active);
+    }
+
+    /* Custom Item Dialog Quantity Stepper */
+    .stepper-container {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--space-lg);
+      margin: var(--space-lg) 0;
+    }
+
+    .btn-stepper {
+      width: 48px;
+      height: 48px;
+      border-radius: var(--rounded-full);
+      border: 1px solid var(--border-strong);
+      background-color: var(--canvas);
+      font-size: 20px;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: var(--ink);
+      user-select: none;
+    }
+
+    .btn-stepper:active {
+      background-color: var(--surface-soft);
+      transform: scale(0.95);
+    }
+
+    .stepper-value {
+      font-size: 24px;
+      font-weight: 600;
+      width: 40px;
+      text-align: center;
+    }
+
+    /* Cart Items list */
+    .cart-list {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-base);
+    }
+
+    .cart-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      border-bottom: 1px solid var(--hairline-soft);
+      padding-bottom: var(--space-base);
+    }
+
+    .cart-item:last-child {
+      border-bottom: none;
+      padding-bottom: 0;
+    }
+
+    .cart-item-info {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-xxs);
+      max-width: 75%;
+    }
+
+    .cart-item-name {
+      font-weight: 600;
+      font-size: 15px;
+    }
+
+    .cart-item-notes {
+      font-size: 13px;
+      color: var(--primary-error-text);
+      font-style: italic;
+    }
+
+    .cart-item-qty-price {
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .cart-item-actions {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: var(--space-sm);
+    }
+
+    .btn-remove-cart {
+      background: none;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 13px;
+      text-decoration: underline;
+    }
+
+    .btn-remove-cart:hover {
+      color: var(--primary);
+    }
+
+    .cart-item-subtotal {
+      font-weight: 600;
+      font-size: 15px;
+      color: var(--ink);
+    }
+
+    /* Success Toast Notification */
+    .toast-container {
+      position: fixed;
+      top: 24px;
+      right: 24px;
+      left: 24px;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-sm);
+      pointer-events: none;
+      align-items: center;
+    }
+
+    .toast {
+      background-color: #dcfce7;
+      color: #15803d;
+      border: 1px solid #bbf7d0;
+      padding: var(--space-md) var(--space-base);
+      border-radius: var(--rounded-md);
+      box-shadow: var(--shadow);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--space-base);
+      width: 100%;
+      max-width: 400px;
+      pointer-events: auto;
+      animation: toastSlideIn 0.35s cubic-bezier(0.2, 0.8, 0.2, 1), toastFadeOut 0.35s ease 3.2s forwards;
+    }
+
+    .toast-content {
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .btn-toast-close {
+      background: none;
+      border: none;
+      color: #166534;
+      cursor: pointer;
+      font-size: 18px;
+      padding: 0 4px;
+      opacity: 0.7;
+      transition: opacity 0.2s;
+    }
+
+    .btn-toast-close:hover {
+      opacity: 1;
+    }
+
+    @keyframes toastSlideIn {
+      from {
+        transform: translateY(-20px);
+        opacity: 0;
+      }
+      to {
+        transform: translateY(0);
+        opacity: 1;
+      }
+    }
+
+    @keyframes toastFadeOut {
+      from {
+        opacity: 1;
+        transform: scale(1);
+      }
+      to {
+        opacity: 0;
+        transform: scale(0.9);
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Toast notifications container -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <!-- Top Nav -->
+  <header class="top-nav">
+    <div class="brand" onclick="location.href='index.html'" style="cursor:pointer;">
+      <img id="header-logo-img" class="brand-logo" src="images/logo.png" alt="Logo" style="width: 32px; height: 32px; border-radius: var(--rounded-full); display: none; object-fit: cover; margin-right: 4px;">
+      <span id="header-logo-emoji" class="brand-icon">🍜</span>
+      <span>Tam Xưa Order</span>
+    </div>
+    <div class="user-profile">
+      <span class="role-badge waiter">Phục vụ</span>
+      <div class="connection-status">
+        <div id="connection-dot" class="status-dot"></div>
+      </div>
+      <button class="btn btn-secondary btn-pill" id="btn-logout-header" style="height: 32px; padding: 0 12px; font-size: 12px; border-color: var(--hairline); margin-left: 4px;">Đăng xuất</button>
+    </div>
+  </header>
+
+  <main class="waiter-container">
+    
+    <!-- STEP 1: Table Selection View -->
+    <div id="table-selection-view">
+      <h1 class="section-title">Chọn bàn để ghi Order</h1>
+      <div class="tables-grid" id="tables-container">
+        <!-- Rendered dynamically -->
+        <div class="text-center text-muted p-md full-width">Đang tải danh sách bàn...</div>
+      </div>
+    </div>
+
+    <!-- STEP 2: Menu / Ordering View -->
+    <div id="menu-ordering-view" style="display: none;">
+      <!-- Back button and title -->
+      <div class="order-header">
+        <button class="btn-back-circle" id="btn-back-tables">←</button>
+        <div class="order-title-block">
+          <h2 id="active-table-name">Bàn 1</h2>
+          <p id="active-table-status-subtitle">Nhập yêu cầu món ăn</p>
+        </div>
+      </div>
+
+      <!-- Menu Search -->
+      <div class="search-container">
+        <div class="search-input-pill">
+          <span class="search-icon-inline">🔍</span>
+          <input type="text" id="menu-search-input" class="text-input" placeholder="Tìm tên món ăn nhanh...">
+        </div>
+      </div>
+
+      <!-- Categories slider -->
+      <div class="category-strip" id="category-strip-container">
+        <div class="category-tab active" data-category="all">
+          <span class="category-emoji">🍽️</span>
+          <span>Tất cả</span>
+        </div>
+        <div class="category-tab" data-category="main">
+          <span class="category-emoji">🍛</span>
+          <span>Món chính</span>
+        </div>
+        <div class="category-tab" data-category="side">
+          <span class="category-emoji">🥗</span>
+          <span>Món thêm</span>
+        </div>
+        <div class="category-tab" data-category="drink">
+          <span class="category-emoji">🥤</span>
+          <span>Nước uống</span>
+        </div>
+      </div>
+
+      <!-- Menu Food Cards -->
+      <h3 class="section-title" style="margin-top: var(--space-base);">Thực đơn món ăn</h3>
+      <div class="menu-item-list" id="menu-items-container">
+        <!-- Rendered dynamically -->
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Floating Cart Bar -->
+  <div class="floating-cart-bar" id="floating-cart-bar">
+    <div class="cart-summary-text">
+      <span class="cart-summary-qty" id="cart-summary-qty">0 món</span>
+      <span class="cart-summary-total" id="cart-summary-total">Tạm tính: 0đ</span>
+    </div>
+    <button class="btn-view-cart" id="btn-view-cart">Xem giỏ hàng</button>
+  </div>
+
+  <!-- MODAL 1: Custom Item (Add to Cart notes / qty) -->
+  <div class="modal-backdrop" id="custom-item-modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title" id="custom-modal-title">Gỏi Cuốn Tôm Thịt</h3>
+        <button class="btn-close" id="btn-close-custom-modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="text-center">
+          <span id="custom-modal-emoji" style="font-size: 64px; display: block; margin-bottom: var(--space-xs);">🌯</span>
+          <span id="custom-modal-price" class="bold text-rausch" style="font-size: 18px;">30.000đ</span>
+          <p id="custom-modal-desc" class="text-muted mt-md" style="font-size: 14px; margin-top: 8px;">Mô tả món ăn ở đây</p>
+        </div>
+
+        <h4 class="bold text-center" style="margin-top: var(--space-lg); font-size: 15px;">Chọn số lượng</h4>
+        <div class="stepper-container">
+          <button class="btn-stepper" id="btn-stepper-minus">-</button>
+          <span class="stepper-value" id="stepper-value">1</span>
+          <button class="btn-stepper" id="btn-stepper-plus">+</button>
+        </div>
+
+        <div class="text-input-container mt-md">
+          <label class="text-input-label" for="custom-item-notes">Ghi chú món này</label>
+          <input type="text" id="custom-item-notes" class="text-input" placeholder="Ví dụ: Không cay, nhiều rau, ít ngọt...">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary btn-pill" id="btn-cancel-custom-modal" style="border-color: var(--ink);">Hủy</button>
+        <button class="btn btn-primary btn-pill" id="btn-add-to-cart-confirm">Thêm vào giỏ</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 2: Cart Summary -->
+  <div class="modal-backdrop" id="cart-modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title" id="cart-modal-title">Giỏ hàng - Bàn X</h3>
+        <button class="btn-close" id="btn-close-cart-modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="cart-list" id="cart-items-list-container">
+          <!-- Rendered dynamically -->
+        </div>
+      </div>
+      <div class="modal-footer" style="flex-direction: column; gap: var(--space-base); align-items: stretch;">
+        <div class="flex justify-between align-center">
+          <span style="font-size: 16px; font-weight: 500; color: var(--muted);">Tổng cộng:</span>
+          <span id="cart-total-price-large" style="font-size: 22px; font-weight: 700; color: var(--primary);">0đ</span>
+        </div>
+        <div class="flex gap-sm">
+          <button class="btn btn-secondary btn-pill full-width" id="btn-close-cart-modal-foot" style="border-color: var(--ink);">Quay lại</button>
+          <button class="btn btn-primary btn-pill full-width" id="btn-submit-order">Gửi Yêu Cầu Order</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Socket.io & Logic JS -->
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="js/waiter.js"></script>
+</body>
+</html>
