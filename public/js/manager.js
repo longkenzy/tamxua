@@ -12,6 +12,7 @@ let selectedTableId = null;
 let selectedTransactionId = null;
 let currentTab = 'tables'; // 'tables' or 'reports'
 let currentDiscountAmount = 0; // Discount applied in checkout modal
+let currentPaymentMethod = 'cash'; // Payment method in checkout modal ('cash' or 'bank')
 let revenueChartInstance = null;
 let revenueBarChartInstance = null;
 let dishesChartInstance = null;
@@ -522,6 +523,12 @@ async function printReceipt(tableObj, orderItems, discountAmount, receivedAmount
     ? formatTime(timestamp).replace(' - ', ' • ') 
     : formatTime(new Date().toISOString()).replace(' - ', ' • ');
 
+  let payMethod = currentPaymentMethod;
+  if (tableObj && tableObj.paymentMethod) {
+    payMethod = tableObj.paymentMethod;
+  }
+  const payMethodLabel = payMethod === 'bank' ? 'Chuyển khoản' : 'Tiền mặt';
+
   const templateData = {
     table_name: tableObj.name,
     order_time: orderTimeStr,
@@ -531,6 +538,7 @@ async function printReceipt(tableObj, orderItems, discountAmount, receivedAmount
     final_total: formatVND(finalTotal),
     received_amount: formatVND(receivedAmount || finalTotal),
     change_amount: formatVND(Math.max(0, changeAmount)),
+    payment_method: payMethodLabel,
     items: orderItems.map(item => ({
       emoji: item.emoji || '🍽️',
       name: item.name,
@@ -634,12 +642,13 @@ function openCheckoutModal(table) {
     const row = document.createElement('tr');
     row.innerHTML = `
       <td>
-        <span class="bold">${item.emoji} ${item.name}</span>
-        ${item.notes ? `<div class="panel-item-note" style="margin-top: 2px;">Ghi chú: ${item.notes}</div>` : ''}
+        <div class="checkout-item-details">
+          <span class="checkout-item-name">${item.emoji} ${item.name}</span>
+          ${item.notes ? `<span class="checkout-item-note-badge">Ghi chú: ${item.notes}</span>` : ''}
+        </div>
       </td>
-      <td class="text-center bold" style="font-size: 15px;">${item.quantity}</td>
-      <td class="text-right">${formatVND(item.price)}</td>
-      <td class="text-right bold">${formatVND(item.price * item.quantity)}</td>
+      <td class="text-center bold" style="font-size: 15px; vertical-align: middle;">${item.quantity}</td>
+      <td class="text-right bold" style="vertical-align: middle;">${formatVND(item.price * item.quantity)}</td>
     `;
     checkoutBillItemsBody.appendChild(row);
   });
@@ -655,6 +664,20 @@ function openCheckoutModal(table) {
   const summaryDiscount = document.getElementById('checkout-summary-discount');
   const summaryFinalTotal = document.getElementById('checkout-summary-final-total');
   
+  // Payment methods elements references
+  const methodCashBtn = document.getElementById('method-cash');
+  const methodBankBtn = document.getElementById('method-bank');
+  const cashFields = document.getElementById('cash-payment-fields');
+  const bankFields = document.getElementById('bank-payment-fields');
+  const bankQrImg = document.getElementById('bank-qr-img');
+
+  // Reset Payment Method to default Cash
+  currentPaymentMethod = 'cash';
+  methodCashBtn.classList.add('active');
+  methodBankBtn.classList.remove('active');
+  cashFields.style.display = 'block';
+  bankFields.style.display = 'none';
+
   // Reset Discount inputs & state
   discountTypeInput.value = 'none';
   discountValueInput.value = '0';
@@ -665,7 +688,7 @@ function openCheckoutModal(table) {
   // Reset Cash inputs & displays
   inputReceivedCash.value = '';
   displayChangeAmount.textContent = formatVND(0);
-  displayChangeAmount.className = 'change-value';
+  displayChangeAmount.className = 'change-value-v2';
   btnConfirmCheckoutPay.disabled = true;
 
   // Real-time calculation function
@@ -697,19 +720,57 @@ function openCheckoutModal(table) {
     }
     
     const finalToPay = Math.max(0, totalAmount - currentDiscountAmount);
-    const cash = parseFloat(inputReceivedCash.value) || 0;
-    const change = cash - finalToPay;
     
-    if (inputReceivedCash.value === '' || change < 0) {
-      displayChangeAmount.textContent = 'Chưa đủ tiền';
-      displayChangeAmount.className = 'change-value insufficient';
-      btnConfirmCheckoutPay.disabled = true;
-    } else {
-      displayChangeAmount.textContent = formatVND(change);
-      displayChangeAmount.className = 'change-value';
+    if (currentPaymentMethod === 'bank') {
+      // For Bank Transfer, received amount is exactly finalToPay, change is 0
+      inputReceivedCash.value = finalToPay;
+      displayChangeAmount.textContent = formatVND(0);
+      displayChangeAmount.className = 'change-value-v2';
       btnConfirmCheckoutPay.disabled = false;
+      
+      // Update Bank QR Image (MB Bank: 970422, Account: 0987654321, compact template)
+      const qrUrl = `https://img.vietqr.io/image/970422-0987654321-compact2.jpg?amount=${finalToPay}&addInfo=TAMXUA%20BAN%20${table.id}&accountName=NHA%20HANG%20TAM%20XUA`;
+      bankQrImg.src = qrUrl;
+    } else {
+      // Cash payment
+      const cash = parseFloat(inputReceivedCash.value) || 0;
+      const change = cash - finalToPay;
+      
+      if (inputReceivedCash.value === '' || change < 0) {
+        displayChangeAmount.textContent = 'Chưa đủ tiền';
+        displayChangeAmount.className = 'change-value-v2 insufficient';
+        btnConfirmCheckoutPay.disabled = true;
+      } else {
+        displayChangeAmount.textContent = formatVND(change);
+        displayChangeAmount.className = 'change-value-v2';
+        btnConfirmCheckoutPay.disabled = false;
+      }
     }
   }
+
+  // Bind Payment Method Toggle listeners
+  methodCashBtn.onclick = () => {
+    currentPaymentMethod = 'cash';
+    methodCashBtn.classList.add('active');
+    methodBankBtn.classList.remove('active');
+    cashFields.style.display = 'block';
+    bankFields.style.display = 'none';
+    
+    // Clear cash input so they must enter it again
+    inputReceivedCash.value = '';
+    updateCheckoutCalculations();
+    setTimeout(() => inputReceivedCash.focus(), 50);
+  };
+
+  methodBankBtn.onclick = () => {
+    currentPaymentMethod = 'bank';
+    methodBankBtn.classList.add('active');
+    methodCashBtn.classList.remove('active');
+    cashFields.style.display = 'none';
+    bankFields.style.display = 'block';
+    
+    updateCheckoutCalculations();
+  };
 
   // Bind input listeners
   discountTypeInput.onchange = updateCheckoutCalculations;
@@ -754,7 +815,8 @@ btnConfirmCheckoutPay.addEventListener('click', async () => {
       body: JSON.stringify({
         tableId: selectedTableId,
         receivedAmount: cash,
-        discountAmount: currentDiscountAmount
+        discountAmount: currentDiscountAmount,
+        paymentMethod: currentPaymentMethod
       })
     });
     
@@ -842,12 +904,15 @@ function renderTransactionDetails(tx) {
   const itemsQty = tx.items.reduce((sum, item) => sum + item.quantity, 0);
   const finalPaid = tx.subtotal - (tx.discountAmount || 0);
 
+  const paymentMethodLabel = tx.paymentMethod === 'bank' ? '🏦 Chuyển khoản' : '💵 Tiền mặt';
+
   billDetailsPanel.innerHTML = `
     <div class="panel-header">
       <div class="panel-header-title">
         <h2>${tx.tableName}</h2>
         <p>Mã HĐ: <span class="bold">${tx.id}</span></p>
         <p>Thời gian: ${formatTime(tx.timestamp)}</p>
+        <p>Hình thức: <span class="bold">${paymentMethodLabel}</span></p>
       </div>
       <div class="panel-header-price">
         <div class="panel-price-amount" style="color: var(--ink);">${formatVND(finalPaid)}</div>

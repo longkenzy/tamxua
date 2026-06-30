@@ -120,6 +120,7 @@ async function getTransactionsWithItems() {
       receivedAmount: tx.received_amount,
       changeAmount: tx.change_amount,
       discountAmount: tx.discount_amount || 0,
+      paymentMethod: tx.payment_method || 'cash',
       timestamp: tx.timestamp ? tx.timestamp.toISOString() : '',
       items: txItems
     };
@@ -376,7 +377,7 @@ app.post('/api/order', async (req, res) => {
 
 // Checkout table
 app.post('/api/checkout', async (req, res) => {
-  const { tableId, receivedAmount, discountAmount } = req.body;
+  const { tableId, receivedAmount, discountAmount, paymentMethod } = req.body;
   if (!tableId || receivedAmount === undefined || receivedAmount === null) {
     return res.status(400).json({ error: 'Thiếu thông tin thanh toán.' });
   }
@@ -418,9 +419,9 @@ app.post('/api/checkout', async (req, res) => {
 
     // 1. Create Transaction
     await client.query(`
-      INSERT INTO transactions (id, table_id, table_name, subtotal, received_amount, change_amount, discount_amount, timestamp)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
-    `, [txId, table.id, table.name, subtotal, parseFloat(receivedAmount), changeAmount, discount]);
+      INSERT INTO transactions (id, table_id, table_name, subtotal, received_amount, change_amount, discount_amount, payment_method, timestamp)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
+    `, [txId, table.id, table.name, subtotal, parseFloat(receivedAmount), changeAmount, discount, paymentMethod || 'cash']);
 
     // 2. Create Transaction Items
     for (const item of orderItems) {

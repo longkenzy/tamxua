@@ -490,6 +490,278 @@
         padding-right: 12px;
       }
     }
+
+    /* Redesigned Checkout Modal */
+    .checkout-split-container {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 24px;
+      min-height: 450px;
+    }
+
+    @media (max-width: 768px) {
+      .checkout-split-container {
+        grid-template-columns: 1fr;
+        gap: 16px;
+      }
+    }
+
+    .checkout-bill-section {
+      border-right: 1px solid var(--hairline-soft);
+      padding-right: 16px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    @media (max-width: 768px) {
+      .checkout-bill-section {
+        border-right: none;
+        padding-right: 0;
+        border-bottom: 1px solid var(--hairline-soft);
+        padding-bottom: 16px;
+      }
+    }
+
+    .checkout-section-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--ink);
+      margin-bottom: var(--space-base);
+    }
+
+    .checkout-bill-scroll {
+      flex: 1;
+      max-height: 380px;
+      overflow-y: auto;
+      padding-right: 8px;
+    }
+
+    .checkout-bill-table-v2 {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .checkout-bill-table-v2 th, .checkout-bill-table-v2 td {
+      padding: 12px 8px;
+      text-align: left;
+      font-size: 14px;
+      vertical-align: top;
+    }
+
+    .checkout-bill-table-v2 th {
+      border-bottom: 1px solid var(--hairline);
+      color: var(--muted);
+      font-weight: 600;
+      font-size: 13px;
+    }
+
+    .checkout-bill-table-v2 td {
+      border-bottom: 1px solid var(--hairline-soft);
+    }
+
+    .checkout-bill-table-v2 tr:last-child td {
+      border-bottom: none;
+    }
+
+    .checkout-item-details {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .checkout-item-name {
+      font-weight: 600;
+      color: var(--ink);
+    }
+
+    .checkout-item-note-badge {
+      display: inline-block;
+      font-size: 12px;
+      color: var(--primary-error-text);
+      background-color: #fff1f2;
+      border: 1px solid #fecdd3;
+      padding: 2px 8px;
+      border-radius: var(--rounded-md);
+      margin-top: 4px;
+      font-style: normal;
+      width: fit-content;
+    }
+
+    .checkout-payment-section {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .calc-row-v2 {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+    }
+
+    .calc-value-subtotal-v2 {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--primary);
+    }
+
+    .discount-inputs-v2 {
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr;
+      gap: 12px;
+    }
+
+    .calc-summary-v2 {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding: 14px 16px;
+      background-color: var(--surface-soft);
+      border-radius: var(--rounded-md);
+      border: 1px solid var(--hairline);
+      font-size: 13.5px;
+    }
+
+    .calc-final-row-v2 {
+      font-size: 16px;
+      font-weight: 700;
+      border-top: 1px dashed var(--border-strong);
+      padding-top: 8px;
+      margin-top: 4px;
+    }
+
+    .calc-final-value-v2 {
+      color: var(--primary);
+      font-size: 24px;
+    }
+
+    .section-subtitle-v2 {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: -4px;
+    }
+
+    .payment-methods-group {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .pay-method-card {
+      border: 1px solid var(--hairline);
+      border-radius: var(--rounded-md);
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      background-color: var(--canvas);
+      transition: all 0.2s ease;
+      text-align: center;
+    }
+
+    .pay-method-card:hover {
+      border-color: var(--border-strong);
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+
+    .pay-method-card.active {
+      border-color: var(--ink);
+      background-color: var(--surface-soft);
+      border-width: 2px;
+      padding: 11px; /* Offset border width */
+    }
+
+    .pay-method-icon {
+      font-size: 24px;
+    }
+
+    .pay-method-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--ink);
+    }
+
+    .change-display-row-v2 {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px;
+      background-color: #f0fdf4;
+      border: 1px solid #bbf7d0;
+      border-radius: var(--rounded-md);
+      font-size: 14px;
+      font-weight: 600;
+      color: #166534;
+      margin-top: 8px;
+    }
+
+    .change-value-v2 {
+      font-size: 24px;
+      font-weight: 800;
+      color: var(--success);
+    }
+
+    .change-value-v2.insufficient {
+      color: var(--primary-error-text);
+      font-size: 15px;
+    }
+
+    /* Bank QR Layout */
+    .bank-qr-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      padding: 14px;
+      border: 1px solid var(--hairline);
+      border-radius: var(--rounded-md);
+      background-color: var(--canvas);
+    }
+
+    .qr-code-placeholder {
+      width: 160px;
+      height: 160px;
+      border: 1px solid var(--hairline-soft);
+      border-radius: var(--rounded-md);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background-color: #f9f9f9;
+      overflow: hidden;
+    }
+
+    .qr-code-image {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    .bank-details-text {
+      width: 100%;
+      font-size: 13px;
+      line-height: 1.4;
+      color: var(--ink);
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .bank-details-text p {
+      margin: 0;
+    }
+
+    .qr-hint {
+      font-size: 11px;
+      color: var(--muted);
+      text-align: center;
+      margin-top: 4px !important;
+      font-style: italic;
+    }
   </style>
 </head>
 <body>
@@ -810,90 +1082,123 @@
 
   <!-- CALCULATOR MODAL: Checkout / Calculating Change -->
   <div class="modal-backdrop" id="checkout-modal">
-    <div class="modal-content" style="max-width: 600px;">
-      <div class="modal-header">
-        <h3 class="modal-title" id="checkout-modal-title">Thanh toán - Bàn 1</h3>
-        <button class="btn-close" id="btn-close-checkout-modal">&times;</button>
+    <div class="modal-content" style="max-width: 900px; border-radius: var(--rounded-lg);">
+      <div class="modal-header" style="border-bottom: 1px solid var(--hairline-soft); padding: 20px 24px;">
+        <h3 class="modal-title" id="checkout-modal-title" style="font-size: 22px; font-weight: 700; letter-spacing: -0.5px;">Thanh toán - Bàn 1</h3>
+        <button class="btn-close" id="btn-close-checkout-modal" style="font-size: 24px;">&times;</button>
       </div>
       
-      <div class="modal-body" style="padding: var(--space-base);">
-        <h4 class="bold" style="font-size: 15px; margin-bottom: var(--space-sm);">Chi tiết các món đã dùng</h4>
-        
-        <!-- Table Bill Details -->
-        <table class="checkout-bill-table">
-          <thead>
-            <tr>
-              <th>Món ăn</th>
-              <th class="text-center" style="width: 80px;">Số lượng</th>
-              <th class="text-right" style="width: 100px;">Đơn giá</th>
-              <th class="text-right" style="width: 110px;">Thành tiền</th>
-            </tr>
-          </thead>
-          <tbody id="checkout-bill-items-body">
-            <!-- Rendered dynamically -->
-          </tbody>
-        </table>
-
-        <!-- Calculation Input Box -->
-        <div class="checkout-calculation-box">
-          <!-- Subtotal display -->
-          <div class="flex justify-between align-center">
-            <span class="bold" style="font-size: 16px; color: var(--muted);">TỔNG TIỀN PHẢI TRẢ:</span>
-            <span id="checkout-bill-total" style="font-size: 22px; font-weight: 700; color: var(--primary);">0đ</span>
-          </div>
-
-          <!-- Discount Selection -->
-          <div style="display: flex; gap: var(--space-base); align-items: center; margin-top: 4px;">
-            <div class="text-input-container" style="flex: 1.2;">
-              <label class="text-input-label" for="checkout-discount-type">Loại giảm giá</label>
-              <select id="checkout-discount-type" class="text-input" style="padding-top: 20px; font-weight: 500; appearance: none; -webkit-appearance: none;">
-                <option value="none">Không giảm giá</option>
-                <option value="percent">Giảm giá %</option>
-                <option value="cash">Giảm số tiền (VNĐ)</option>
-              </select>
-            </div>
-            
-            <div class="text-input-container" style="flex: 1;">
-              <label class="text-input-label" id="label-discount-value" for="checkout-discount-value">Giá trị giảm</label>
-              <input type="number" id="checkout-discount-value" class="text-input" placeholder="0" min="0" value="0" disabled autocomplete="off">
+      <div class="modal-body" style="padding: 24px;">
+        <div class="checkout-split-container">
+          <!-- Left Side: Bill Items -->
+          <div class="checkout-bill-section">
+            <h4 class="checkout-section-title">📝 Chi tiết món ăn đã dùng</h4>
+            <div class="checkout-bill-scroll">
+              <table class="checkout-bill-table-v2">
+                <thead>
+                  <tr>
+                    <th>Món ăn</th>
+                    <th class="text-center" style="width: 60px;">SL</th>
+                    <th class="text-right" style="width: 100px;">Thành tiền</th>
+                  </tr>
+                </thead>
+                <tbody id="checkout-bill-items-body">
+                  <!-- Rendered dynamically -->
+                </tbody>
+              </table>
             </div>
           </div>
 
-          <!-- Discount Calculation Summary Card -->
-          <div id="checkout-calc-summary" style="display: none; flex-direction: column; gap: 6px; padding: 10px 12px; background-color: var(--surface-strong); border-radius: var(--rounded-sm); border: 1px solid var(--hairline); font-size: 13px;">
-            <div class="flex justify-between">
-              <span class="text-muted">Tổng cộng tiền món:</span>
-              <span id="checkout-summary-subtotal" class="bold">0đ</span>
+          <!-- Right Side: Payment Calculation -->
+          <div class="checkout-payment-section">
+            <!-- Subtotal -->
+            <div class="calc-row-v2">
+              <span class="bold" style="font-size: 15px; color: var(--muted);">TỔNG TIỀN TIỀN MÓN:</span>
+              <span id="checkout-bill-total" class="calc-value-subtotal-v2">0đ</span>
             </div>
-            <div class="flex justify-between" style="color: var(--primary-error-text);">
-              <span>Số tiền được giảm:</span>
-              <span id="checkout-summary-discount" class="bold">-0đ</span>
+
+            <!-- Discount inputs -->
+            <div class="discount-inputs-v2">
+              <div class="text-input-container">
+                <label class="text-input-label" for="checkout-discount-type">Loại giảm giá</label>
+                <select id="checkout-discount-type" class="text-input" style="padding-top: 20px; font-weight: 500; appearance: none; -webkit-appearance: none;">
+                  <option value="none">Không giảm</option>
+                  <option value="percent">Giảm giá %</option>
+                  <option value="cash">Giảm tiền (đ)</option>
+                </select>
+                <span class="select-chevron" style="top: 20px; font-size: 10px;">▼</span>
+              </div>
+              <div class="text-input-container">
+                <label class="text-input-label" id="label-discount-value" for="checkout-discount-value">Giá trị giảm</label>
+                <input type="number" id="checkout-discount-value" class="text-input" placeholder="0" min="0" value="0" disabled autocomplete="off">
+              </div>
             </div>
-            <div class="flex justify-between" style="font-weight: 700; border-top: 1px dashed var(--border-strong); padding-top: 6px; font-size: 14px;">
-              <span>Tổng số cần thanh toán:</span>
-              <span id="checkout-summary-final-total" class="text-rausch">0đ</span>
+
+            <!-- Calc Summary -->
+            <div id="checkout-calc-summary" class="calc-summary-v2" style="display: none;">
+              <div class="flex justify-between">
+                <span class="text-muted">Tạm tính:</span>
+                <span id="checkout-summary-subtotal" class="bold">0đ</span>
+              </div>
+              <div class="flex justify-between text-error" style="color: var(--primary-error-text);">
+                <span>Được giảm:</span>
+                <span id="checkout-summary-discount" class="bold">-0đ</span>
+              </div>
+              <div class="flex justify-between calc-final-row-v2">
+                <span>Cần thanh toán:</span>
+                <span id="checkout-summary-final-total" class="bold calc-final-value-v2">0đ</span>
+              </div>
             </div>
-          </div>
-          
-          <!-- Received Amount Input -->
-          <div class="text-input-container">
-            <label class="text-input-label" for="input-received-cash">Số tiền khách đưa (VNĐ)</label>
-            <input type="number" id="input-received-cash" class="text-input" placeholder="Ví dụ: 100000, 200000..." min="0" step="1000" style="font-size: 18px; font-weight: 600;">
-          </div>
-          
-          <!-- Change amount calculated -->
-          <div class="change-display-row">
-            <span class="bold" style="font-size: 15px; color: var(--ink);">TIỀN THỪA TRẢ KHÁCH:</span>
-            <span id="display-change-amount" class="change-value">0đ</span>
+
+            <!-- Payment Method (Tiền mặt / Chuyển khoản) -->
+            <label class="section-subtitle-v2">Hình thức thanh toán</label>
+            <div class="payment-methods-group">
+              <div class="pay-method-card active" id="method-cash" data-method="cash">
+                <span class="pay-method-icon">💵</span>
+                <span class="pay-method-title">Tiền mặt</span>
+              </div>
+              <div class="pay-method-card" id="method-bank" data-method="bank">
+                <span class="pay-method-icon">🏦</span>
+                <span class="pay-method-title">Chuyển khoản</span>
+              </div>
+            </div>
+
+            <!-- Cash Section (shown when cash is active) -->
+            <div id="cash-payment-fields">
+              <div class="text-input-container">
+                <label class="text-input-label" for="input-received-cash">Số tiền khách đưa (đ)</label>
+                <input type="number" id="input-received-cash" class="text-input" placeholder="Ví dụ: 50000, 100000..." min="0" step="1000" style="font-size: 18px; font-weight: 600;">
+              </div>
+              <!-- Change display -->
+              <div class="change-display-row-v2">
+                <span>Tiền thừa trả khách:</span>
+                <span id="display-change-amount" class="change-value-v2">0đ</span>
+              </div>
+            </div>
+
+            <!-- Bank Transfer Section (shown when bank is active) -->
+            <div id="bank-payment-fields" style="display: none;">
+              <div class="bank-qr-container">
+                <div class="qr-code-placeholder">
+                  <img id="bank-qr-img" src="" alt="VietQR Code" class="qr-code-image">
+                </div>
+                <div class="bank-details-text">
+                  <p><strong>Ngân hàng:</strong> MB Bank (Quân Đội)</p>
+                  <p><strong>Số tài khoản:</strong> 0987654321</p>
+                  <p><strong>Chủ tài khoản:</strong> NHA HANG TAM XUA</p>
+                  <p class="qr-hint">Quét mã QR để chuyển khoản nhanh với đúng số tiền</p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
-      <div class="modal-footer" style="justify-content: space-between; align-items: center; width: 100%;">
-        <button class="btn btn-secondary btn-pill" id="btn-print-checkout" style="border-color: var(--primary); color: var(--primary);"><span style="margin-right: 4px;">🖨️</span> In hóa đơn</button>
+      <div class="modal-footer" style="background-color: var(--surface-soft); border-top: 1px solid var(--hairline-soft); padding: 16px 24px; justify-content: space-between; align-items: center; width: 100%;">
+        <button class="btn btn-secondary btn-pill" id="btn-print-checkout" style="border-color: var(--primary); color: var(--primary); height: 40px; padding: 0 20px;"><span style="margin-right: 4px;">🖨️</span> In hóa đơn</button>
         <div style="display: flex; gap: var(--space-base);">
-          <button class="btn btn-secondary btn-pill" id="btn-cancel-checkout" style="border-color: var(--ink);">Quay lại</button>
-          <button class="btn btn-primary btn-pill" id="btn-confirm-checkout-pay" disabled>Xác nhận thanh toán</button>
+          <button class="btn btn-secondary btn-pill" id="btn-cancel-checkout" style="border-color: var(--border-strong); height: 40px; padding: 0 20px;">Quay lại</button>
+          <button class="btn btn-primary btn-pill" id="btn-confirm-checkout-pay" disabled style="height: 40px; padding: 0 24px; font-weight: 600;">Xác nhận thanh toán</button>
         </div>
       </div>
     </div>

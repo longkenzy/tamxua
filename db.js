@@ -101,6 +101,11 @@ async function setupDatabase() {
       ALTER TABLE transactions ADD COLUMN IF NOT EXISTS discount_amount INT DEFAULT 0
     `);
 
+    // Add payment_method column if not exists
+    await client.query(`
+      ALTER TABLE transactions ADD COLUMN IF NOT EXISTS payment_method VARCHAR(50) DEFAULT 'cash'
+    `);
+
     // 6. Create transaction_items table
     await client.query(`
       CREATE TABLE IF NOT EXISTS transaction_items (
