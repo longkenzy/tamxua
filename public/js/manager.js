@@ -466,8 +466,34 @@ function getFormattedTime(dateStr) {
   return `${hours}:${mins}`;
 }
 
+// Render live occupancy status widgets
+function updateTableStatsSummary() {
+  const statsContainer = document.getElementById('tables-stats-summary');
+  if (!statsContainer) return;
+  
+  const total = tables.length;
+  const occupied = tables.filter(t => t.status === 'eating').length;
+  const empty = total - occupied;
+  
+  statsContainer.innerHTML = `
+    <div class="stat-badge-v2">
+      <span class="stat-dot-v2" style="background-color: var(--border-strong);"></span>
+      Tổng: <span class="bold" style="color: var(--ink); margin-left: 2px;">${total}</span>
+    </div>
+    <div class="stat-badge-v2 active">
+      <span class="stat-dot-v2" style="background-color: var(--primary);"></span>
+      Đang dùng: <span class="bold" style="margin-left: 2px;">${occupied}</span>
+    </div>
+    <div class="stat-badge-v2 empty">
+      <span class="stat-dot-v2" style="background-color: var(--success);"></span>
+      Bàn trống: <span class="bold" style="margin-left: 2px;">${empty}</span>
+    </div>
+  `;
+}
+
 function renderTables() {
   managerTablesContainer.innerHTML = '';
+  updateTableStatsSummary();
   
   tables.forEach(table => {
     const isOccupied = table.status === 'eating';
