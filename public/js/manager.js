@@ -546,7 +546,7 @@ function renderTables() {
     card.innerHTML = `
       <div class="table-card-header" style="border-bottom: ${isOccupied ? '1px solid var(--hairline-soft)' : 'none'}; padding-bottom: ${isOccupied ? '4px' : '0'};">
         <div style="display: flex; flex-direction: column; text-align: left;">
-          <span class="table-card-title">${table.name}</span>
+          <span class="table-card-title">${table.name} <span style="font-size: 10px; font-weight: 500; color: var(--muted); background-color: var(--surface-soft); padding: 1px 5px; border-radius: var(--rounded-full); border: 1px solid var(--hairline-soft); margin-left: 4px; text-transform: capitalize;">${table.location || 'trệt'}</span></span>
           ${isOccupied && table.updatedAt ? `
             <span style="font-size: 11px; color: var(--muted); font-weight: 500; margin-top: 2px;">
               Vào: ${getFormattedTime(table.updatedAt)} (${getSittingTimeText(table.updatedAt)})
@@ -2053,6 +2053,20 @@ function initCustomSelects() {
 // Close custom dropdown menus when clicking outside
 document.addEventListener('click', closeAllCustomSelects);
 
+// Add Table Location segment selector helper
+window.selectLocationSegment = (el) => {
+  const parent = el.parentElement;
+  parent.querySelectorAll('.location-segment').forEach(seg => {
+    seg.classList.remove('active');
+  });
+  el.classList.add('active');
+  const val = el.getAttribute('data-value');
+  const input = document.getElementById('add-table-location-select');
+  if (input) {
+    input.value = val;
+  }
+};
+
 // Add Table Modal handlers
 window.openAddTableModalInline = () => {
   const modal = document.getElementById('add-table-modal');
@@ -2063,6 +2077,20 @@ window.openAddTableModalInline = () => {
     errorMsg.style.display = 'none';
     errorMsg.textContent = '';
   }
+  
+  // Reset location input & segmented control active state
+  const locationInput = document.getElementById('add-table-location-select');
+  if (locationInput) locationInput.value = 'trệt';
+  
+  const segments = document.querySelectorAll('#add-table-modal .location-segment');
+  segments.forEach(seg => {
+    if (seg.getAttribute('data-value') === 'trệt') {
+      seg.classList.add('active');
+    } else {
+      seg.classList.remove('active');
+    }
+  });
+
   if (modal) {
     modal.style.display = 'flex';
   }
@@ -2108,11 +2136,14 @@ if (form) {
       return;
     }
     
+    const locationSelect = document.getElementById('add-table-location-select');
+    const location = locationSelect ? locationSelect.value : 'trệt';
+    
     try {
       const response = await fetch('/api/tables', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name })
+        body: JSON.stringify({ name, location })
       });
       
       const result = await response.json();

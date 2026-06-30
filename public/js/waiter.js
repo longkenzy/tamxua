@@ -229,7 +229,7 @@ function renderTables() {
 
     card.innerHTML = `
       <div class="table-icon">${isOccupied ? '🍽️' : '🪑'}</div>
-      <div class="table-name">${table.name}</div>
+      <div class="table-name">${table.name} <span class="table-location-badge" style="font-size: 10px; font-weight: 500; color: var(--muted); background-color: var(--surface-soft); padding: 1px 5px; border-radius: 10px; border: 1px solid var(--hairline-soft); margin-left: 2px; text-transform: capitalize;">${table.location || 'trệt'}</span></div>
       <span class="table-status ${isOccupied ? 'occupied' : 'empty'}">
         ${isOccupied ? 'Đang dùng' : 'Trống'}
       </span>
@@ -601,12 +601,40 @@ if (btnLogoutHeader) {
   });
 }
 
+// Add Table Location segment selector helper
+window.selectLocationSegment = (el) => {
+  const parent = el.parentElement;
+  parent.querySelectorAll('.location-segment').forEach(seg => {
+    seg.classList.remove('active');
+  });
+  el.classList.add('active');
+  const val = el.getAttribute('data-value');
+  const input = document.getElementById('add-table-location-select');
+  if (input) {
+    input.value = val;
+  }
+};
+
 // Add Table Modal handlers
 if (btnAddTable) {
   btnAddTable.addEventListener('click', () => {
     addTableNameInput.value = '';
     addTableErrorMsg.style.display = 'none';
     addTableErrorMsg.textContent = '';
+    
+    // Reset location input & segmented control active state
+    const locationInput = document.getElementById('add-table-location-select');
+    if (locationInput) locationInput.value = 'trệt';
+    
+    const segments = document.querySelectorAll('#add-table-modal .location-segment');
+    segments.forEach(seg => {
+      if (seg.getAttribute('data-value') === 'trệt') {
+        seg.classList.add('active');
+      } else {
+        seg.classList.remove('active');
+      }
+    });
+
     addTableModal.style.display = 'flex';
     addTableNameInput.focus();
   });
@@ -630,6 +658,9 @@ if (addTableForm) {
       return;
     }
     
+    const locationSelect = document.getElementById('add-table-location-select');
+    const location = locationSelect ? locationSelect.value : 'trệt';
+    
     // Client-side duplicate check
     const isDuplicate = tables.some(t => t.name.toLowerCase() === name.toLowerCase());
     if (isDuplicate) {
@@ -642,7 +673,7 @@ if (addTableForm) {
       const response = await fetch('/api/tables', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name })
+        body: JSON.stringify({ name, location })
       });
       
       const result = await response.json();

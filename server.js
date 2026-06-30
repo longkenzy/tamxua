@@ -64,7 +64,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 // Database helper functions to format data for client
 async function getTablesWithOrders() {
   const res = await db.query(`
-    SELECT t.id, t.name, t.status, t.updated_at,
+    SELECT t.id, t.name, t.status, t.location, t.updated_at,
            COALESCE(
              json_agg(
                json_build_object(
@@ -81,7 +81,7 @@ async function getTablesWithOrders() {
     FROM tables t
     LEFT JOIN order_items oi ON t.id = oi.table_id
     LEFT JOIN menu m ON oi.menu_id = m.id
-    GROUP BY t.id, t.name, t.status, t.updated_at
+    GROUP BY t.id, t.name, t.status, t.location, t.updated_at
     ORDER BY t.id;
   `);
 
@@ -89,6 +89,7 @@ async function getTablesWithOrders() {
     id: row.id,
     name: row.name,
     status: row.status,
+    location: row.location || 'trệt',
     updatedAt: row.updated_at ? row.updated_at.toISOString() : '',
     order: row.order
   }));
@@ -341,11 +342,16 @@ app.get('/api/tables', async (req, res) => {
 });
 // Add a new table
 app.post('/api/tables', requireAuth, async (req, res) => {
-  const { name } = req.body;
+  const { name, location } = req.body;
   if (!name || !name.trim()) {
     return res.status(400).json({ error: 'Tên số bàn không được để trống.' });
   }
   const cleanName = name.trim();
+  const validLocations = ['trệt', 'lầu', 'máy lạnh', 'mang về'];
+  let cleanLocation = (location || 'trệt').trim().toLowerCase();
+  if (!validLocations.includes(cleanLocation)) {
+    return res.status(400).json({ error: 'Vị trí không hợp lệ. Vui lòng chọn một trong: trệt, lầu, máy lạnh, mang về.' });
+  }
 
   try {
     // 1. Check if table name already exists (case-insensitive)
@@ -359,7 +365,7 @@ app.post('/api/tables', requireAuth, async (req, res) => {
     const nextId = (maxIdRes.rows[0].max_id || 0) + 1;
 
     // 3. Insert new table
-    await db.query("INSERT INTO tables (id, name, status) VALUES ($1, $2, 'empty')", [nextId, cleanName]);
+    await db.query("INSERT INTO tables (id, name, status, location) VALUES ($1, $2, 'empty', $3)", [nextId, cleanName, cleanLocation]);
 
     // 3. Broadcast updated tables list to all clients
     const updatedTables = await getTablesWithOrders();

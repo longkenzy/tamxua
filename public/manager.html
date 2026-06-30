@@ -974,6 +974,7 @@
               <div id="tables-stats-summary" style="display: flex; gap: 8px; align-items: center;">
                 <!-- Rendered dynamically -->
               </div>
+              <button type="button" class="btn btn-primary btn-pill" id="btn-add-table" onclick="openAddTableModalInline()" style="height: 36px; padding: 0 16px; font-weight: 600; font-size: 13px;">+ Thêm bàn</button>
             </div>
           </div>
         </div>
@@ -1538,9 +1539,8 @@
     </div>
   </div>
 
-  <!-- MODAL: Add Table -->
   <div class="modal-backdrop" id="add-table-modal" style="display: none;">
-    <div class="modal-content" style="max-width: 400px; border-radius: var(--rounded-lg);">
+    <div class="modal-content" style="max-width: 400px; border-radius: var(--rounded-lg); overflow: hidden;">
       <div class="modal-header" style="border-bottom: 1px solid var(--hairline-soft); padding: 16px 24px;">
         <h3 class="modal-title" style="font-size: 18px; font-weight: 700;">Thêm bàn ăn mới</h3>
         <button class="btn-close" id="btn-close-add-table-modal" onclick="closeAddTableModalInline()" style="font-size: 24px;">&times;</button>
@@ -1550,6 +1550,28 @@
           <div class="text-input-container">
             <span class="text-input-label">Số hoặc tên bàn ăn</span>
             <input type="text" id="add-table-name-input" class="text-input" placeholder="Ví dụ: 15, Bàn 12, VIP 1..." required autocomplete="off">
+          </div>
+          <div style="margin-top: 16px; display: flex; flex-direction: column; width: 100%;">
+            <span style="font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; text-align: left; display: block;">Vị trí</span>
+            <div class="location-segmented-control">
+              <div class="location-segment active" data-value="trệt" onclick="selectLocationSegment(this)">
+                <span class="location-icon">🏢</span>
+                <span class="location-text">Trệt</span>
+              </div>
+              <div class="location-segment" data-value="lầu" onclick="selectLocationSegment(this)">
+                <span class="location-icon">🪜</span>
+                <span class="location-text">Lầu</span>
+              </div>
+              <div class="location-segment" data-value="máy lạnh" onclick="selectLocationSegment(this)">
+                <span class="location-icon">❄️</span>
+                <span class="location-text">Máy lạnh</span>
+              </div>
+              <div class="location-segment" data-value="mang về" onclick="selectLocationSegment(this)">
+                <span class="location-icon">🛍️</span>
+                <span class="location-text">Mang về</span>
+              </div>
+            </div>
+            <input type="hidden" id="add-table-location-select" value="trệt">
           </div>
           <div id="add-table-error-msg" style="color: var(--primary-error-text); font-size: 12px; margin-top: 8px; display: none; font-weight: 500;"></div>
         </div>

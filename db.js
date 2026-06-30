@@ -69,6 +69,9 @@ async function setupDatabase() {
         status VARCHAR(20) DEFAULT 'empty',
         updated_at TIMESTAMP WITH TIME ZONE
       )
+    `);    // Add location column if not exists
+    await client.query(`
+      ALTER TABLE tables ADD COLUMN IF NOT EXISTS location VARCHAR(50) DEFAULT 'trệt'
     `);
 
     // 4. Create order_items table
