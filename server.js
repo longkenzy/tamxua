@@ -51,6 +51,8 @@ app.use((req, res, next) => {
 
   if (urlPath === '/' || urlPath === '/index.html') {
     if (!role) return res.redirect('/login.html');
+    if (role === 'waiter') return res.redirect('/waiter.html');
+    if (role === 'manager') return res.redirect('/manager.html');
   }
 
   next();
