@@ -592,14 +592,23 @@ function renderTableDetails(table) {
   
   if (!table || table.status === 'empty' || table.order.length === 0) {
     tableDetailsPanel.innerHTML = `
-      <div class="no-table-selected">
+      <div class="no-table-selected" style="display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; height: 100%;">
         <div class="no-table-icon">🪑</div>
-        <div class="bold" style="font-size: 16px;">${table ? table.name : 'Chưa chọn bàn nào'}</div>
-        <p style="font-size:14px; line-height: 1.4;">
+        <div class="bold" style="font-size: 16px; margin-bottom: 8px;">${table ? table.name : 'Chưa chọn bàn nào'}</div>
+        <p style="font-size:14px; line-height: 1.4; margin-bottom: 20px; max-width: 280px; margin-left: auto; margin-right: auto;">
           ${table ? 'Bàn này đang trống. Hãy đợi phục vụ gửi order hoặc ghi món ăn.' : 'Chọn một bàn ăn ở bản đồ bên trái để xem chi tiết các món ăn đã gọi và xử lý thanh toán.'}
         </p>
+        ${table ? `
+          <button type="button" class="btn btn-danger btn-pill" id="btn-delete-table" style="height: 38px; padding: 0 20px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;">
+            🗑️ Xóa bàn
+          </button>
+        ` : ''}
       </div>
     `;
+    
+    if (table) {
+      document.getElementById('btn-delete-table').addEventListener('click', () => deleteTable(table));
+    }
     return;
   }
 
@@ -640,6 +649,38 @@ function renderTableDetails(table) {
   `;
 
   document.getElementById('btn-trigger-checkout').addEventListener('click', () => openCheckoutModal(table));
+}
+
+// Delete table function
+async function deleteTable(table) {
+  if (!table) return;
+  
+  if (confirm(`Bạn có chắc chắn muốn xóa "${table.name}" không?`)) {
+    try {
+      const response = await fetch(`/api/tables/${table.id}`, {
+        method: 'DELETE'
+      });
+      
+      const result = await response.json();
+      if (result.success) {
+        showToast(`✅ Đã xóa bàn "${table.name}" thành công!`);
+        selectedTableId = null; // Clear selected state
+        
+        // Refresh local tables list immediately
+        const tablesRes = await fetch('/api/tables');
+        if (tablesRes.ok) {
+          tables = await tablesRes.json();
+          renderTables();
+          renderTableDetails(null);
+        }
+      } else {
+        showToast(`❌ Không thể xóa bàn: ${result.error}`);
+      }
+    } catch (err) {
+      console.error('Lỗi khi xóa bàn:', err);
+      showToast('❌ Không thể kết nối tới server.');
+    }
+  }
 }
 
 // Global Print Receipt Function

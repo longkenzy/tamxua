@@ -371,6 +371,34 @@ app.post('/api/tables', requireAuth, async (req, res) => {
     res.status(500).json({ error: 'Lỗi hệ thống khi thêm bàn ăn.' });
   }
 });
+
+// Delete a table
+app.delete('/api/tables/:id', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  try {
+    // 1. Verify if the table has active order items
+    const checkRes = await db.query('SELECT status FROM tables WHERE id = $1', [id]);
+    if (checkRes.rowCount === 0) {
+      return res.status(404).json({ error: 'Không tìm thấy bàn ăn.' });
+    }
+    
+    if (checkRes.rows[0].status === 'eating') {
+      return res.status(400).json({ error: 'Không thể xóa bàn đang có khách dùng.' });
+    }
+
+    // 2. Delete table
+    await db.query('DELETE FROM tables WHERE id = $1', [id]);
+
+    // 3. Broadcast updated tables list
+    const updatedTables = await getTablesWithOrders();
+    io.emit('tables_updated', updatedTables);
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Lỗi khi xóa bàn ăn:', error);
+    res.status(500).json({ error: 'Lỗi hệ thống khi xóa bàn ăn.' });
+  }
+});
 // Get transactions
 app.get('/api/transactions', async (req, res) => {
   try {
