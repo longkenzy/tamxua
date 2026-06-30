@@ -647,7 +647,7 @@ if (addTableForm) {
       
       const result = await response.json();
       if (result.success) {
-        showToast(`✅ Đã thêm bàn "${name}" thành công!`);
+        showSuccessToast(`✅ Đã thêm bàn "${name}" thành công!`);
         closeAddTableModal();
         
         // Refresh local tables list immediately
