@@ -106,7 +106,6 @@ function formatTime(isoString) {
 
 // Initial Fetch
 async function init() {
-  initCustomSelects();
   try {
     const [tablesRes, transactionsRes, menuRes] = await Promise.all([
       fetch('/api/tables'),
@@ -131,6 +130,9 @@ async function init() {
     loadSocketScript(() => {
       initConnection();
     });
+
+    // Initialize custom selects
+    initCustomSelects();
   } catch (error) {
     console.error('Lỗi tải dữ liệu ban đầu:', error);
   }
@@ -680,7 +682,6 @@ function openCheckoutModal(table) {
 
   // Reset Discount inputs & state
   discountTypeInput.value = 'none';
-  syncCustomSelect('checkout-discount-type');
   discountValueInput.value = '0';
   discountValueInput.disabled = true;
   calcSummaryCard.style.display = 'none';
@@ -1532,7 +1533,6 @@ function openMenuItemModal(item = null) {
     menuItemNameInput.value = item.name;
     menuItemPriceInput.value = item.price;
     menuItemCategoryInput.value = item.category;
-    syncCustomSelect('menu-item-category-input');
     menuItemDescInput.value = item.description || '';
     menuItemEmojiInput.value = item.emoji || '🍽️';
 
@@ -1552,7 +1552,6 @@ function openMenuItemModal(item = null) {
     menuItemIdInput.value = '';
     menuItemForm.reset();
     menuItemCategoryInput.value = 'main';
-    syncCustomSelect('menu-item-category-input');
     menuItemEmojiInput.value = '🍽️';
 
     // Reset visual preview for create mode
@@ -1711,65 +1710,114 @@ if (btnLogoutHeader) {
   });
 }
 
+// Convert native select to custom select with Airbnb styling
+function makeSelectCustom(selectEl, labelText) {
+  if (!selectEl) return;
+  
+  // Hide native select
+  selectEl.style.display = 'none';
+  
+  // Create wrapper
+  const wrapper = document.createElement('div');
+  wrapper.className = 'custom-select-wrapper';
+  
+  // Create trigger button
+  const trigger = document.createElement('div');
+  trigger.className = 'custom-select-trigger';
+  
+  const label = document.createElement('span');
+  label.className = 'custom-select-label';
+  label.textContent = labelText;
+  
+  const valueText = document.createElement('span');
+  valueText.className = 'custom-select-value';
+  valueText.textContent = selectEl.options[selectEl.selectedIndex] ? selectEl.options[selectEl.selectedIndex].text : '';
+  
+  const chevron = document.createElement('span');
+  chevron.className = 'custom-select-chevron';
+  chevron.textContent = '▼';
+  
+  trigger.appendChild(label);
+  trigger.appendChild(valueText);
+  trigger.appendChild(chevron);
+  wrapper.appendChild(trigger);
+  
+  // Create options menu dropdown
+  const menu = document.createElement('div');
+  menu.className = 'custom-select-menu';
+  
+  // Populate option items
+  Array.from(selectEl.options).forEach(opt => {
+    const item = document.createElement('div');
+    item.className = 'custom-select-item' + (opt.selected ? ' selected' : '');
+    item.dataset.value = opt.value;
+    item.textContent = opt.text;
+    
+    item.onclick = (e) => {
+      e.stopPropagation();
+      selectEl.value = opt.value;
+      // Dispatch change event to run original listeners
+      selectEl.dispatchEvent(new Event('change'));
+      closeAllCustomSelects();
+    };
+    
+    menu.appendChild(item);
+  });
+  
+  wrapper.appendChild(menu);
+  selectEl.parentNode.insertBefore(wrapper, selectEl);
+  
+  // Toggle menu on click
+  trigger.onclick = (e) => {
+    e.stopPropagation();
+    const isOpen = wrapper.classList.contains('open');
+    closeAllCustomSelects();
+    if (!isOpen) {
+      wrapper.classList.add('open');
+    }
+  };
+  
+  // Override native select .value property descriptor to hook programmatic updates
+  const originalDescriptor = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value');
+  
+  Object.defineProperty(selectEl, 'value', {
+    get: function() {
+      return originalDescriptor.get.call(this);
+    },
+    set: function(val) {
+      originalDescriptor.set.call(this, val);
+      
+      // Update custom select wrapper trigger label and item state
+      const selectedOpt = this.options[this.selectedIndex];
+      valueText.textContent = selectedOpt ? selectedOpt.text : '';
+      
+      Array.from(menu.children).forEach(child => {
+        if (child.dataset.value === val) {
+          child.classList.add('selected');
+        } else {
+          child.classList.remove('selected');
+        }
+      });
+    }
+  });
+}
+
+function closeAllCustomSelects() {
+  document.querySelectorAll('.custom-select-wrapper').forEach(w => {
+    w.classList.remove('open');
+  });
+}
+
+function initCustomSelects() {
+  const discountSelect = document.getElementById('checkout-discount-type');
+  const categorySelect = document.getElementById('menu-item-category-input');
+  
+  makeSelectCustom(discountSelect, 'Loại giảm giá');
+  makeSelectCustom(categorySelect, 'Phân loại món');
+}
+
+// Close custom dropdown menus when clicking outside
+document.addEventListener('click', closeAllCustomSelects);
+
 // App Initialization
 init();
-
-// Custom Select Component Helpers
-function initCustomSelects() {
-  document.querySelectorAll('.custom-select-wrapper').forEach(wrapper => {
-    const trigger = wrapper.querySelector('.custom-select-trigger');
-    const valueSpan = wrapper.querySelector('.custom-select-value');
-    const optionsContainer = wrapper.querySelector('.custom-select-options');
-    const options = wrapper.querySelectorAll('.custom-option');
-    const hiddenSelect = wrapper.querySelector('select');
-
-    // Toggle open/close
-    trigger.addEventListener('click', (e) => {
-      e.stopPropagation();
-      document.querySelectorAll('.custom-select-wrapper').forEach(other => {
-        if (other !== wrapper) other.classList.remove('open');
-      });
-      wrapper.classList.toggle('open');
-    });
-
-    // Select option
-    options.forEach(opt => {
-      opt.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const value = opt.dataset.value;
-        const text = opt.textContent;
-
-        options.forEach(o => o.classList.remove('selected'));
-        opt.classList.add('selected');
-        valueSpan.textContent = text;
-        wrapper.classList.remove('open');
-
-        hiddenSelect.value = value;
-        hiddenSelect.dispatchEvent(new Event('change'));
-      });
-    });
-  });
-
-  // Close custom select dropdowns when clicking anywhere outside
-  document.addEventListener('click', () => {
-    document.querySelectorAll('.custom-select-wrapper').forEach(wrapper => {
-      wrapper.classList.remove('open');
-    });
-  });
-}
-
-function syncCustomSelect(selectId) {
-  const hiddenSelect = document.getElementById(selectId);
-  if (!hiddenSelect) return;
-  const wrapper = hiddenSelect.closest('.custom-select-wrapper');
-  if (!wrapper) return;
-  
-  const valueSpan = wrapper.querySelector('.custom-select-value');
-  const selectedOption = wrapper.querySelector(`.custom-option[data-value="${hiddenSelect.value}"]`);
-  
-  if (selectedOption) {
-    wrapper.querySelectorAll('.custom-option').forEach(o => o.classList.remove('selected'));
-    selectedOption.classList.add('selected');
-    valueSpan.textContent = selectedOption.textContent;
-  }
-}

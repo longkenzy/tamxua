@@ -761,60 +761,55 @@
       text-align: center;
       margin-top: 4px !important;
       font-style: italic;
-    /* Custom Select Component */
+    }
+
+    /* Custom Select Component styled to Airbnb standards */
     .custom-select-wrapper {
       position: relative;
-      display: flex;
-      flex-direction: column;
       width: 100%;
-      user-select: none;
+      cursor: pointer;
+      font-family: inherit;
     }
 
     .custom-select-trigger {
       display: flex;
       flex-direction: column;
       justify-content: center;
-      background-color: var(--canvas);
       border: 1px solid var(--border-strong);
       border-radius: var(--rounded-md);
-      padding: 12px 16px;
-      padding-top: 22px; /* Leaves space for the label */
-      cursor: pointer;
+      padding: 10px 36px 10px 16px;
+      min-height: 56px;
+      background-color: var(--canvas);
       position: relative;
-      transition: all 0.2s ease;
-      min-height: 58px;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+      user-select: none;
     }
 
-    .custom-select-trigger:hover {
+    .custom-select-wrapper:hover .custom-select-trigger {
       border-color: var(--ink);
     }
 
     .custom-select-wrapper.open .custom-select-trigger {
       border-color: var(--ink);
-      box-shadow: 0 0 0 1px var(--ink);
-      border-bottom-left-radius: 0;
-      border-bottom-right-radius: 0;
+      box-shadow: 0 0 0 2px rgba(34, 34, 34, 0.1);
     }
 
     .custom-select-label {
-      position: absolute;
-      top: 6px;
-      left: 16px;
       font-size: 11px;
-      font-weight: 700;
+      font-weight: 600;
       color: var(--muted);
       text-transform: uppercase;
       letter-spacing: 0.5px;
-      pointer-events: none;
+      margin-bottom: 2px;
     }
 
     .custom-select-value {
-      font-size: 14.5px;
-      font-weight: 600;
+      font-size: 14px;
+      font-weight: 500;
       color: var(--ink);
     }
 
-    .custom-select-arrow {
+    .custom-select-chevron {
       position: absolute;
       right: 16px;
       top: 50%;
@@ -825,50 +820,60 @@
       pointer-events: none;
     }
 
-    .custom-select-wrapper.open .custom-select-arrow {
+    .custom-select-wrapper.open .custom-select-chevron {
       transform: translateY(-50%) rotate(180deg);
     }
 
-    .custom-select-options {
+    /* Options Menu */
+    .custom-select-menu {
       position: absolute;
-      top: 100%;
+      top: calc(100% + 4px);
       left: 0;
       right: 0;
       background-color: var(--canvas);
-      border: 1px solid var(--ink);
-      border-top: none;
-      border-bottom-left-radius: var(--rounded-md);
-      border-bottom-right-radius: var(--rounded-md);
-      box-shadow: var(--shadow);
+      border: 1px solid var(--hairline);
+      border-radius: var(--rounded-md);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.12);
       z-index: 1000;
-      display: none;
-      max-height: 200px;
-      overflow-y: auto;
-      margin-top: -1px;
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(-10px);
+      transition: opacity 0.2s ease, visibility 0.2s ease, transform 0.2s ease;
+      overflow: hidden;
+      padding: 6px 0;
     }
 
-    .custom-select-wrapper.open .custom-select-options {
-      display: block;
+    .custom-select-wrapper.open .custom-select-menu {
+      opacity: 1;
+      visibility: visible;
+      transform: translateY(0);
     }
 
-    .custom-option {
+    .custom-select-item {
       padding: 12px 16px;
       font-size: 14px;
       font-weight: 500;
-      color: var(--body);
-      cursor: pointer;
-      transition: all 0.15s ease;
+      color: var(--ink);
+      transition: background-color 0.15s ease;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
     }
 
-    .custom-option:hover {
+    .custom-select-item:hover {
       background-color: var(--surface-soft);
-      color: var(--ink);
     }
 
-    .custom-option.selected {
-      background-color: var(--surface-strong);
-      color: var(--ink);
+    .custom-select-item.selected {
+      color: var(--primary);
+      background-color: #fff1f2;
       font-weight: 600;
+    }
+
+    .custom-select-item.selected::after {
+      content: '✓';
+      font-size: 12px;
+      color: var(--primary);
     }
   </style>
 </head>
@@ -1227,22 +1232,14 @@
 
             <!-- Discount inputs -->
             <div class="discount-inputs-v2">
-              <div class="custom-select-wrapper" id="wrapper-checkout-discount-type">
-                <div class="custom-select-trigger">
-                  <span class="custom-select-label">Loại giảm giá</span>
-                  <span class="custom-select-value">Không giảm</span>
-                  <span class="custom-select-arrow">▼</span>
-                </div>
-                <div class="custom-select-options">
-                  <div class="custom-option selected" data-value="none">Không giảm</div>
-                  <div class="custom-option" data-value="percent">Giảm giá %</div>
-                  <div class="custom-option" data-value="cash">Giảm tiền (đ)</div>
-                </div>
-                <select id="checkout-discount-type" style="display: none;">
+              <div class="text-input-container">
+                <label class="text-input-label" for="checkout-discount-type">Loại giảm giá</label>
+                <select id="checkout-discount-type" class="text-input" style="padding-top: 20px; font-weight: 500; appearance: none; -webkit-appearance: none;">
                   <option value="none">Không giảm</option>
                   <option value="percent">Giảm giá %</option>
                   <option value="cash">Giảm tiền (đ)</option>
                 </select>
+                <span class="select-chevron" style="top: 20px; font-size: 10px;">▼</span>
               </div>
               <div class="text-input-container">
                 <label class="text-input-label" id="label-discount-value" for="checkout-discount-value">Giá trị giảm</label>
@@ -1374,22 +1371,14 @@
               </div>
 
               <!-- Category Input -->
-              <div class="custom-select-wrapper" id="wrapper-menu-item-category-input" style="margin-bottom: var(--space-base);">
-                <div class="custom-select-trigger">
-                  <span class="custom-select-label">Phân loại món</span>
-                  <span class="custom-select-value">🍛 Món chính</span>
-                  <span class="custom-select-arrow">▼</span>
-                </div>
-                <div class="custom-select-options">
-                  <div class="custom-option selected" data-value="main">🍛 Món chính</div>
-                  <div class="custom-option" data-value="side">🥗 Món thêm</div>
-                  <div class="custom-option" data-value="drink">🥤 Nước uống</div>
-                </div>
-                <select id="menu-item-category-input" style="display: none;" required>
+              <div class="text-input-container">
+                <label class="text-input-label" for="menu-item-category-input">Phân loại món</label>
+                <select id="menu-item-category-input" class="text-input" style="padding-top: 24px; font-weight: 600; appearance: none; -webkit-appearance: none;" required>
                   <option value="main">🍛 Món chính</option>
                   <option value="side">🥗 Món thêm</option>
                   <option value="drink">🥤 Nước uống</option>
                 </select>
+                <span class="select-chevron">▼</span>
               </div>
 
               <!-- Description Input (Textarea style) -->
