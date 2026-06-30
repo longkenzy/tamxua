@@ -669,7 +669,6 @@ function openCheckoutModal(table) {
   const methodBankBtn = document.getElementById('method-bank');
   const cashFields = document.getElementById('cash-payment-fields');
   const bankFields = document.getElementById('bank-payment-fields');
-  const bankQrImg = document.getElementById('bank-qr-img');
 
   // Reset Payment Method to default Cash
   currentPaymentMethod = 'cash';
@@ -728,9 +727,7 @@ function openCheckoutModal(table) {
       displayChangeAmount.className = 'change-value-v2';
       btnConfirmCheckoutPay.disabled = false;
       
-      // Update Bank QR Image (MB Bank: 970422, Account: 0987654321, compact template)
-      const qrUrl = `https://img.vietqr.io/image/970422-0987654321-compact2.jpg?amount=${finalToPay}&addInfo=TAMXUA%20BAN%20${table.id}&accountName=NHA%20HANG%20TAM%20XUA`;
-      bankQrImg.src = qrUrl;
+      // No QR code needed, just show transfer details in UI
     } else {
       // Cash payment
       const cash = parseFloat(inputReceivedCash.value) || 0;
