@@ -70,6 +70,28 @@ const staffErrorBanner = document.getElementById('staff-error-banner');
 const staffErrorMessage = document.getElementById('staff-error-message');
 const staffSuccessBanner = document.getElementById('staff-success-banner');
 const btnCreateStaffSubmit = document.getElementById('btn-create-staff-submit');
+const staffSearchInput = document.getElementById('staff-search-input');
+const staffCountBadge = document.getElementById('staff-count-badge');
+
+// Staff Modals Elements
+const confirmDeleteStaffModal = document.getElementById('confirm-delete-staff-modal');
+const btnConfirmDeleteStaff = document.getElementById('btn-confirm-delete-staff');
+const btnCancelDeleteStaffModal = document.getElementById('btn-cancel-delete-staff-modal');
+const btnCloseDeleteStaffModal = document.getElementById('btn-close-delete-staff-modal');
+const deleteStaffUsernameDisplay = document.getElementById('delete-staff-username-display');
+
+const changePasswordStaffModal = document.getElementById('change-password-staff-modal');
+const changePasswordStaffForm = document.getElementById('change-password-staff-form');
+const changePasswordStaffIdInput = document.getElementById('change-password-staff-id-input');
+const changePasswordStaffUsernameInput = document.getElementById('change-password-staff-username-input');
+const changePasswordStaffNewPass = document.getElementById('change-password-staff-new-pass');
+const changePasswordStaffConfirmPass = document.getElementById('change-password-staff-confirm-pass');
+const changePasswordErrorMsg = document.getElementById('change-password-error-msg');
+const btnCancelChangePasswordModal = document.getElementById('btn-cancel-change-password-modal');
+const btnCloseChangePasswordModal = document.getElementById('btn-close-change-password-modal');
+
+let currentStaffList = []; // State array for client-side search/filtering
+let staffToDelete = null; // State object of user target for deletion
 
 // Menu Management Elements
 const tabMenuMgmt = document.getElementById('tab-menu-mgmt');
@@ -145,6 +167,9 @@ async function init() {
 
     // Prepare audio context on user gesture to bypass autoplay blocks
     initAudioOnUserInteraction();
+    
+    // Initialize redesigned staff management events
+    initStaffManagementEvents();
   } catch (error) {
     console.error('Lỗi tải dữ liệu ban đầu:', error);
   }
@@ -1529,6 +1554,25 @@ function renderCharts(sortedStats) {
   });
 }
 
+// Hash colors for staff avatars
+function getAvatarColor(username) {
+  const colors = [
+    '#FF5A5F', // Rausch
+    '#008489', // Teal
+    '#3C5A99', // Classic Blue
+    '#F5A623', // Warm yellow/orange
+    '#8A2BE2', // Purple
+    '#1E6B3F', // Forest green
+    '#911D4C'  // Plus
+  ];
+  let hash = 0;
+  for (let i = 0; i < username.length; i++) {
+    hash = username.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const index = Math.abs(hash) % colors.length;
+  return colors[index];
+}
+
 // Load Staff accounts list
 async function loadStaffList() {
   try {
@@ -1538,20 +1582,32 @@ async function loadStaffList() {
       return;
     }
     const staff = await res.json();
-    renderStaffList(staff);
+    
+    // Clear search input on full reload
+    if (staffSearchInput) staffSearchInput.value = '';
+    
+    renderStaffList(staff, true);
   } catch (error) {
     console.error('Lỗi lấy danh sách nhân viên:', error);
   }
 }
 
 // Render Staff accounts list
-function renderStaffList(staff) {
+function renderStaffList(staff, updateState = false) {
+  if (updateState) {
+    currentStaffList = staff;
+  }
+  
+  if (staffCountBadge) {
+    staffCountBadge.textContent = staff.length;
+  }
+
   staffListContainer.innerHTML = '';
   
   if (staff.length === 0) {
     staffListContainer.innerHTML = `
-      <div class="text-center text-muted p-md">
-        Chưa có tài khoản nhân viên nào được tạo.
+      <div class="text-center text-muted p-md" style="grid-column: 1 / -1; width: 100%;">
+        Không có tài khoản nhân viên nào được tìm thấy.
       </div>
     `;
     return;
@@ -1559,16 +1615,40 @@ function renderStaffList(staff) {
 
   staff.forEach(user => {
     const card = document.createElement('div');
-    card.className = 'history-card';
-    card.style.cursor = 'default';
+    card.className = 'staff-card';
+    
+    const initial = user.username.charAt(0).toUpperCase();
+    const avatarBg = getAvatarColor(user.username);
+    
     card.innerHTML = `
-      <div class="history-card-left">
-        <div class="history-card-title">👤 ${user.username}</div>
+      <div class="staff-card-header">
+        <div class="staff-avatar" style="background-color: ${avatarBg};">
+          ${initial}
+        </div>
+        <div class="staff-info">
+          <div class="staff-name" title="${user.username}">${user.username}</div>
+          <span class="staff-role-badge">Phục vụ</span>
+        </div>
       </div>
-      <div class="history-card-right">
-        <span class="role-badge waiter" style="font-size:11px; padding:3px 8px; margin-left:0;">Phục vụ</span>
+      <div class="staff-card-actions">
+        <button class="btn-staff-action btn-change-pw" title="Đổi mật khẩu">
+          🔑 Đổi mật khẩu
+        </button>
+        <button class="btn-staff-action danger btn-delete-staff" title="Xóa tài khoản">
+          🗑️ Xóa
+        </button>
       </div>
     `;
+    
+    // Event listeners
+    card.querySelector('.btn-change-pw').addEventListener('click', () => {
+      openChangePasswordModal(user.id, user.username);
+    });
+    
+    card.querySelector('.btn-delete-staff').addEventListener('click', () => {
+      openConfirmDeleteModal(user.id, user.username);
+    });
+
     staffListContainer.appendChild(card);
   });
 }
@@ -1618,6 +1698,141 @@ async function handleCreateStaff(event) {
   } finally {
     btnCreateStaffSubmit.disabled = false;
     btnCreateStaffSubmit.textContent = 'Tạo tài khoản';
+  }
+}
+
+// REDESIGNED STAFF MANAGEMENT MODAL EVENTS & API HANDLERS
+function initStaffManagementEvents() {
+  if (staffSearchInput) {
+    staffSearchInput.addEventListener('input', (e) => {
+      const query = e.target.value.toLowerCase().trim();
+      const filtered = currentStaffList.filter(user => user.username.toLowerCase().includes(query));
+      renderStaffList(filtered, false);
+    });
+  }
+
+  // Delete Staff Modal Buttons
+  if (btnCancelDeleteStaffModal) btnCancelDeleteStaffModal.addEventListener('click', closeConfirmDeleteModal);
+  if (btnCloseDeleteStaffModal) btnCloseDeleteStaffModal.addEventListener('click', closeConfirmDeleteModal);
+  if (btnConfirmDeleteStaff) btnConfirmDeleteStaff.addEventListener('click', submitDeleteStaff);
+
+  // Change Password Modal Buttons
+  if (btnCancelChangePasswordModal) btnCancelChangePasswordModal.addEventListener('click', closeChangePasswordModal);
+  if (btnCloseChangePasswordModal) btnCloseChangePasswordModal.addEventListener('click', closeChangePasswordModal);
+  if (changePasswordStaffForm) changePasswordStaffForm.addEventListener('submit', submitChangePassword);
+}
+
+function openConfirmDeleteModal(userId, username) {
+  staffToDelete = { id: userId, username: username };
+  deleteStaffUsernameDisplay.textContent = username;
+  confirmDeleteStaffModal.style.display = 'flex';
+}
+
+function closeConfirmDeleteModal() {
+  staffToDelete = null;
+  confirmDeleteStaffModal.style.display = 'none';
+}
+
+function openChangePasswordModal(userId, username) {
+  changePasswordStaffIdInput.value = userId;
+  changePasswordStaffUsernameInput.value = username;
+  changePasswordStaffNewPass.value = '';
+  changePasswordStaffConfirmPass.value = '';
+  changePasswordErrorMsg.style.display = 'none';
+  changePasswordStaffModal.style.display = 'flex';
+}
+
+function closeChangePasswordModal() {
+  changePasswordStaffModal.style.display = 'none';
+}
+
+async function submitDeleteStaff() {
+  if (!staffToDelete) return;
+  
+  btnConfirmDeleteStaff.disabled = true;
+  btnConfirmDeleteStaff.textContent = 'Đang xóa...';
+  
+  try {
+    const res = await fetch(`/api/users/${staffToDelete.id}`, {
+      method: 'DELETE'
+    });
+    
+    if (res.status === 401) {
+      window.location.href = '/login.html';
+      return;
+    }
+    
+    const result = await res.json();
+    if (res.ok && result.success) {
+      showToast(`🗑️ Đã xóa tài khoản nhân viên "${staffToDelete.username}"`);
+      closeConfirmDeleteModal();
+      loadStaffList();
+    } else {
+      showToast(`❌ Lỗi: ${result.error || 'Không thể xóa tài khoản.'}`);
+    }
+  } catch (error) {
+    console.error('Lỗi khi xóa nhân viên:', error);
+    showToast('❌ Không thể kết nối máy chủ.');
+  } finally {
+    btnConfirmDeleteStaff.disabled = false;
+    btnConfirmDeleteStaff.textContent = 'Đồng ý xóa';
+  }
+}
+
+async function submitChangePassword(event) {
+  event.preventDefault();
+  
+  const userId = changePasswordStaffIdInput.value;
+  const username = changePasswordStaffUsernameInput.value;
+  const newPass = changePasswordStaffNewPass.value;
+  const confirmPass = changePasswordStaffConfirmPass.value;
+  
+  if (newPass !== confirmPass) {
+    changePasswordErrorMsg.textContent = 'Mật khẩu xác nhận không khớp.';
+    changePasswordErrorMsg.style.display = 'block';
+    return;
+  }
+  
+  if (newPass.length < 4) {
+    changePasswordErrorMsg.textContent = 'Mật khẩu mới phải chứa ít nhất 4 ký tự.';
+    changePasswordErrorMsg.style.display = 'block';
+    return;
+  }
+  
+  changePasswordErrorMsg.style.display = 'none';
+  const submitBtn = changePasswordStaffForm.querySelector('button[type="submit"]');
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Đang đổi...';
+  
+  try {
+    const res = await fetch(`/api/users/${userId}/password`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ password: newPass })
+    });
+    
+    if (res.status === 401) {
+      window.location.href = '/login.html';
+      return;
+    }
+    
+    const result = await res.json();
+    if (res.ok && result.success) {
+      showToast(`🔑 Đổi mật khẩu cho "${username}" thành công!`);
+      closeChangePasswordModal();
+    } else {
+      changePasswordErrorMsg.textContent = result.error || 'Có lỗi xảy ra.';
+      changePasswordErrorMsg.style.display = 'block';
+    }
+  } catch (error) {
+    console.error('Lỗi khi đổi mật khẩu:', error);
+    changePasswordErrorMsg.textContent = 'Không thể kết nối máy chủ.';
+    changePasswordErrorMsg.style.display = 'block';
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Cập nhật mật khẩu';
   }
 }
 
