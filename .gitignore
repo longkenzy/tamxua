@@ -5,3 +5,4 @@ public/images/dishes/*
 .gemini/
 .agents/
 *.log
+~$*
