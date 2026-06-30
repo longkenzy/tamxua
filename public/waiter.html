@@ -486,7 +486,10 @@
     
     <!-- STEP 1: Table Selection View -->
     <div id="table-selection-view">
-      <h1 class="section-title">Chọn bàn để ghi Order</h1>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-base); flex-wrap: wrap; gap: 12px;">
+        <h1 class="section-title" style="margin: 0;">Chọn bàn để ghi Order</h1>
+        <button type="button" class="btn btn-primary btn-pill" id="btn-add-table" style="height: 36px; padding: 0 16px; font-weight: 600; font-size: 13px;">+ Thêm bàn</button>
+      </div>
       <div class="tables-grid" id="tables-container">
         <!-- Rendered dynamically -->
         <div class="text-center text-muted p-md full-width">Đang tải danh sách bàn...</div>

@@ -90,6 +90,7 @@ const menuItemImageInput = document.getElementById('menu-item-image-input');
 const btnCancelMenuItemModal = document.getElementById('btn-cancel-menu-item-modal');
 const btnCloseMenuItemModal = document.getElementById('btn-close-menu-item-modal');
 const btnDeleteMenuItem = document.getElementById('btn-delete-menu-item');
+const btnAddTable = document.getElementById('btn-add-table');
 const menuItemEmojiPreview = document.getElementById('menu-item-emoji-preview');
 const menuItemImagePreview = document.getElementById('menu-item-image-preview');
 const imageUploadCardZone = document.getElementById('image-upload-card-zone');
@@ -1862,9 +1863,7 @@ const headerLogoEmoji = document.getElementById('header-logo-emoji');
 if (headerLogoImg) {
   headerLogoImg.onload = function() {
     headerLogoImg.style.display = 'block';
-    if (headerLogoEmoji) {
-      headerLogoEmoji.style.display = 'none';
-    }
+    headerLogoEmoji.style.display = 'none';
   };
   if (headerLogoImg.complete) {
     headerLogoImg.onload();
@@ -1994,6 +1993,51 @@ function initCustomSelects() {
 
 // Close custom dropdown menus when clicking outside
 document.addEventListener('click', closeAllCustomSelects);
+
+// Add Table click handler
+if (btnAddTable) {
+  btnAddTable.addEventListener('click', async () => {
+    const name = prompt('Nhập số hoặc tên bàn ăn mới muốn thêm (ví dụ: 15, Bàn 12):');
+    if (name === null) return; // Cancelled
+    
+    const cleanName = name.trim();
+    if (!cleanName) {
+      alert('Tên số bàn không được để trống.');
+      return;
+    }
+    
+    // Client-side duplicate check
+    const isDuplicate = tables.some(t => t.name.toLowerCase() === cleanName.toLowerCase());
+    if (isDuplicate) {
+      alert('Số bàn này đã tồn tại. Vui lòng nhập số bàn khác.');
+      return;
+    }
+    
+    try {
+      const response = await fetch('/api/tables', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: cleanName })
+      });
+      
+      const result = await response.json();
+      if (result.success) {
+        showToast(`✅ Đã thêm bàn "${cleanName}" thành công!`);
+        // Refresh local tables list immediately
+        const tablesRes = await fetch('/api/tables');
+        if (tablesRes.ok) {
+          tables = await tablesRes.json();
+          renderTables();
+        }
+      } else {
+        showToast(`❌ Không thể thêm bàn: ${result.error}`);
+      }
+    } catch (err) {
+      console.error('Lỗi khi thêm bàn:', err);
+      showToast('❌ Không thể kết nối tới server.');
+    }
+  });
+}
 
 // App Initialization
 init();

@@ -175,6 +175,15 @@ function requireManager(req, res, next) {
   next();
 }
 
+// Middleware to require logged in user (manager or waiter)
+function requireAuth(req, res, next) {
+  const role = req.signedCookies.role;
+  if (!role || (role !== 'manager' && role !== 'waiter')) {
+    return res.status(401).json({ error: 'Vui lòng đăng nhập để thực hiện chức năng này.' });
+  }
+  next();
+}
+
 // Get list of waiter accounts
 app.get('/api/users', requireManager, async (req, res) => {
   try {
@@ -330,7 +339,34 @@ app.get('/api/tables', async (req, res) => {
     res.status(500).json({ error: 'Lỗi hệ thống.' });
   }
 });
+// Add a new table
+app.post('/api/tables', requireAuth, async (req, res) => {
+  const { name } = req.body;
+  if (!name || !name.trim()) {
+    return res.status(400).json({ error: 'Tên số bàn không được để trống.' });
+  }
+  const cleanName = name.trim();
 
+  try {
+    // 1. Check if table name already exists (case-insensitive)
+    const existsRes = await db.query('SELECT 1 FROM tables WHERE LOWER(name) = LOWER($1)', [cleanName]);
+    if (existsRes.rowCount > 0) {
+      return res.status(400).json({ error: 'Số bàn này đã tồn tại.' });
+    }
+
+    // 2. Insert new table
+    await db.query("INSERT INTO tables (name, status) VALUES ($1, 'empty')", [cleanName]);
+
+    // 3. Broadcast updated tables list to all clients
+    const updatedTables = await getTablesWithOrders();
+    io.emit('tables_updated', updatedTables);
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Lỗi khi thêm bàn ăn:', error);
+    res.status(500).json({ error: 'Lỗi hệ thống khi thêm bàn ăn.' });
+  }
+});
 // Get transactions
 app.get('/api/transactions', async (req, res) => {
   try {
