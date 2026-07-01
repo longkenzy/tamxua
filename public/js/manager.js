@@ -99,6 +99,9 @@ const btnCreateStaffSubmit = document.getElementById('btn-create-staff-submit');
 // Menu management variables defined at top level
 const menuMgmtGridContainer = document.getElementById('menu-mgmt-grid-container');
 const btnCreateMenuItem = document.getElementById('btn-create-menu-item');
+const btnDownloadExcelTemplate = document.getElementById('btn-download-excel-template');
+const btnImportExcel = document.getElementById('btn-import-excel');
+const excelImportFileInput = document.getElementById('excel-import-file-input');
 const menuMgmtCategoryStrip = document.getElementById('menu-mgmt-category-strip');
 const menuItemModal = document.getElementById('menu-item-modal');
 const menuItemModalTitle = document.getElementById('menu-item-modal-title');
@@ -3326,6 +3329,14 @@ btnCreateMenuItem.addEventListener('click', () => openMenuItemModal(null));
 btnCancelMenuItemModal.addEventListener('click', closeMenuItemModal);
 btnCloseMenuItemModal.addEventListener('click', closeMenuItemModal);
 
+if (btnDownloadExcelTemplate) {
+  btnDownloadExcelTemplate.addEventListener('click', downloadExcelTemplate);
+}
+if (btnImportExcel && excelImportFileInput) {
+  btnImportExcel.addEventListener('click', () => excelImportFileInput.click());
+  excelImportFileInput.addEventListener('change', handleExcelImport);
+}
+
 // Image Upload click trigger
 if (imageUploadCardZone && menuItemImageInput) {
   imageUploadCardZone.addEventListener('click', () => {
@@ -4043,6 +4054,132 @@ function editMenuGroup(id) {
   const modal = document.getElementById('menu-group-modal');
   if (modal) modal.style.display = 'flex';
   if (nameInput) nameInput.focus();
+}
+
+// Download template Excel file
+function downloadExcelTemplate() {
+  // Column names in Vietnamese: tên mặt hàng, giá bán, mô tả
+  const data = [
+    { "Tên mặt hàng": "Cơm tấm đặc biệt", "Giá bán": 85000, "Mô tả": "Sườn, bì, chả và trứng ốp la lòng đào" },
+    { "Tên mặt hàng": "Trà đá sả chanh", "Giá bán": 15000, "Mô tả": "Nước uống mát lạnh sảng khoái" }
+  ];
+  
+  if (typeof XLSX === 'undefined') {
+    alert("Đang tải thư viện xử lý Excel. Vui lòng thử lại sau giây lát.");
+    return;
+  }
+  
+  const worksheet = XLSX.utils.json_to_sheet(data);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Danh sách mặt hàng");
+  
+  // Set column widths
+  worksheet["!cols"] = [
+    { wch: 30 }, // Tên mặt hàng
+    { wch: 15 }, // Giá bán
+    { wch: 40 }  // Mô tả
+  ];
+  
+  XLSX.writeFile(workbook, "Mau_nhap_thuc_don.xlsx");
+}
+
+// Import from Excel file
+function handleExcelImport(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  
+  if (typeof XLSX === 'undefined') {
+    alert("Thư viện xử lý Excel chưa được tải xong. Vui lòng đợi trong giây lát.");
+    event.target.value = '';
+    return;
+  }
+  
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    try {
+      const data = new Uint8Array(e.target.result);
+      const workbook = XLSX.read(data, { type: 'array' });
+      const firstSheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[firstSheetName];
+      const rawData = XLSX.utils.sheet_to_json(worksheet);
+      
+      if (rawData.length === 0) {
+        alert("File Excel trống hoặc không đúng định dạng mẫu.");
+        return;
+      }
+      
+      // Parse and validate items
+      const itemsToImport = [];
+      for (let i = 0; i < rawData.length; i++) {
+        const row = rawData[i];
+        
+        // Find matching columns (handling potential spacing/case variations)
+        const nameKey = Object.keys(row).find(k => k.trim().toLowerCase() === "tên mặt hàng");
+        const priceKey = Object.keys(row).find(k => k.trim().toLowerCase() === "giá bán");
+        const descKey = Object.keys(row).find(k => k.trim().toLowerCase() === "mô tả");
+        
+        const name = nameKey ? String(row[nameKey]).trim() : "";
+        const priceVal = priceKey ? row[priceKey] : null;
+        const description = descKey ? String(row[descKey]).trim() : "";
+        
+        if (!name) {
+          alert(`Dòng số ${i + 2}: Tên mặt hàng không được để trống.`);
+          return;
+        }
+        
+        const price = parseInt(priceVal);
+        if (isNaN(price) || price < 0) {
+          alert(`Dòng số ${i + 2} ("${name}"): Giá bán không hợp lệ (phải là số lớn hơn hoặc bằng 0).`);
+          return;
+        }
+        
+        itemsToImport.push({
+          name,
+          price,
+          description,
+          category: "main", // Default category to main as standard in dashboard
+          emoji: "🍽️" // Default emoji
+        });
+      }
+      
+      if (confirm(`Bạn có đồng ý nhập ${itemsToImport.length} mặt hàng từ file Excel vào thực đơn không?`)) {
+        // Send to backend
+        const res = await fetch('/api/menu-import', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ items: itemsToImport })
+        });
+        
+        if (res.status === 401) {
+          window.location.href = '/login.html';
+          return;
+        }
+        
+        const result = await res.json();
+        if (res.ok && result.success) {
+          showToast(`✅ Đã nhập thành công ${result.count} mặt hàng!`);
+          
+          // Refresh menu list in UI
+          const menuRes = await fetch('/api/menu');
+          if (menuRes.ok) {
+            menuItems = await menuRes.json();
+            renderMenuMgmtGrid();
+          }
+        } else {
+          alert(`Lỗi khi nhập Excel: ${result.error || 'Vui lòng thử lại.'}`);
+        }
+      }
+    } catch (err) {
+      console.error("Lỗi khi đọc file Excel:", err);
+      alert("Đã xảy ra lỗi khi đọc file Excel. Vui lòng kiểm tra lại định dạng file.");
+    } finally {
+      // Clear file input so same file can be selected again
+      event.target.value = '';
+    }
+  };
+  reader.readAsArrayBuffer(file);
 }
 
 window.deleteMenuGroup = deleteMenuGroup;

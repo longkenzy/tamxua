@@ -229,6 +229,9 @@ async function fetchDataPoll() {
           if (currentTable) {
             updateActiveTableSubtitle(currentTable);
           }
+          if (menuChanged) {
+            renderMenuItems();
+          }
         }
       }
     }
@@ -519,23 +522,10 @@ function selectTable(tableId) {
   cart = [];
   activeCategory = 'all';
   
-  if (searchQuery !== '' || isMenuFiltered) {
-    searchQuery = '';
-    menuSearchInput.value = '';
-    renderMenuItems();
-    isMenuFiltered = false;
-  } else {
-    // Just make sure active category / sidebar active index is reset to 0 without rebuilding DOM
-    activeGroupIndex = 0;
-    const sidebarItems = document.querySelectorAll('#menu-groups-sidebar .menu-group-sidebar-item');
-    sidebarItems.forEach((item, idx) => {
-      if (idx === 0) {
-        item.classList.add('active');
-      } else {
-        item.classList.remove('active');
-      }
-    });
-  }
+  searchQuery = '';
+  if (menuSearchInput) menuSearchInput.value = '';
+  renderMenuItems();
+  isMenuFiltered = false;
   updateCategoryTabs();
   
   isScrollingFromClick = false;

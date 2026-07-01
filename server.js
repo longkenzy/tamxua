@@ -239,6 +239,53 @@ app.get('/api/menu', async (req, res) => {
   }
 });
 
+// Bulk import menu items from Excel data (already parsed on client-side)
+app.post('/api/menu-import', requireManager, async (req, res) => {
+  const { items } = req.body;
+  if (!items || !Array.isArray(items) || items.length === 0) {
+    return res.status(400).json({ error: 'Danh sách mặt hàng không hợp lệ.' });
+  }
+
+  try {
+    await db.query('BEGIN');
+    
+    for (const item of items) {
+      const { name, price, description, category, emoji } = item;
+      if (!name || price === undefined || price === null) {
+        throw new Error('Tên món ăn và giá bán là bắt buộc cho tất cả mặt hàng.');
+      }
+      
+      const cleanPrice = parseInt(price);
+      if (isNaN(cleanPrice) || cleanPrice < 0) {
+        throw new Error(`Giá bán của món "${name}" không hợp lệ.`);
+      }
+
+      // Generate a highly unique ID using timestamp and random suffix
+      const id = 'dish-' + Date.now() + '-' + Math.random().toString(36).substring(2, 7);
+      const finalCategory = category ? category.trim() : 'main';
+      const finalEmoji = emoji ? emoji.trim() : '🍽️';
+      const finalDesc = description ? description.trim() : '';
+
+      await db.query(`
+        INSERT INTO menu (id, name, price, category, emoji, description, image_url)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `, [id, name.trim(), cleanPrice, finalCategory, finalEmoji, finalDesc, null]);
+    }
+
+    await db.query('COMMIT');
+
+    // Broadcast updated menu to all clients
+    const menuRes = await db.query('SELECT * FROM menu ORDER BY category, id');
+    io.emit('menu_updated', menuRes.rows);
+
+    res.json({ success: true, count: items.length });
+  } catch (error) {
+    await db.query('ROLLBACK');
+    console.error('Lỗi nhập thực đơn từ Excel:', error);
+    res.status(400).json({ error: error.message || 'Lỗi hệ thống khi nhập Excel.' });
+  }
+});
+
 // Create new food/drink menu item
 app.post('/api/menu', requireManager, upload.single('image'), async (req, res) => {
   const { name, price, category, emoji, description } = req.body;
@@ -269,13 +316,14 @@ app.post('/api/menu', requireManager, upload.single('image'), async (req, res) =
 // Update/Edit existing food/drink menu item
 app.post('/api/menu/:id', requireManager, upload.single('image'), async (req, res) => {
   const { id } = req.params;
+  const cleanId = id.trim();
   const { name, price, category, emoji, description } = req.body;
   if (!name || !price || !category) {
     return res.status(400).json({ error: 'Tên món ăn, phân loại và giá tiền là bắt buộc.' });
   }
 
   try {
-    const checkMenu = await db.query('SELECT image_url FROM menu WHERE id = $1', [id]);
+    const checkMenu = await db.query('SELECT image_url FROM menu WHERE TRIM(id) = $1', [cleanId]);
     const existingItem = checkMenu.rows[0];
     if (!existingItem) {
       return res.status(404).json({ error: 'Không tìm thấy món ăn.' });
@@ -289,8 +337,8 @@ app.post('/api/menu/:id', requireManager, upload.single('image'), async (req, re
     await db.query(`
       UPDATE menu 
       SET name = $1, price = $2, category = $3, emoji = $4, description = $5, image_url = $6
-      WHERE id = $7
-    `, [name, parseInt(price), category, emoji || '🍽️', description || '', imageUrl, id]);
+      WHERE TRIM(id) = $7
+    `, [name, parseInt(price), category, emoji || '🍽️', description || '', imageUrl, cleanId]);
 
     // Broadcast updated menu to all clients
     const menuRes = await db.query('SELECT * FROM menu ORDER BY category, id');
@@ -306,12 +354,13 @@ app.post('/api/menu/:id', requireManager, upload.single('image'), async (req, re
 // Delete food/drink menu item
 app.delete('/api/menu/:id', requireManager, async (req, res) => {
   const { id } = req.params;
+  const cleanId = id.trim();
   try {
     // 1. Delete active order items referencing this dish
-    await db.query('DELETE FROM order_items WHERE menu_id = $1', [id]);
+    await db.query('DELETE FROM order_items WHERE TRIM(menu_id) = $1', [cleanId]);
     
     // 2. Delete the menu item itself
-    const deleteRes = await db.query('DELETE FROM menu WHERE id = $1', [id]);
+    const deleteRes = await db.query('DELETE FROM menu WHERE TRIM(id) = $1', [cleanId]);
     if (deleteRes.rowCount === 0) {
       return res.status(404).json({ error: 'Không tìm thấy món ăn.' });
     }

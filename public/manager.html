@@ -1685,7 +1685,12 @@
             <h1 class="section-title-v2">Quản lý mặt hàng</h1>
             <p style="margin: 4px 0 0 0; color: var(--muted); font-size: 13px;">Thiết lập danh sách món ăn, nước uống và phân loại phục vụ</p>
           </div>
-          <button class="btn btn-primary btn-pill" id="btn-create-menu-item" style="height: 40px; font-weight: 600;">Tạo món ăn mới</button>
+          <div style="display: flex; gap: 8px;">
+            <button class="btn btn-secondary btn-pill" id="btn-download-excel-template" style="height: 40px; font-weight: 600;">Tải file mẫu</button>
+            <button class="btn btn-secondary btn-pill" id="btn-import-excel" style="height: 40px; font-weight: 600;">Nhập từ Excel</button>
+            <button class="btn btn-primary btn-pill" id="btn-create-menu-item" style="height: 40px; font-weight: 600;">Tạo món ăn mới</button>
+            <input type="file" id="excel-import-file-input" accept=".xlsx, .xls" style="display: none;">
+          </div>
         </div>
       </div>
       
@@ -2089,6 +2094,8 @@
     </div>
   </div>
 
+  <!-- Excel SheetJS Library -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <!-- Chart.js & Logic JS -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="js/manager.js"></script>
