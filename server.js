@@ -288,13 +288,18 @@ app.post('/api/menu-import', requireManager, async (req, res) => {
 
 // Create new food/drink menu item
 app.post('/api/menu', requireManager, upload.single('image'), async (req, res) => {
-  const { name, price, category, emoji, description } = req.body;
+  const { name, price, category, emoji, description, imageUrlLink } = req.body;
   if (!name || !price || !category) {
     return res.status(400).json({ error: 'Tên món ăn, phân loại và giá tiền là bắt buộc.' });
   }
 
   const id = 'dish-' + Date.now();
-  const imageUrl = req.file ? `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}` : null;
+  let imageUrl = null;
+  if (req.file) {
+    imageUrl = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
+  } else if (imageUrlLink) {
+    imageUrl = imageUrlLink.trim();
+  }
 
   try {
     await db.query(`
@@ -313,11 +318,10 @@ app.post('/api/menu', requireManager, upload.single('image'), async (req, res) =
   }
 });
 
-// Update/Edit existing food/drink menu item
 app.post('/api/menu/:id', requireManager, upload.single('image'), async (req, res) => {
   const { id } = req.params;
   const cleanId = id.trim();
-  const { name, price, category, emoji, description } = req.body;
+  const { name, price, category, emoji, description, imageUrlLink, removeImage } = req.body;
   if (!name || !price || !category) {
     return res.status(400).json({ error: 'Tên món ăn, phân loại và giá tiền là bắt buộc.' });
   }
@@ -332,6 +336,10 @@ app.post('/api/menu/:id', requireManager, upload.single('image'), async (req, re
     let imageUrl = existingItem.image_url;
     if (req.file) {
       imageUrl = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
+    } else if (imageUrlLink) {
+      imageUrl = imageUrlLink.trim();
+    } else if (removeImage === 'true') {
+      imageUrl = null;
     }
 
     await db.query(`

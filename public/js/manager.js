@@ -114,6 +114,7 @@ const menuItemCategoryInput = document.getElementById('menu-item-category-input'
 const menuItemDescInput = document.getElementById('menu-item-desc-input');
 const menuItemEmojiInput = document.getElementById('menu-item-emoji-input');
 const menuItemImageInput = document.getElementById('menu-item-image-input');
+const menuItemImageUrlInput = document.getElementById('menu-item-image-url-input');
 const btnCancelMenuItemModal = document.getElementById('btn-cancel-menu-item-modal');
 const btnCloseMenuItemModal = document.getElementById('btn-close-menu-item-modal');
 const btnDeleteMenuItem = document.getElementById('btn-delete-menu-item');
@@ -3220,8 +3221,14 @@ function openMenuItemModal(item = null) {
     menuItemImagePreview.style.display = 'block';
     if (item.image_url) {
       menuItemImagePreview.src = item.image_url;
+      if (item.image_url.startsWith('http')) {
+        menuItemImageUrlInput.value = item.image_url;
+      } else {
+        menuItemImageUrlInput.value = '';
+      }
     } else {
       menuItemImagePreview.src = 'images/logo.png';
+      menuItemImageUrlInput.value = '';
     }
   } else {
     menuItemModalTitle.textContent = 'Thêm món ăn mới';
@@ -3230,6 +3237,7 @@ function openMenuItemModal(item = null) {
     menuItemForm.reset();
     menuItemCategoryInput.value = 'main';
     menuItemEmojiInput.value = '🍽️';
+    menuItemImageUrlInput.value = '';
 
     // Reset visual preview for create mode
     menuItemEmojiPreview.style.display = 'none';
@@ -3301,6 +3309,7 @@ menuItemForm.addEventListener('submit', async (e) => {
   const description = menuItemDescInput.value.trim();
   const emoji = menuItemEmojiInput.value.trim();
   const imageFile = menuItemImageInput.files[0];
+  const imageUrlLink = menuItemImageUrlInput.value.trim();
   
   if (!name || !price || !category) return;
   
@@ -3315,8 +3324,14 @@ menuItemForm.addEventListener('submit', async (e) => {
   formData.append('category', category);
   formData.append('description', description);
   formData.append('emoji', emoji);
+  
+  const isImageEmpty = menuItemImagePreview.src.includes('images/logo.png');
   if (imageFile) {
     formData.append('image', imageFile);
+  } else if (imageUrlLink) {
+    formData.append('imageUrlLink', imageUrlLink);
+  } else if (isImageEmpty) {
+    formData.append('removeImage', 'true');
   }
 
   // Create vs Update endpoints
@@ -3410,6 +3425,22 @@ if (menuItemImageInput) {
       menuItemImagePreview.src = url;
       menuItemImagePreview.style.display = 'block';
       menuItemEmojiPreview.style.display = 'none';
+      menuItemImageUrlInput.value = ''; // Clear URL link input if file is uploaded
+    }
+  });
+}
+
+// Image URL Change Live Preview
+if (menuItemImageUrlInput) {
+  menuItemImageUrlInput.addEventListener('input', (e) => {
+    const url = e.target.value.trim();
+    if (url) {
+      menuItemImagePreview.src = url;
+      menuItemImagePreview.style.display = 'block';
+      menuItemEmojiPreview.style.display = 'none';
+      menuItemImageInput.value = ''; // Clear file selection if link is typed
+    } else {
+      menuItemImagePreview.src = 'images/logo.png';
     }
   });
 }
