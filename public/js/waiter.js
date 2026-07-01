@@ -671,12 +671,19 @@ function renderMenuItems() {
         imgHtml = `<img src="images/logo.png" style="object-fit: cover;">`;
       }
       
+      let fontSize = '11px';
+      if (item.name.length > 45) {
+        fontSize = '8px';
+      } else if (item.name.length > 30) {
+        fontSize = '9.5px';
+      }
+
       card.innerHTML = `
         <div class="sapo-food-card-img">
           ${imgHtml}
         </div>
         <div class="sapo-food-card-price-bar">${formatVND(item.price)}</div>
-        <div class="sapo-food-card-name-bar">${item.name}</div>
+        <div class="sapo-food-card-name-bar" style="font-size: ${fontSize};">${item.name}</div>
       `;
       
       card.addEventListener('click', () => openCustomModal(item));
