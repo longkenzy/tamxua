@@ -644,33 +644,29 @@ app.post('/api/order', async (req, res) => {
       throw new Error('Không tìm thấy bàn ăn.');
     }
 
-    // Update table (keep original session start time if already eating)
-    await client.query(`
-      UPDATE tables 
-      SET status = 'eating', 
-          updated_at = COALESCE(updated_at, NOW()) 
-      WHERE id = $1
-    `, [tableId]);
+    // Clear existing items for this table first
+    await client.query('DELETE FROM order_items WHERE table_id = $1', [tableId]);
 
-    // Insert/Merge items
-    for (const item of items) {
-      // Check if duplicate item and note exists
-      const checkItem = await client.query(`
-        SELECT id FROM order_items 
-        WHERE table_id = $1 AND menu_id = $2 AND COALESCE(notes, '') = $3
-      `, [tableId, item.id, (item.notes || '').trim()]);
-      
-      if (checkItem.rows.length > 0) {
-        await client.query(`
-          UPDATE order_items 
-          SET quantity = quantity + $1 
-          WHERE id = $2
-        `, [parseInt(item.quantity || 1), checkItem.rows[0].id]);
-      } else {
-        await client.query(`
-          INSERT INTO order_items (table_id, menu_id, quantity, notes)
-          VALUES ($1, $2, $3, $4)
-        `, [tableId, item.id, parseInt(item.quantity || 1), item.notes || '']);
+    if (items.length === 0) {
+      // If order is cleared, reset table to empty
+      await client.query("UPDATE tables SET status = 'empty', updated_at = NULL WHERE id = $1", [tableId]);
+    } else {
+      // Update table to eating
+      await client.query(`
+        UPDATE tables 
+        SET status = 'eating', 
+            updated_at = COALESCE(updated_at, NOW()) 
+        WHERE id = $1
+      `, [tableId]);
+
+      // Insert all updated items
+      for (const item of items) {
+        if (item.quantity > 0) {
+          await client.query(`
+            INSERT INTO order_items (table_id, menu_id, quantity, notes)
+            VALUES ($1, $2, $3, $4)
+          `, [tableId, item.id, parseInt(item.quantity || 1), item.notes || '']);
+        }
       }
     }
 

@@ -18,6 +18,7 @@ let activeGroupIndex = 0;
 let isScrollingFromClick = false;
 let scrollTimeout = null;
 let isMenuFiltered = false;
+let tableDiscountPercent = 0;
 
 // DOM Elements
 const connectionDot = document.getElementById('connection-dot');
@@ -518,10 +519,8 @@ function selectTable(tableId) {
   activeTableName.textContent = table.name;
   updateActiveTableSubtitle(table);
 
-  // Reset cart and filter state
-  cart = [];
+  // Reset filter state
   activeCategory = 'all';
-  
   searchQuery = '';
   if (menuSearchInput) menuSearchInput.value = '';
   renderMenuItems();
@@ -538,26 +537,35 @@ function selectTable(tableId) {
     scrollContainerElement.scrollTop = 0;
   }
   
-  // Hide all tabs
-  const tabIds = ['orders-view', 'tables-view', 'checkout-view'];
-  tabIds.forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.style.display = 'none';
-  });
-  
-  // Hide top header
-  const topNav = document.querySelector('.top-nav');
-  if (topNav) topNav.style.display = 'none';
-  
-  // Show ordering view
-  menuOrderingView.style.display = 'flex';
-  menuOrderingView.classList.remove('slide-out');
-  menuOrderingView.classList.add('slide-in');
-  updateFloatingCartBar();
+  // Check if occupied or new table
+  if (table.status === 'eating') {
+    cart = JSON.parse(JSON.stringify(table.order || []));
+    tableDiscountPercent = 0;
+    openOrderDetailsView(table);
+  } else {
+    cart = [];
+    
+    // Hide all tabs
+    const tabIds = ['orders-view', 'tables-view', 'checkout-view'];
+    tabIds.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.style.display = 'none';
+    });
+    
+    // Hide top header
+    const topNav = document.querySelector('.top-nav');
+    if (topNav) topNav.style.display = 'none';
+    
+    // Show ordering view
+    menuOrderingView.style.display = 'flex';
+    menuOrderingView.classList.remove('slide-out');
+    menuOrderingView.classList.add('slide-in');
+    updateFloatingCartBar();
 
-  // Hide bottom tab bar
-  const bottomTabBar = document.querySelector('.bottom-tab-bar');
-  if (bottomTabBar) bottomTabBar.style.display = 'none';
+    // Hide bottom tab bar
+    const bottomTabBar = document.querySelector('.bottom-tab-bar');
+    if (bottomTabBar) bottomTabBar.style.display = 'none';
+  }
 }
 
 // Render Menu Items based on category and search filter
@@ -950,7 +958,17 @@ function toggleCartDrawerFooter(e) {
 
 function handleDrawerCheckout(e) {
   e.stopPropagation();
-  openCartModal();
+  const table = tables.find(t => t.id === activeTableId);
+  if (table && table.status === 'eating') {
+    // Hide ordering view
+    menuOrderingView.style.display = 'none';
+    menuOrderingView.classList.remove('slide-in');
+    
+    // Open order details view
+    openOrderDetailsView(table);
+  } else {
+    openCartModal();
+  }
 }
 
 function changeDrawerItemQty(index, amount) {
@@ -1811,6 +1829,323 @@ if (menuItemsScrollContainer) {
           item.classList.remove('active');
         }
       });
+    }
+  });
+}
+
+// --- Order Details View ("Chi tiết hóa đơn") Elements & Logic ---
+const orderDetailsView = document.getElementById('order-details-view');
+const orderDetailsItemsList = document.getElementById('order-details-items-list');
+const btnBackOrderDetails = document.getElementById('btn-back-order-details');
+const btnOrderDetailsMore = document.getElementById('btn-order-details-more');
+const orderDetailsMoreMenu = document.getElementById('order-details-more-menu');
+const btnOrderDetailsDeleteAll = document.getElementById('btn-order-details-delete-all');
+const orderDetailsLocIcon = document.getElementById('order-details-loc-icon');
+const orderDetailsLocText = document.getElementById('order-details-loc-text');
+const orderDetailsTableName = document.getElementById('order-details-table-name');
+const orderDetailsSubtotal = document.getElementById('order-details-subtotal');
+const orderDetailsDiscountPercent = document.getElementById('order-details-discount-percent');
+const orderDetailsDiscountVal = document.getElementById('order-details-discount-val');
+const orderDetailsTotalQty = document.getElementById('order-details-total-qty');
+const orderDetailsTotalPrice = document.getElementById('order-details-total-price');
+
+const btnOrderDetailsAdd = document.getElementById('btn-order-details-add');
+const btnOrderDetailsSave = document.getElementById('btn-order-details-save');
+const btnOrderDetailsCheckout = document.getElementById('btn-order-details-checkout');
+
+function openOrderDetailsView(table) {
+  activeTableId = table.id;
+  
+  // Set subheader info
+  const loc = (table.location || '').toLowerCase();
+  let typeText = 'Dùng tại bàn';
+  let icon = '🍲';
+  if (loc === 'mang về') {
+    typeText = 'Mang đi';
+    icon = '🛍️';
+  } else if (loc === 'giao hàng') {
+    typeText = 'Giao hàng';
+    icon = '🚚';
+  } else if (loc === 'đối tác') {
+    typeText = 'Đối tác';
+    icon = '🤝';
+  }
+  
+  if (orderDetailsLocIcon) orderDetailsLocIcon.textContent = icon;
+  if (orderDetailsLocText) orderDetailsLocText.textContent = typeText;
+  if (orderDetailsTableName) orderDetailsTableName.textContent = table.name;
+  
+  // Render order details list
+  renderOrderDetailsItems();
+  
+  // Hide main tabs
+  const tabIds = ['orders-view', 'tables-view', 'checkout-view'];
+  tabIds.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+  });
+  
+  // Hide top header
+  const topNav = document.querySelector('.top-nav');
+  if (topNav) topNav.style.display = 'none';
+  
+  // Hide bottom tab bar
+  const bottomTabBar = document.querySelector('.bottom-tab-bar');
+  if (bottomTabBar) bottomTabBar.style.display = 'none';
+  
+  // Show details view
+  if (orderDetailsView) orderDetailsView.style.display = 'flex';
+}
+
+function renderOrderDetailsItems() {
+  if (!orderDetailsItemsList) return;
+  orderDetailsItemsList.innerHTML = '';
+  
+  if (cart.length === 0) {
+    orderDetailsItemsList.innerHTML = `
+      <div style="text-align: center; color: var(--muted); padding: 40px 0; font-size: 14px;">
+        Chưa có món ăn nào trong đơn hàng.
+      </div>
+    `;
+    updateOrderDetailsSummary();
+    return;
+  }
+  
+  cart.forEach((item, index) => {
+    const itemRow = document.createElement('div');
+    itemRow.style.cssText = 'border-bottom: 1px dashed #cbd5e1; padding-bottom: 12px; display: flex; flex-direction: column; gap: 8px;';
+    
+    const topRow = document.createElement('div');
+    topRow.style.cssText = 'display: flex; justify-content: space-between; align-items: flex-start;';
+    
+    let detailHtml = '';
+    if (item.notes) {
+      detailHtml = `<div style="font-size: 12px; color: #64748b; margin-top: 2px;">Ghi chú: ${item.notes}</div>`;
+    }
+    
+    topRow.innerHTML = `
+      <div style="flex: 1; padding-right: 12px;">
+        <div style="font-size: 14px; font-weight: 600; color: #1e293b;">${item.emoji || '🍽️'} ${item.name}</div>
+        ${detailHtml}
+      </div>
+      <div style="font-size: 14px; font-weight: 700; color: #0f172a; text-align: right;">${formatVND(item.price * item.quantity)}</div>
+    `;
+    
+    const bottomRow = document.createElement('div');
+    bottomRow.style.cssText = 'display: flex; justify-content: space-between; align-items: center;';
+    
+    // Qty Selector controls
+    const qtySelector = document.createElement('div');
+    qtySelector.style.cssText = 'display: flex; align-items: center; gap: 16px; border: 1.5px solid #cbd5e1; border-radius: 9999px; padding: 2px 12px; background-color: #ffffff;';
+    qtySelector.innerHTML = `
+      <button style="border: none; background: transparent; font-size: 18px; font-weight: 700; color: #0088ff; padding: 0 4px; cursor: pointer; user-select: none;">−</button>
+      <span style="font-size: 14px; font-weight: 700; color: #1e293b; min-width: 16px; text-align: center;">${item.quantity}</span>
+      <button style="border: none; background: transparent; font-size: 18px; font-weight: 700; color: #0088ff; padding: 0 4px; cursor: pointer; user-select: none;">+</button>
+    `;
+    
+    // Minus action
+    qtySelector.children[0].onclick = () => {
+      if (item.quantity > 1) {
+        item.quantity--;
+      } else {
+        if (confirm(`Bạn có muốn xóa món "${item.name}" khỏi đơn hàng không?`)) {
+          cart.splice(index, 1);
+        }
+      }
+      renderOrderDetailsItems();
+    };
+    
+    // Plus action
+    qtySelector.children[2].onclick = () => {
+      item.quantity++;
+      renderOrderDetailsItems();
+    };
+    
+    bottomRow.appendChild(qtySelector);
+    itemRow.appendChild(topRow);
+    itemRow.appendChild(bottomRow);
+    orderDetailsItemsList.appendChild(itemRow);
+  });
+  
+  updateOrderDetailsSummary();
+}
+
+function updateOrderDetailsSummary() {
+  const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  const totalQty = cart.reduce((sum, item) => sum + item.quantity, 0);
+  const discountVal = Math.round(subtotal * (tableDiscountPercent / 100));
+  const totalPrice = Math.max(0, subtotal - discountVal);
+  
+  if (orderDetailsSubtotal) orderDetailsSubtotal.textContent = formatVND(subtotal);
+  if (orderDetailsDiscountPercent) orderDetailsDiscountPercent.textContent = tableDiscountPercent;
+  if (orderDetailsDiscountVal) orderDetailsDiscountVal.textContent = '-' + formatVND(discountVal);
+  if (orderDetailsTotalQty) orderDetailsTotalQty.textContent = `SL: ${totalQty}`;
+  if (orderDetailsTotalPrice) orderDetailsTotalPrice.textContent = `TỔNG: ${formatVND(totalPrice)}`;
+}
+
+function closeOrderDetailsView() {
+  if (orderDetailsView) orderDetailsView.style.display = 'none';
+  
+  // Show bottom tab bar and header
+  const bottomTabBar = document.querySelector('.bottom-tab-bar');
+  if (bottomTabBar) bottomTabBar.style.display = 'flex';
+  const topNav = document.querySelector('.top-nav');
+  if (topNav) topNav.style.display = 'flex';
+  
+  // Show active tab view
+  const selectedPanel = document.getElementById(`${activeTab}-view`);
+  if (selectedPanel) selectedPanel.style.display = 'flex';
+}
+
+window.showOrderDiscountPicker = () => {
+  const percent = prompt("Nhập phần trăm chiết khấu (0 - 100):", tableDiscountPercent || 0);
+  if (percent === null) return;
+  const parsed = parseInt(percent);
+  if (isNaN(parsed) || parsed < 0 || parsed > 100) {
+    alert("Vui lòng nhập số hợp lệ từ 0 đến 100!");
+    return;
+  }
+  tableDiscountPercent = parsed;
+  updateOrderDetailsSummary();
+};
+
+if (btnBackOrderDetails) {
+  btnBackOrderDetails.addEventListener('click', closeOrderDetailsView);
+}
+
+if (btnOrderDetailsMore) {
+  btnOrderDetailsMore.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (orderDetailsMoreMenu) {
+      const show = orderDetailsMoreMenu.style.display === 'block';
+      orderDetailsMoreMenu.style.display = show ? 'none' : 'block';
+    }
+  });
+}
+
+document.addEventListener('click', () => {
+  if (orderDetailsMoreMenu) {
+    orderDetailsMoreMenu.style.display = 'none';
+  }
+});
+
+if (btnOrderDetailsDeleteAll) {
+  btnOrderDetailsDeleteAll.addEventListener('click', async () => {
+    if (confirm('⚠️ Bạn có chắc chắn muốn hủy đơn hàng này? Tất cả các món ăn đã gọi của bàn này sẽ bị xóa.')) {
+      try {
+        const res = await fetch('/api/order', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            tableId: activeTableId,
+            items: []
+          })
+        });
+        
+        const result = await res.json();
+        if (result.success) {
+          showSuccessToast('Đã hủy đơn hàng thành công!');
+          closeOrderDetailsView();
+          
+          // Refresh tables data
+          const tablesRes = await fetch('/api/tables');
+          if (tablesRes.ok) {
+            tables = await tablesRes.json();
+            renderOrders();
+            renderTables();
+          }
+        } else {
+          alert(`Lỗi: ${result.error}`);
+        }
+      } catch (err) {
+        console.error(err);
+        alert('Không thể kết nối đến máy chủ.');
+      }
+    }
+  });
+}
+
+if (btnOrderDetailsAdd) {
+  btnOrderDetailsAdd.addEventListener('click', () => {
+    if (orderDetailsView) orderDetailsView.style.display = 'none';
+    
+    // Configure menu ordering view for this table
+    const table = tables.find(t => t.id === activeTableId);
+    if (table) {
+      activeTableName.textContent = table.name;
+      updateActiveTableSubtitle(table);
+    }
+    
+    if (menuOrderingView) {
+      menuOrderingView.style.display = 'flex';
+      menuOrderingView.classList.remove('slide-out');
+      menuOrderingView.classList.add('slide-in');
+    }
+    
+    updateFloatingCartBar();
+  });
+}
+
+if (btnOrderDetailsSave) {
+  btnOrderDetailsSave.addEventListener('click', async () => {
+    btnOrderDetailsSave.disabled = true;
+    btnOrderDetailsSave.textContent = 'Đang lưu...';
+    
+    try {
+      const res = await fetch('/api/order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tableId: activeTableId,
+          items: cart
+        })
+      });
+      
+      if (res.status === 401) {
+        window.location.href = '/login.html';
+        return;
+      }
+      
+      const result = await res.json();
+      if (result.success) {
+        showSuccessToast('Đã lưu thay đổi hóa đơn thành công!');
+        closeOrderDetailsView();
+        
+        // Refresh tables data
+        const tablesRes = await fetch('/api/tables');
+        if (tablesRes.ok) {
+          tables = await tablesRes.json();
+          renderOrders();
+          renderTables();
+        }
+      } else {
+        alert(`Lỗi: ${result.error}`);
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Không thể kết nối đến máy chủ.');
+    } finally {
+      btnOrderDetailsSave.disabled = false;
+      btnOrderDetailsSave.textContent = 'Lưu';
+    }
+  });
+}
+
+if (btnOrderDetailsCheckout) {
+  btnOrderDetailsCheckout.addEventListener('click', () => {
+    closeOrderDetailsView();
+    openCheckoutModal(activeTableId);
+    
+    // Pre-fill the discount in checkout modal
+    const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const discountVal = Math.round(subtotal * (tableDiscountPercent / 100));
+    
+    const discountInput = document.getElementById('checkout-discount-input');
+    const receivedInput = document.getElementById('checkout-received-input');
+    if (discountInput && receivedInput) {
+      discountInput.value = discountVal;
+      receivedInput.value = Math.max(0, subtotal - discountVal);
+      updateCheckoutCalculations(subtotal);
     }
   });
 }

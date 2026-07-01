@@ -1228,6 +1228,85 @@
         </div>
       </div>
 
+      <!-- STEP 1.5: Order Details View (Chi tiết hóa đơn - Overlay on top of content) -->
+      <div id="order-details-view" style="display: none; padding: 0; position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 140; background: #ffffff; flex-direction: column;">
+        <!-- Header -->
+        <div class="order-header" style="height: 54px; padding: 0 16px; border-bottom: 1px solid #cbd5e1; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; width: 100%; box-sizing: border-box; position: relative;">
+          <button class="btn-back-circle" id="btn-back-order-details" style="border: none; font-size: 20px; background: transparent; cursor: pointer;">←</button>
+          <span style="font-weight: 700; font-size: 16px; color: #1e293b;">Chi tiết hóa đơn</span>
+          <div style="position: relative; display: flex; align-items: center;">
+            <button id="btn-order-details-more" style="border: none; font-size: 20px; background: transparent; cursor: pointer; color: #64748b;">⋮</button>
+            <!-- Dropdown menu for more options -->
+            <div id="order-details-more-menu" style="display: none; position: absolute; right: 0; top: 35px; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px; box-shadow: var(--shadow-md); z-index: 200; width: 150px; font-size: 13px;">
+              <div id="btn-order-details-delete-all" style="padding: 10px 12px; color: var(--primary-error-text); cursor: pointer; font-weight: 600;">Hủy đơn hàng</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Sub-header: Location and Table Name -->
+        <div style="height: 48px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; padding: 0 16px; background-color: #f8fafc; font-size: 14px; font-weight: 600; flex-shrink: 0; width: 100%; box-sizing: border-box;">
+          <div style="display: flex; align-items: center; gap: 8px; color: #0066cc;">
+            <span id="order-details-loc-icon">🍲</span>
+            <span id="order-details-loc-text">Dùng tại bàn</span>
+          </div>
+          <div id="order-details-table-name" style="color: #475569;">Lầu - 40</div>
+        </div>
+
+        <!-- Scrollable Order Items List -->
+        <div id="order-details-items-list" style="flex: 1; overflow-y: auto; padding: 12px 16px; display: flex; flex-direction: column; gap: 16px; box-sizing: border-box;">
+          <!-- Dynamically generated in JS -->
+        </div>
+
+        <!-- Summary panel (Tiền hàng, Chiết khấu) -->
+        <div style="border-top: 1px solid #e2e8f0; padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; font-size: 14px; background-color: #ffffff; flex-shrink: 0; box-sizing: border-box; width: 100%;">
+          <div style="display: flex; justify-content: space-between; color: #64748b;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span>💵</span>
+              <span>Tiền hàng</span>
+            </div>
+            <span id="order-details-subtotal" style="font-weight: 600; color: #0f172a;">0đ</span>
+          </div>
+          <div id="order-details-discount-row" style="display: flex; justify-content: space-between; color: #64748b;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span>🏷️</span>
+              <span>Chiết khấu (<span id="order-details-discount-percent">0</span>%)</span>
+            </div>
+            <span id="order-details-discount-val" style="font-weight: 600; color: var(--primary-error-text);">0đ</span>
+          </div>
+        </div>
+
+        <!-- SL & TỔNG (blue highlighted row) -->
+        <div style="height: 40px; background-color: #e6f0fa; display: flex; justify-content: space-between; align-items: center; padding: 0 16px; font-size: 14px; font-weight: 700; color: #0066cc; flex-shrink: 0; box-sizing: border-box; width: 100%;">
+          <span id="order-details-total-qty">SL: 0</span>
+          <span id="order-details-total-price">TỔNG: 0đ</span>
+        </div>
+
+        <!-- Inactive tab selectors (Khuyến mại, Chiết khấu, Thuế & Phí) -->
+        <div style="height: 48px; border-top: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; font-size: 13px; font-weight: 600; color: #64748b; background-color: #ffffff; flex-shrink: 0; box-sizing: border-box; width: 100%;">
+          <div style="flex: 1; text-align: center; border-right: 1px solid #e2e8f0; cursor: pointer; height: 100%; display: flex; align-items: center; justify-content: center;" onclick="showOrderDiscountPicker()">Chiết khấu</div>
+          <div style="flex: 1; text-align: center; border-right: 1px solid #e2e8f0; color: #cbd5e1; height: 100%; display: flex; align-items: center; justify-content: center;">Khuyến mại</div>
+          <div style="flex: 1; text-align: center; color: #cbd5e1; height: 100%; display: flex; align-items: center; justify-content: center;">Thuế & Phí</div>
+        </div>
+
+        <!-- Footer primary action buttons -->
+        <div style="padding: 12px 16px; background-color: #ffffff; display: flex; gap: 8px; flex-shrink: 0; box-sizing: border-box; width: 100%; border-top: 1px solid #f1f5f9;">
+          <!-- Green Add Button -->
+          <button class="btn btn-primary" id="btn-order-details-add" style="flex: 1.2; height: 44px; font-weight: 700; font-size: 14px; border-radius: 8px; background-color: #00c774; border-color: #00c774; display: flex; align-items: center; justify-content: center; gap: 4px; color: #ffffff; border: none; cursor: pointer;">
+            <span style="font-size: 18px; font-weight: 800;">+</span> Thêm
+          </button>
+          
+          <!-- White Save Button -->
+          <button class="btn btn-secondary" id="btn-order-details-save" style="flex: 1.2; height: 44px; font-weight: 700; font-size: 14px; border-radius: 8px; background-color: #ffffff; color: #0088ff; border: 1.5px solid #0088ff; cursor: pointer; display: flex; align-items: center; justify-content: center;">
+            Lưu
+          </button>
+          
+          <!-- Blue Checkout Request Button -->
+          <button class="btn btn-primary" id="btn-order-details-checkout" style="flex: 2; height: 44px; font-weight: 700; font-size: 14px; border-radius: 8px; background-color: #0088ff; border-color: #0088ff; color: #ffffff; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center;">
+            Yêu cầu thanh toán
+          </button>
+        </div>
+      </div>
+
       <!-- STEP 2: Menu / Ordering View (Overlay on top of content) -->
       <div id="menu-ordering-view" style="display: none; padding: 0; position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 150; background: #ffffff; flex-direction: column;">
         <!-- Header -->
