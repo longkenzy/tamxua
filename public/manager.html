@@ -30,9 +30,32 @@
       align-items: start;
     }
 
+    @keyframes card-entrance {
+      from {
+        opacity: 0;
+        transform: translateY(16px) scale(0.96);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    @keyframes pulse-occupied {
+      0% {
+        box-shadow: 0 0 0 0 rgba(0, 102, 204, 0.15);
+      }
+      70% {
+        box-shadow: 0 0 0 6px rgba(0, 102, 204, 0);
+      }
+      100% {
+        box-shadow: 0 0 0 0 rgba(0, 102, 204, 0);
+      }
+    }
+
     .manager-table-card {
       border: 1px solid var(--hairline);
-      border-radius: var(--rounded-md);
+      border-radius: 8px;
       padding: var(--space-base);
       background-color: var(--canvas);
       cursor: pointer;
@@ -41,13 +64,17 @@
       display: flex;
       flex-direction: column;
       gap: var(--space-sm);
-      min-height: 140px;
+      min-height: 180px;
+    }
+
+    .manager-table-card.entrance-anim {
+      animation: card-entrance 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both;
     }
 
     .manager-table-card:hover {
       box-shadow: var(--shadow);
       border-color: var(--border-strong);
-      transform: translateY(-2px);
+      transform: translateY(-2px) !important;
     }
 
     .manager-table-card.active {
@@ -58,6 +85,11 @@
 
     .manager-table-card.occupied {
       background-color: var(--surface-soft);
+      animation: pulse-occupied 2s infinite ease-in-out;
+    }
+
+    .manager-table-card.occupied.entrance-anim {
+      animation: card-entrance 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both, pulse-occupied 2s infinite ease-in-out;
     }
 
     .table-card-header {
@@ -488,7 +520,7 @@
     /* Scrollable Tables Grid on Desktop */
     @media (min-width: 745px) {
       .dashboard-view .left-section {
-        max-height: calc(100vh - 160px);
+        max-height: calc(100vh - 110px);
         overflow-y: auto;
         padding-right: 12px;
       }
@@ -925,6 +957,80 @@
       height: 8px;
       border-radius: var(--rounded-full);
     }
+    /* Searchable Select Dropdown Overrides */
+    #menu-group-select-wrapper .custom-select-trigger {
+      flex-direction: row !important;
+      justify-content: space-between !important;
+      align-items: center !important;
+      padding: 0 16px !important;
+      min-height: 48px !important;
+    }
+
+    #menu-group-select-wrapper .custom-select-chevron {
+      position: static !important;
+      transform: none !important;
+      font-size: 10px !important;
+      color: var(--muted) !important;
+    }
+
+    #menu-group-select-wrapper .custom-select-menu {
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15) !important;
+      border: 1px solid var(--border-strong) !important;
+      border-radius: 8px !important;
+      padding: 12px !important;
+      background: #ffffff !important;
+      z-index: 1100 !important;
+      box-sizing: border-box !important;
+    }
+
+    #menu-group-items-checklist label {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      cursor: pointer;
+      font-size: 13.5px;
+      font-weight: 500;
+      padding: 8px 12px;
+      border-radius: 6px;
+      transition: all 0.15s ease;
+      user-select: none;
+      color: var(--ink);
+    }
+
+    #menu-group-items-checklist label:hover {
+      background-color: var(--surface-soft);
+      transform: translateX(2px);
+    }
+
+    #menu-group-items-checklist label input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      border-radius: 4px;
+      border: 1.5px solid var(--border-strong);
+      accent-color: var(--primary);
+      cursor: pointer;
+    }
+
+    #menu-mgmt-search-input:focus {
+      border-color: var(--ink) !important;
+      box-shadow: 0 0 0 3px rgba(34, 34, 34, 0.08) !important;
+    }
+
+    .invoices-dropdown-option {
+      padding: 10px 16px;
+      font-size: 13px;
+      color: var(--ink);
+      cursor: pointer;
+      transition: background-color 0.15s;
+    }
+    .invoices-dropdown-option:hover {
+      background-color: var(--surface-soft);
+    }
+    .invoices-dropdown-option.active {
+      background-color: var(--blue-soft);
+      color: var(--primary);
+      font-weight: 600;
+    }
   </style>
 </head>
 <body>
@@ -935,49 +1041,60 @@
   <div class="app-layout">
     
     <!-- Sidebar -->
-    <aside class="sidebar">
+    <aside class="sidebar" id="sidebar">
       <div class="sidebar-brand">
-        <span class="brand-icon" style="font-size: 28px; line-height: 1;">🍜</span>
+        <img id="sidebar-logo-img" class="brand-logo" src="images/logo.png" alt="Logo" style="width: 32px; height: 32px; border-radius: var(--rounded-md); display: block; object-fit: cover;">
+        <span id="sidebar-logo-emoji" class="brand-icon" style="font-size: 28px; line-height: 1; display: none;">🍜</span>
         <span class="sidebar-logo-text">TẤM XƯA</span>
+        <button id="btn-sidebar-collapse" class="btn-sidebar-collapse" title="Thu gọn menu">
+          <span class="collapse-icon">❮</span>
+        </button>
       </div>
       <nav class="sidebar-nav">
         <div id="tab-overview" class="sidebar-link active">
           <div class="sidebar-link-content">
-            <span class="sidebar-link-icon">🗺️</span>
+            <svg class="sidebar-link-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
             <span>Tổng quan</span>
           </div>
         </div>
         <div id="tab-reports" class="sidebar-link">
           <div class="sidebar-link-content">
-            <span class="sidebar-link-icon">📊</span>
-            <span>Báo cáo</span>
+            <svg class="sidebar-link-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M15 3v18M3 9h18M3 15h18"/></svg>
+            <span>Sơ đồ bàn</span>
           </div>
           <span class="sidebar-link-chevron">❯</span>
         </div>
         <div id="tab-invoices" class="sidebar-link">
           <div class="sidebar-link-content">
-            <span class="sidebar-link-icon">🧾</span>
+            <svg class="sidebar-link-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
             <span>Hóa đơn</span>
           </div>
           <span class="sidebar-link-chevron">❯</span>
         </div>
-        <div id="tab-items" class="sidebar-link">
-          <div class="sidebar-link-content">
-            <span class="sidebar-link-icon">🍳</span>
-            <span>Mặt hàng</span>
+        <!-- Sidebar Link dropdown for Mặt hàng -->
+        <div class="sidebar-dropdown-wrapper" id="dropdown-items" style="width: 100%;">
+          <div class="sidebar-link dropdown-toggle" id="tab-items-toggle">
+            <div class="sidebar-link-content">
+              <svg class="sidebar-link-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 20h18" />
+                <path d="M5 20A7 7 0 0 1 12 13a7 7 0 0 1 7 7" />
+                <path d="M12 13V11" />
+                <circle cx="12" cy="10" r="1" />
+              </svg>
+              <span>Mặt hàng</span>
+            </div>
+            <span class="dropdown-chevron-icon" style="transition: transform 0.2s; font-size: 10px; color: var(--muted); margin-right: 4px;">▼</span>
           </div>
-          <span class="sidebar-link-chevron">❯</span>
-        </div>
-        <div id="tab-bookings" class="sidebar-link">
-          <div class="sidebar-link-content">
-            <span class="sidebar-link-icon">📅</span>
-            <span>Đặt lịch</span>
+          
+          <div class="sidebar-submenu" id="submenu-items" style="display: none; flex-direction: column; background-color: rgba(0, 0, 0, 0.15); padding: 4px 0 4px 8px; width: 100%;">
+            <div id="subtab-item-list" class="sidebar-submenu-item active" style="padding: 10px 16px; font-size: 13px; font-weight: 500; color: #94a3b8; cursor: pointer; border-radius: var(--rounded-sm); margin: 2px 8px; transition: all 0.2s;">Quản lý mặt hàng</div>
+            <div id="subtab-menu-preview" class="sidebar-submenu-item" style="padding: 10px 16px; font-size: 13px; font-weight: 500; color: #94a3b8; cursor: pointer; border-radius: var(--rounded-sm); margin: 2px 8px; transition: all 0.2s;">Thực đơn</div>
           </div>
-          <span class="sidebar-link-chevron">❯</span>
         </div>
+
         <div id="tab-staff" class="sidebar-link">
           <div class="sidebar-link-content">
-            <span class="sidebar-link-icon">👥</span>
+            <svg class="sidebar-link-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
             <span>Nhân viên</span>
           </div>
           <span class="sidebar-link-chevron">❯</span>
@@ -985,7 +1102,7 @@
       </nav>
       
       <!-- Sidebar Footer (Logout button) -->
-      <div style="padding: 16px 12px; border-top: 1px solid #1e293b;">
+      <div id="sidebar-footer" style="padding: 16px 12px; border-top: 1px solid #1e293b;">
         <button id="btn-logout-header" class="btn btn-secondary" style="width: 100%; border-color: #334155; color: #94a3b8; background-color: transparent; border-radius: var(--rounded-md);">Đăng xuất</button>
       </div>
     </aside>
@@ -1006,83 +1123,62 @@
           
           <!-- Profile -->
           <div class="topbar-profile">
-            <div class="profile-avatar">TX</div>
+            <img class="profile-avatar" src="images/logo.png" alt="Logo" style="object-fit: cover;">
             <div class="profile-info">
-              <span class="profile-name">Tấm Xưa Quán</span>
-              <div style="display: flex; align-items: center; gap: 6px; margin-top: 1px;">
-                <span class="profile-status">Gói Pro</span>
+              <span class="profile-name" style="display: flex; align-items: center; gap: 6px;">
+                Tấm Xưa Quán
                 <span id="connection-dot" class="status-dot" style="width: 6px; height: 6px; display: inline-block;"></span>
-              </div>
+              </span>
             </div>
             <span style="font-size: 10px; color: var(--muted); margin-left: 4px;">▼</span>
           </div>
         </div>
       </header>
       
-      <!-- Shared Time Filter Toolbar -->
-      <div class="filter-toolbar-container" style="margin: 24px 32px 0 32px; display: none;">
-        <div class="filter-title-block">
-          <span class="filter-icon">📅</span>
-          <span class="filter-title">Bộ lọc thời gian</span>
-        </div>
-        
-        <div class="filter-controls-block">
-          <!-- Hidden Select for JS bindings compatibility -->
-          <select id="filter-preset" style="display: none;">
-            <option value="all">Tất cả</option>
-            <option value="today" selected>Hôm nay</option>
-            <option value="month">Tháng này</option>
-            <option value="year">Năm nay</option>
-            <option value="custom">Tự chọn</option>
-          </select>
-
-          <!-- Segmented Control for visual preset selection -->
-          <div class="filter-segmented-control">
-            <button type="button" class="filter-segment" data-preset="all">Tất cả</button>
-            <button type="button" class="filter-segment active" data-preset="today">Hôm nay</button>
-            <button type="button" class="filter-segment" data-preset="month">Tháng này</button>
-            <button type="button" class="filter-segment" data-preset="year">Năm nay</button>
-            <button type="button" class="filter-segment" data-preset="custom">Tự chọn...</button>
-          </div>
-
-          <!-- Custom Date Range Inputs -->
-          <div id="filter-custom-dates" style="display: none; gap: 8px; align-items: center; background-color: var(--surface-soft); border-radius: var(--rounded-full); padding: 4px 12px; border: 1px solid var(--hairline); animation: fadeIn 0.2s ease;">
-            <div class="date-picker-compact">
-              <span class="date-label">Từ</span>
-              <input type="date" id="filter-start-date" class="date-input-field">
-            </div>
-            <span class="date-arrow">➔</span>
-            <div class="date-picker-compact">
-              <span class="date-label">Đến</span>
-              <input type="date" id="filter-end-date" class="date-input-field">
-            </div>
-            <button type="button" class="btn btn-primary btn-pill" id="btn-apply-filter" style="height: 32px; font-size: 12px; padding: 0 16px; margin-left: 4px; font-weight: 600;">Lọc</button>
-          </div>
-        </div>
-      </div>
+      <!-- Hidden filter elements kept for JS compatibility -->
+      <select id="filter-preset" style="display: none;">
+        <option value="today" selected>Hôm nay</option>
+        <option value="yesterday">Hôm qua</option>
+        <option value="week">Tuần này</option>
+        <option value="month">Tháng này</option>
+        <option value="year">Năm nay</option>
+        <option value="all">Tất cả</option>
+        <option value="custom">Tự chọn</option>
+      </select>
+      <input type="date" id="filter-start-date" style="display: none;">
+      <input type="date" id="filter-end-date" style="display: none;">
 
       <!-- Content Area -->
       <main class="content-area">
     
     <!-- VIEW 1: Active Tables Map Dashboard (Default) -->
-    <div id="tables-dashboard-view" class="dashboard-view">
+    <div id="tables-dashboard-view" class="dashboard-view" style="display: none;">
       
       <!-- Left side: Tables Grid Map -->
       <div class="left-section">
         <div class="dashboard-header-block">
-          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; width: 100%;">
-            <div>
-              <h1 class="section-title-v2">Bản đồ bàn ăn</h1>
-              <p style="margin: 4px 0 0 0; color: var(--muted); font-size: 13px;">Theo dõi trạng thái phục vụ và thanh toán thời gian thực</p>
-            </div>
-            <div style="display: flex; gap: 16px; align-items: center; flex-wrap: wrap;">
-              <div id="tables-stats-summary" style="display: flex; gap: 8px; align-items: center;">
-                <!-- Rendered dynamically -->
-              </div>
-              <button type="button" class="btn btn-primary btn-pill" id="btn-add-table" onclick="openAddTableModalInline()" style="height: 36px; padding: 0 16px; font-weight: 600; font-size: 13px;">+ Thêm bàn</button>
-            </div>
+          <div>
+            <h1 class="section-title-v2">Bản đồ bàn ăn</h1>
+            <p style="margin: 4px 0 0 0; color: var(--muted); font-size: 13px;">Theo dõi trạng thái phục vụ và thanh toán thời gian thực</p>
           </div>
         </div>
+        
+        <!-- Floor Tabs -->
+        <div class="category-strip" id="manager-floor-tabs" style="margin-bottom: var(--space-md); border-bottom: 1px solid var(--hairline); padding-top: 0; gap: 24px;">
+          <div class="category-tab active" data-floor="trệt" onclick="switchManagerFloor('trệt')" style="flex-direction: row; gap: 8px; font-size: 14px; font-weight: 600; min-width: auto; padding-bottom: 8px;">
+            <span class="category-emoji" style="font-size: 16px;">🏠</span>
+            <span style="display: inline-flex; align-items: center;">Tầng Trệt (Bàn 1 - 20) <span id="tret-occupied-count" style="background-color: var(--primary); color: white; border-radius: 12px; padding: 1px 7px; font-size: 11px; margin-left: 6px; font-weight: 700; display: inline-block; line-height: 1.4;">0</span></span>
+          </div>
+          <div class="category-tab" data-floor="lầu" onclick="switchManagerFloor('lầu')" style="flex-direction: row; gap: 8px; font-size: 14px; font-weight: 600; min-width: auto; padding-bottom: 8px;">
+            <span class="category-emoji" style="font-size: 16px;">🏢</span>
+            <span style="display: inline-flex; align-items: center;">Tầng Lầu (Bàn 21 - 40) <span id="lau-occupied-count" style="background-color: var(--primary); color: white; border-radius: 12px; padding: 1px 7px; font-size: 11px; margin-left: 6px; font-weight: 700; display: inline-block; line-height: 1.4;">0</span></span>
+          </div>
+          <div class="category-tab" data-floor="mang đi" onclick="switchManagerFloor('mang đi')" style="flex-direction: row; gap: 8px; font-size: 14px; font-weight: 600; min-width: auto; padding-bottom: 8px;">
+            <span class="category-emoji" style="font-size: 16px;">🛍️</span>
+            <span style="display: inline-flex; align-items: center;">Mang đi <span id="takeaway-occupied-count" style="background-color: var(--primary); color: white; border-radius: 12px; padding: 1px 7px; font-size: 11px; margin-left: 6px; font-weight: 700; display: inline-block; line-height: 1.4;">0</span></span>
+          </div>
+        </div>
+
         <div class="manager-tables-grid" id="manager-tables-container">
           <!-- Rendered dynamically -->
           <div class="text-center text-muted p-md full-width">Đang tải trạng thái bàn...</div>
@@ -1104,135 +1200,405 @@
     </div>
 
     <!-- VIEW 2: Reports Dashboard (Hidden by default) -->
-    <div id="reports-dashboard-view" class="reports-view-full" style="display: none;">
-      <!-- Top Analytics Row (4x1 Grid) -->
-      <div class="analytics-row" style="grid-template-columns: repeat(4, 1fr); gap: var(--space-base); margin-bottom: var(--space-lg);">
-        
-        <!-- Dynamic Revenue -->
-        <div class="analytics-card" style="border-color: var(--primary);">
-          <span class="analytics-card-label" id="stat-revenue-label" style="color: var(--primary); font-weight: 700;">Doanh thu Hôm nay</span>
-          <span class="analytics-card-value" id="stat-revenue" style="color: var(--primary);">0đ</span>
-        </div>
-
-        <!-- Total Discount -->
-        <div class="analytics-card" style="border-color: #fca5a5;">
-          <span class="analytics-card-label" style="color: #ef4444;">Tổng Giảm giá</span>
-          <span class="analytics-card-value" id="stat-total-discount" style="color: #ef4444;">0đ</span>
-        </div>
-
-        <!-- Total Bills -->
-        <div class="analytics-card">
-          <span class="analytics-card-label">Tổng số Hóa đơn</span>
-          <span class="analytics-card-value" id="stat-total-bills">0</span>
-        </div>
-
-        <!-- Best Seller -->
-        <div class="analytics-card">
-          <span class="analytics-card-label">Bán chạy nhất</span>
-          <span class="analytics-card-value" id="stat-best-seller" style="font-size: 15px; font-weight: 600; margin-top: 4px;">--</span>
-        </div>
-
-      </div>
-
-      <!-- Payment Methods Summary -->
-      <div style="margin-bottom: var(--space-lg);">
-        <h3 style="font-size: 14px; font-weight: 600; margin-bottom: 8px; color: var(--ink); display: flex; align-items: center; gap: 6px;">
-          <span>💳</span> Chi tiết theo phương thức thanh toán
-        </h3>
-        <div class="analytics-row" style="grid-template-columns: repeat(4, 1fr); gap: var(--space-base); margin-bottom: 0;">
-          <!-- Cash Bills Count -->
-          <div class="analytics-card" style="border-left: 4px solid #10b981;">
-            <span class="analytics-card-label" style="color: #059669; font-weight: 600;">Số đơn Tiền mặt</span>
-            <span class="analytics-card-value" id="stat-cash-bills" style="font-size: 20px;">0</span>
-          </div>
-          <!-- Cash Amount -->
-          <div class="analytics-card" style="border-left: 4px solid #10b981;">
-            <span class="analytics-card-label" style="color: #059669; font-weight: 600;">Tiền mặt (Thực thu)</span>
-            <span class="analytics-card-value" id="stat-cash-amount" style="font-size: 20px;">0đ</span>
-          </div>
-          <!-- Bank Bills Count -->
-          <div class="analytics-card" style="border-left: 4px solid #3b82f6;">
-            <span class="analytics-card-label" style="color: #2563eb; font-weight: 600;">Số đơn Chuyển khoản</span>
-            <span class="analytics-card-value" id="stat-bank-bills" style="font-size: 20px;">0</span>
-          </div>
-          <!-- Bank Amount -->
-          <div class="analytics-card" style="border-left: 4px solid #3b82f6;">
-            <span class="analytics-card-label" style="color: #2563eb; font-weight: 600;">Chuyển khoản (Thực thu)</span>
-            <span class="analytics-card-value" id="stat-bank-amount" style="font-size: 20px;">0đ</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Visual Analytics Charts Panel -->
-      <div class="sticky-panel" style="margin-bottom: var(--space-lg); position: static; box-shadow: none; border-color: var(--hairline); padding: var(--space-base);">
-        <div class="panel-header" style="border-bottom: none; padding-bottom: 0;">
-          <div class="panel-header-title">
-            <h2 style="font-size: 16px; font-weight: 600;">Biểu đồ trực quan hóa</h2>
-            <p>Phân tích xu hướng doanh thu và cơ cấu món ăn đã bán</p>
-          </div>
-        </div>
-        
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--space-base); margin-top: 12px;">
-          <!-- Left: Revenue Trend Line Chart -->
-          <div style="border: 1px solid var(--hairline-soft); border-radius: var(--rounded-sm); padding: var(--space-sm); background-color: var(--surface-soft);">
-            <h3 style="font-size: 12px; font-weight: 600; margin-bottom: 8px; color: var(--ink);">Biểu diễn doanh thu (Đường)</h3>
-            <div style="height: 180px; position: relative;">
-              <canvas id="revenue-chart"></canvas>
-            </div>
-          </div>
-
-          <!-- Center: Revenue Comparison Bar Chart -->
-          <div style="border: 1px solid var(--hairline-soft); border-radius: var(--rounded-sm); padding: var(--space-sm); background-color: var(--surface-soft);">
-            <h3 style="font-size: 12px; font-weight: 600; margin-bottom: 8px; color: var(--ink);">So sánh doanh thu (Cột)</h3>
-            <div style="height: 180px; position: relative;">
-              <canvas id="revenue-bar-chart"></canvas>
-            </div>
-          </div>
+    <div id="reports-dashboard-view" class="overview-dashboard-container">
+      
+      <!-- Sapo Overview Header Row -->
+      <div class="overview-header-row animate-fade-in-up">
+        <div class="overview-title-block" style="display: flex; flex-direction: column; gap: var(--space-xs); width: 100%;">
+          <h1 class="overview-title">TỔNG QUAN KINH DOANH</h1>
           
-          <!-- Right: Dish Sales Doughnut Chart -->
-          <div style="border: 1px solid var(--hairline-soft); border-radius: var(--rounded-sm); padding: var(--space-sm); background-color: var(--surface-soft);">
-            <h3 style="font-size: 12px; font-weight: 600; margin-bottom: 8px; color: var(--ink);">Tỷ lệ món ăn đã bán</h3>
-            <div style="height: 180px; position: relative; display: flex; align-items: center; justify-content: center;">
-              <canvas id="dishes-chart"></canvas>
+          <!-- Custom Date preset dropdown (Sapo style) -->
+          <div class="sapo-dropdown-container" id="sapo-date-dropdown" style="width: fit-content; margin-top: 4px;">
+            <div class="sapo-dropdown-trigger" id="sapo-date-trigger" style="border: 1.5px solid var(--primary); min-width: 260px;">
+              <span id="sapo-date-label">Hôm nay</span>
+              <span class="dropdown-chevron" style="color: var(--primary);">▼</span>
+            </div>
+            
+            <!-- Dropdown options list -->
+            <div class="sapo-dropdown-menu" id="sapo-date-menu" style="display: none; width: 260px;">
+              <div class="sapo-dropdown-option active" data-value="today">Hôm nay</div>
+              <div class="sapo-dropdown-option" data-value="yesterday">Hôm qua</div>
+              <div class="sapo-dropdown-option" data-value="week">Tuần này</div>
+              <div class="sapo-dropdown-option" data-value="month">Tháng này</div>
+              <div class="sapo-dropdown-option" data-value="year">Năm nay</div>
+              <div class="sapo-dropdown-option" data-value="all">Tất cả</div>
+              <div class="sapo-dropdown-option" data-value="custom">Khoảng thời gian khác</div>
+            </div>
+            
+            <!-- Dual Pane Calendar Popup -->
+            <div class="sapo-calendar-popup" id="sapo-calendar-popup" style="display: none; top: calc(100% + 8px); left: 0;">
+              <div class="calendar-header">
+                <button type="button" class="calendar-nav-btn" id="cal-prev-btn">❮</button>
+                <div class="calendar-month-titles">
+                  <span class="month-title-left" id="cal-month-left-label">Tháng 5 2026</span>
+                  <span class="month-title-right" id="cal-month-right-label">Tháng 6 2026</span>
+                </div>
+                <button type="button" class="calendar-nav-btn" id="cal-next-btn">❯</button>
+              </div>
+              
+              <div class="calendar-panes">
+                <!-- Left Month Pane -->
+                <div class="calendar-pane">
+                  <div class="calendar-weekdays">
+                    <span>T2</span><span>T3</span><span>T4</span><span>T5</span><span>T6</span><span>T7</span><span>CN</span>
+                  </div>
+                  <div class="calendar-days" id="cal-days-left">
+                    <!-- Rendered dynamically -->
+                  </div>
+                </div>
+                
+                <!-- Right Month Pane -->
+                <div class="calendar-pane">
+                  <div class="calendar-weekdays">
+                    <span>T2</span><span>T3</span><span>T4</span><span>T5</span><span>T6</span><span>T7</span><span>CN</span>
+                  </div>
+                  <div class="calendar-days" id="cal-days-right">
+                    <!-- Rendered dynamically -->
+                  </div>
+                </div>
+              </div>
+              
+              <div class="calendar-footer">
+                <div class="selected-range-display" id="cal-range-display">30/06/2026 - 30/06/2026</div>
+                <div class="calendar-actions">
+                  <button type="button" class="btn-cal-action btn-cal-cancel" id="cal-cancel-btn">Hủy</button>
+                  <button type="button" class="btn-cal-action btn-cal-submit" id="cal-select-btn">Chọn</button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Menu Item Sales Statistics Panel -->
-      <div class="sticky-panel" style="margin-bottom: var(--space-lg); position: static; box-shadow: none; border-color: var(--hairline); padding: var(--space-base);">
-        <div class="panel-header" style="border-bottom: none; padding-bottom: 0;">
-          <div class="panel-header-title">
-            <h2 style="font-size: 16px; font-weight: 600;">Thống kê món ăn đã bán</h2>
-            <p>Số lượng và doanh thu từng món ăn tích lũy</p>
+      <!-- Metrics Card Row 1 (5 Columns) -->
+      <div class="overview-metrics-card animate-fade-in-up delay-1">
+        <!-- Tiền hàng -->
+        <div class="metric-item">
+          <div class="metric-icon-box bg-blue-soft">🛎️</div>
+          <div class="metric-data">
+            <span class="metric-label">Tiền hàng</span>
+            <span class="metric-value" id="overview-items-amount">0 đ</span>
+          </div>
+        </div>
+        <div class="metric-divider"></div>
+        
+        <!-- Hoàn hủy -->
+        <div class="metric-item">
+          <div class="metric-icon-box bg-red-soft">🗑️</div>
+          <div class="metric-data">
+            <span class="metric-label">Hoàn huỷ</span>
+            <span class="metric-value" id="overview-void-amount">0 đ</span>
+          </div>
+        </div>
+        <div class="metric-divider"></div>
+        
+        <!-- Giảm giá -->
+        <div class="metric-item">
+          <div class="metric-icon-box bg-orange-soft">🎁</div>
+          <div class="metric-data">
+            <span class="metric-label">Giảm giá</span>
+            <span class="metric-value text-red" id="overview-discount-amount">0 đ</span>
+          </div>
+        </div>
+        <div class="metric-divider"></div>
+        
+        <!-- Doanh thu -->
+        <div class="metric-item">
+          <div class="metric-icon-box bg-green-soft">💵</div>
+          <div class="metric-data">
+            <span class="metric-label">Doanh thu</span>
+            <span class="metric-value text-green" id="overview-revenue-amount">0 đ</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Secondary metrics row 2 (4 columns) -->
+      <div class="overview-secondary-metrics-grid animate-fade-in-up delay-2">
+        <!-- Card 1 -->
+        <div class="sec-metric-card border-orange">
+          <span class="sec-metric-label">Số khách hàng</span>
+          <span class="sec-metric-value" id="overview-customers-count">0</span>
+        </div>
+        <!-- Card 2 -->
+        <div class="sec-metric-card border-teal">
+          <span class="sec-metric-label">Số hoá đơn</span>
+          <span class="sec-metric-value" id="overview-bills-count">0</span>
+        </div>
+        <!-- Card 3 -->
+        <div class="sec-metric-card border-purple">
+          <span class="sec-metric-label">TB mặt hàng/ hoá đơn</span>
+          <span class="sec-metric-value" id="overview-avg-items">0</span>
+        </div>
+        <!-- Card 4 -->
+        <div class="sec-metric-card border-pink">
+          <span class="sec-metric-label">TB doanh thu/ hoá đơn</span>
+          <span class="sec-metric-value" id="overview-avg-bill-value">0 đ</span>
+        </div>
+      </div>
+
+      <!-- Chart Panel (Original Business Overview Chart) -->
+      <div class="overview-chart-panel animate-fade-in-up delay-3">
+        <div class="chart-header">
+          <h2 class="chart-title">DOANH THU TỔNG HỢP <span class="chart-title-arrow">❯</span></h2>
+        </div>
+        <div class="chart-body" style="height: 280px;">
+          <canvas id="overview-hourly-chart"></canvas>
+        </div>
+        <div class="chart-legend-footer">
+          <span class="legend-color-block"></span>
+          <span class="legend-text">Tổng doanh thu: <strong id="chart-legend-revenue">0 đ</strong></span>
+        </div>
+      </div>
+
+      <!-- Tabbed Chart Panel (The two new charts requested below) -->
+      <div class="overview-chart-panel animate-fade-in-up delay-3" style="margin-top: 24px;">
+        <div class="chart-tabs-header">
+          <div class="chart-tab-item active" id="btn-chart-revenue">DOANH THU THEO THỜI GIAN THANH TOÁN</div>
+          <div class="chart-tab-item" id="btn-chart-orders">TỔNG ĐƠN ĐÃ HOÀN TẤT THEO THỜI GIAN TẠO ĐƠN</div>
+        </div>
+        
+        <div class="chart-body" style="height: 350px; margin-top: 16px;">
+          <canvas id="overview-tabbed-chart"></canvas>
+        </div>
+        
+        <!-- Tab 1 Legend Footer (Default view) -->
+        <div class="chart-legend-footer" id="chart-legend-tab1" style="display: flex;">
+          <div class="legend-item">
+            <span class="legend-color-block bg-primary-blue"></span>
+            <span>Tổng doanh thu: <strong id="legend-tab1-revenue">0 đ</strong></span>
+          </div>
+          <div class="legend-item">
+            <span class="legend-color-block bg-pink"></span>
+            <span>Tổng hóa đơn: <strong id="legend-tab1-orders">0</strong></span>
           </div>
         </div>
         
-        <div style="max-height: 220px; overflow-y: auto; border: 1px solid var(--hairline-soft); border-radius: var(--rounded-sm); background-color: var(--surface-soft); margin-top: 10px;">
-          <table class="checkout-bill-table" style="margin: 0; font-size: 13px;">
-            <thead>
-              <tr style="background-color: var(--surface-strong);">
-                <th style="padding: 10px 12px; font-weight: 600;">Món ăn</th>
-                <th class="text-center" style="width: 100px; padding: 10px 12px; font-weight: 600;">Số lượng</th>
-                <th class="text-right" style="width: 140px; padding: 10px 12px; font-weight: 600;">Tổng doanh thu</th>
-              </tr>
-            </thead>
-            <tbody id="menu-sales-stats-body">
-              <!-- Rendered dynamically -->
-              <tr>
-                <td colspan="3" class="text-center text-muted" style="padding: var(--space-base);">Chưa có dữ liệu bán hàng.</td>
-              </tr>
-            </tbody>
-          </table>
+        <!-- Tab 2 Legend Footer -->
+        <div class="chart-legend-footer" id="chart-legend-tab2" style="display: none;">
+          <div class="legend-item">
+            <span class="legend-color-block bg-green"></span>
+            <span>Tổng hóa đơn tính theo thời gian tạo đơn: <strong id="legend-tab2-orders">0</strong></span>
+          </div>
         </div>
       </div>
+
+      <!-- 2x2 Grid for Incomplete Orders, Employee Revenue, Payment Methods, Serving Types -->
+      <div class="overview-cards-grid animate-fade-in-up delay-4" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(450px, 1fr)); gap: 24px; margin-top: 24px; margin-bottom: 24px;">
+        
+        <!-- Card 1: Doanh thu đơn chưa hoàn tất -->
+        <div class="overview-card-panel">
+          <div class="card-header-simple">
+            <h3 class="card-title-simple">DOANH THU ĐƠN CHƯA HOÀN TẤT</h3>
+          </div>
+          <div class="card-body-simple">
+            <table class="report-simple-table">
+              <thead>
+                <tr>
+                  <th style="text-align: left; padding: 10px 8px;">Loại hình phục vụ</th>
+                  <th style="text-align: center; width: 100px; padding: 10px 8px;">Số đơn</th>
+                  <th style="text-align: right; width: 120px; padding: 10px 8px;">Số tiền</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td style="padding: 12px 8px;">🛎️ Tại bàn</td>
+                  <td style="text-align: center; color: var(--primary); font-weight: 600; padding: 12px 8px;" id="incomplete-table-count">0</td>
+                  <td style="text-align: right; padding: 12px 8px;" id="incomplete-table-amount">0 đ</td>
+                </tr>
+                <tr>
+                  <td style="padding: 12px 8px;">🛍️ Mang đi</td>
+                  <td style="text-align: center; color: var(--primary); font-weight: 600; padding: 12px 8px;" id="incomplete-takeaway-count">0</td>
+                  <td style="text-align: right; padding: 12px 8px;" id="incomplete-takeaway-amount">0 đ</td>
+                </tr>
+                <tr>
+                  <td style="padding: 12px 8px;">🚚 Giao hàng</td>
+                  <td style="text-align: center; padding: 12px 8px;" id="incomplete-delivery-count">0</td>
+                  <td style="text-align: right; padding: 12px 8px;" id="incomplete-delivery-amount">0 đ</td>
+                </tr>
+                <tr>
+                  <td style="padding: 12px 8px;">📦 Đối tác tích hợp</td>
+                  <td style="text-align: center; padding: 12px 8px;" id="incomplete-partner-count">0</td>
+                  <td style="text-align: right; padding: 12px 8px;" id="incomplete-partner-amount">0 đ</td>
+                </tr>
+                <tr class="table-total-row">
+                  <td class="bold" style="padding: 12px 8px; font-weight: 700;">∑ Tổng cộng</td>
+                  <td style="text-align: center; padding: 12px 8px; font-weight: 700;" id="incomplete-total-count">0</td>
+                  <td style="text-align: right; color: var(--primary); padding: 12px 8px; font-weight: 700;" id="incomplete-total-amount">0 đ</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Card 2: Doanh thu nhân viên -->
+        <div class="overview-card-panel">
+          <div class="card-header-simple">
+            <h3 class="card-title-simple">DOANH THU NHÂN VIÊN <span class="card-title-arrow">❯</span></h3>
+          </div>
+          <div class="card-body-simple">
+            <table class="report-simple-table">
+              <thead>
+                <tr>
+                  <th style="text-align: left; padding: 10px 8px;">Tên nhân viên</th>
+                  <th style="text-align: right; width: 150px; padding: 10px 8px;">Số tiền</th>
+                </tr>
+              </thead>
+              <tbody id="staff-revenue-body">
+                <tr>
+                  <td style="padding: 12px 8px;">👥 HỘ KINH DOANH THANH BÌNH</td>
+                  <td style="text-align: right; font-weight: 600; padding: 12px 8px;" id="staff-owner-amount">0 đ</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Card 3: Phương thức thanh toán -->
+        <div class="overview-card-panel">
+          <div class="card-header-tabs">
+            <h3 class="card-title-tabbed">PHƯƠNG THỨC THANH TOÁN <span class="card-title-arrow">❯</span></h3>
+            <div class="card-header-buttons">
+              <span class="card-tab-btn active" id="btn-pay-revenue">Tổng doanh thu</span>
+              <span class="card-tab-btn" id="btn-pay-count">Số hóa đơn</span>
+            </div>
+          </div>
+          <div class="card-body-flex" style="display: flex; align-items: center; justify-content: space-between; padding: 16px 8px 8px 8px; min-height: 180px; gap: 16px;">
+            <div class="legend-list-vertical" style="flex: 1; display: flex; flex-direction: column; gap: 16px;">
+              <div class="legend-list-item" style="display: flex; justify-content: space-between; align-items: center; font-size: 13px;">
+                <span style="display: flex; align-items: center; gap: 8px;"><span class="dot-indicator" style="background-color: var(--primary); width: 8px; height: 8px; border-radius: 50%; display: inline-block;"></span> Chuyển khoản</span>
+                <span class="bold" id="pay-bank-value" style="font-weight: 700;">0 đ</span>
+              </div>
+              <div class="legend-list-item" style="display: flex; justify-content: space-between; align-items: center; font-size: 13px;">
+                <span style="display: flex; align-items: center; gap: 8px;"><span class="dot-indicator" style="background-color: #ff6b8b; width: 8px; height: 8px; border-radius: 50%; display: inline-block;"></span> Tiền mặt</span>
+                <span class="bold" id="pay-cash-value" style="font-weight: 700;">0 đ</span>
+              </div>
+            </div>
+            <div class="donut-chart-container" style="width: 130px; height: 130px; flex-shrink: 0; position: relative;">
+              <canvas id="payment-method-donut-chart"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Card 4: Hình thức phục vụ -->
+        <div class="overview-card-panel">
+          <div class="card-header-tabs">
+            <h3 class="card-title-tabbed">HÌNH THỨC PHỤC VỤ <span class="card-title-arrow">❯</span></h3>
+            <div class="card-header-buttons">
+              <span class="card-tab-btn active" id="btn-serve-revenue">Tổng doanh thu</span>
+              <span class="card-tab-btn" id="btn-serve-count">Số hóa đơn</span>
+            </div>
+          </div>
+          <div class="card-body-flex" style="display: flex; align-items: center; justify-content: space-between; padding: 16px 8px 8px 8px; min-height: 180px; gap: 16px;">
+            <div class="legend-list-vertical" style="flex: 1; display: flex; flex-direction: column; gap: 16px;">
+              <div class="legend-list-item" style="display: flex; justify-content: space-between; align-items: center; font-size: 13px;">
+                <span style="display: flex; align-items: center; gap: 8px;"><span class="dot-indicator" style="background-color: var(--primary); width: 8px; height: 8px; border-radius: 50%; display: inline-block;"></span> Ăn tại bàn</span>
+                <span class="bold" id="serve-table-value" style="font-weight: 700;">0 đ</span>
+              </div>
+              <div class="legend-list-item" style="display: flex; justify-content: space-between; align-items: center; font-size: 13px;">
+                <span style="display: flex; align-items: center; gap: 8px;"><span class="dot-indicator" style="background-color: #ff6b8b; width: 8px; height: 8px; border-radius: 50%; display: inline-block;"></span> Mang đi</span>
+                <span class="bold" id="serve-takeaway-value" style="font-weight: 700;">0 đ</span>
+              </div>
+            </div>
+            <div class="donut-chart-container" style="width: 130px; height: 130px; flex-shrink: 0; position: relative;">
+              <canvas id="serving-type-donut-chart"></canvas>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- 1x2 Grid for Items by Category and Best Selling Items -->
+      <div class="overview-cards-grid animate-fade-in-up delay-5" style="display: grid; grid-template-columns: 1fr; gap: 24px; margin-bottom: 24px;">
+        
+        <!-- Card 5: Mặt hàng theo danh mục (Hidden) -->
+        <div class="overview-card-panel" style="display: none;">
+          <div class="card-header-tabs">
+            <h3 class="card-title-tabbed">MẶT HÀNG THEO DANH MỤC <span class="card-title-arrow">❯</span></h3>
+            <div class="card-header-buttons">
+              <span class="card-tab-btn active" id="btn-cat-revenue">Tổng số tiền</span>
+              <span class="card-tab-btn" id="btn-cat-count">Số lượng</span>
+            </div>
+          </div>
+          <div class="card-body-flex" style="display: flex; align-items: center; justify-content: space-between; padding: 16px 8px 8px 8px; min-height: 200px; gap: 16px;">
+            <div class="legend-list-vertical" id="cat-legend-list" style="flex: 1; display: flex; flex-direction: column; gap: 12px; max-height: 180px; overflow-y: auto;">
+              <!-- Rendered dynamically -->
+            </div>
+            <div class="donut-chart-container" style="width: 140px; height: 140px; flex-shrink: 0; position: relative;">
+              <canvas id="items-category-donut-chart"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Card 6: Mặt hàng bán chạy -->
+        <div class="overview-card-panel">
+          <div class="card-header-tabs" style="justify-content: space-between; align-items: center;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <h3 class="card-title-tabbed">MẶT HÀNG BÁN CHẠY <span class="card-title-arrow">❯</span></h3>
+              <div class="card-header-buttons" style="margin-left: 8px;">
+                <span class="card-tab-btn active" id="btn-bestsell-revenue">Tổng số tiền</span>
+                <span class="card-tab-btn" id="btn-bestsell-count">Số lượng</span>
+              </div>
+            </div>
+            <div class="small-select-wrapper" style="position: relative;">
+              <select id="select-top-limit" style="font-size: 12px; padding: 4px 20px 4px 8px; border: 1.5px solid var(--hairline-strong); border-radius: var(--rounded-sm); appearance: none; background: #ffffff; cursor: pointer; outline: none; font-weight: 600; color: var(--ink);">
+                <option value="5" selected>Top 5 sản phẩm</option>
+                <option value="10">Top 10 sản phẩm</option>
+                <option value="20">Top 20 sản phẩm</option>
+              </select>
+              <span style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); font-size: 8px; pointer-events: none; color: var(--muted);">▼</span>
+            </div>
+          </div>
+          <div class="card-body-flex" style="display: flex; align-items: center; justify-content: space-between; padding: 16px 8px 8px 8px; min-height: 200px; gap: 16px;">
+            <div class="legend-list-vertical" id="bestsell-legend-list" style="flex: 1; display: flex; flex-direction: column; gap: 10px; max-height: 180px; overflow-y: auto;">
+              <!-- Rendered dynamically -->
+            </div>
+            <div class="donut-chart-container" style="width: 140px; height: 140px; flex-shrink: 0; position: relative;">
+              <canvas id="items-bestsell-donut-chart"></canvas>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+
     </div>
 
     <!-- VIEW 3: Hóa đơn Dashboard (Hidden by default) -->
     <div id="invoices-dashboard-view" style="display: none; width: 100%;">
-      <div class="dashboard-header-block">
-        <h1 class="section-title-v2">Lịch sử hóa đơn</h1>
-        <p style="margin: 4px 0 0 0; color: var(--muted); font-size: 13px;">Tra cứu, xem chi tiết và in lại hóa đơn thanh toán</p>
+      <div class="dashboard-header-block" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; margin-bottom: 20px; width: 100%;">
+        <div>
+          <h1 class="section-title-v2" style="margin: 0;">Lịch sử hóa đơn</h1>
+          <p style="margin: 4px 0 0 0; color: var(--muted); font-size: 13px;">Tra cứu, xem chi tiết và in lại hóa đơn thanh toán</p>
+        </div>
+
+        <!-- Custom Date preset dropdown (Sapo style) for Invoices tab -->
+        <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap; position: relative; z-index: 120;">
+          <div class="sapo-dropdown-container" id="invoices-date-dropdown" style="width: fit-content; position: relative;">
+            <div class="sapo-dropdown-trigger" id="invoices-date-trigger" style="border: 1.5px solid var(--primary); min-width: 240px; height: 38px; display: flex; align-items: center; justify-content: space-between; padding: 0 12px; border-radius: 6px; background: #ffffff; cursor: pointer; user-select: none; box-sizing: border-box;">
+              <span id="invoices-date-label" style="font-size: 13px; font-weight: 600; color: var(--ink);">Hôm nay</span>
+              <span class="dropdown-chevron" style="color: var(--primary); font-size: 10px;">▼</span>
+            </div>
+            
+            <!-- Dropdown options list -->
+            <div class="sapo-dropdown-menu" id="invoices-date-menu" style="display: none; width: 240px; position: absolute; top: calc(100% + 4px); left: 0; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); z-index: 130; flex-direction: column; padding: 4px 0; box-sizing: border-box;">
+              <div class="invoices-dropdown-option active" data-value="today" style="padding: 10px 16px; font-size: 13px; color: var(--ink); cursor: pointer;">Hôm nay</div>
+              <div class="invoices-dropdown-option" data-value="yesterday" style="padding: 10px 16px; font-size: 13px; color: var(--ink); cursor: pointer;">Hôm qua</div>
+              <div class="invoices-dropdown-option" data-value="week" style="padding: 10px 16px; font-size: 13px; color: var(--ink); cursor: pointer;">Tuần này</div>
+              <div class="invoices-dropdown-option" data-value="month" style="padding: 10px 16px; font-size: 13px; color: var(--ink); cursor: pointer;">Tháng này</div>
+              <div class="invoices-dropdown-option" data-value="year" style="padding: 10px 16px; font-size: 13px; color: var(--ink); cursor: pointer;">Năm nay</div>
+              <div class="invoices-dropdown-option" data-value="all" style="padding: 10px 16px; font-size: 13px; color: var(--ink); cursor: pointer;">Tất cả</div>
+              <div class="invoices-dropdown-option" data-value="custom" style="padding: 10px 16px; font-size: 13px; color: var(--ink); cursor: pointer;">Khoảng thời gian khác</div>
+            </div>
+          </div>
+
+          <!-- Small custom date range picker (hidden by default) -->
+          <div id="invoices-custom-dates" style="display: none; align-items: center; gap: 8px;">
+            <input type="date" id="invoices-start-date" class="text-input" style="height: 38px; padding: 0 10px; width: 135px; font-size: 13px; border-radius: 6px; border: 1px solid #cbd5e1; box-sizing: border-box;">
+            <span style="font-size: 13px; color: var(--ink-soft);">đến</span>
+            <input type="date" id="invoices-end-date" class="text-input" style="height: 38px; padding: 0 10px; width: 135px; font-size: 13px; border-radius: 6px; border: 1px solid #cbd5e1; box-sizing: border-box;">
+            <button id="invoices-btn-apply" class="btn btn-primary" style="height: 38px; padding: 0 16px; font-size: 13px; font-weight: 600; border-radius: 6px;">Lọc</button>
+          </div>
+        </div>
       </div>
       <div class="history-list" id="history-list-container" style="width: 100%; max-width: 100%;">
         <!-- Rendered dynamically -->
@@ -1240,20 +1606,24 @@
       </div>
     </div>
 
-    <!-- VIEW 5: Reservations (Bookings) Dashboard (Hidden by default) -->
-    <div id="bookings-dashboard-view" style="display: none; width: 100%;">
-      <div class="dashboard-header-block">
-        <h1 class="section-title-v2">Đặt lịch</h1>
-        <p style="margin: 4px 0 0 0; color: var(--muted); font-size: 13px;">Quản lý bàn đặt trước và lịch hẹn của khách hàng</p>
-      </div>
-      
-      <div style="background-color: var(--canvas); border-radius: var(--rounded-lg); padding: var(--space-xl); text-align: center; border: 1px solid var(--hairline); box-shadow: var(--shadow-sm); display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 400px;">
-        <span style="font-size: 64px; margin-bottom: 16px;">📅</span>
-        <h2 style="font-size: 20px; font-weight: 700; color: var(--ink); margin-bottom: 8px;">Tính năng Đặt lịch đang phát triển</h2>
-        <p style="color: var(--muted); max-width: 420px; font-size: 14px; line-height: 1.5; margin-bottom: 24px;">Hệ thống đang được nâng cấp để hỗ trợ đặt bàn trước, xếp lịch theo ca và thông báo SMS/Zalo cho khách hàng. Vui lòng quay lại sau.</p>
-        <button class="btn btn-primary btn-pill" onclick="switchTab('tables')" style="height: 40px; padding: 0 24px; font-weight: 600;">Quay lại Tổng quan</button>
+    <!-- MODAL: Transaction Details -->
+    <div class="modal-backdrop" id="transaction-detail-modal" style="display: none;">
+      <div class="modal-content" style="max-width: 450px; border-radius: 16px; overflow: hidden; background-color: #ffffff; padding: 0;">
+        <div class="modal-header" style="padding: 16px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center;">
+          <h3 class="modal-title" style="font-size: 16px; font-weight: 700; margin: 0; color: #1e293b;">Chi tiết hóa đơn</h3>
+          <button class="btn-close" onclick="closeTransactionDetailModal()" style="border: none; background: transparent; font-size: 20px; cursor: pointer;">&times;</button>
+        </div>
+        <div class="modal-body" id="transaction-detail-modal-body" style="padding: 20px; display: flex; flex-direction: column; gap: 12px; max-height: 70vh; overflow-y: auto;">
+          <!-- Filled dynamically -->
+        </div>
+        <div class="modal-footer" style="padding: 12px 16px; background-color: #f8fafc; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; gap: 8px;">
+          <button class="btn btn-secondary" onclick="closeTransactionDetailModal()">Đóng</button>
+          <button class="btn btn-primary" id="btn-reprint-modal" style="background-color: var(--primary); color: white; display: flex; align-items: center; gap: 4px;">🖨️ In lại hóa đơn</button>
+        </div>
       </div>
     </div>
+
+
 
     <!-- VIEW 3: Staff Management Dashboard (Hidden by default) -->
     <div id="staff-dashboard-view" class="reports-view" style="display: none;">
@@ -1312,15 +1682,20 @@
       <div class="dashboard-header-block" style="margin-bottom: 24px;">
         <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; width: 100%;">
           <div>
-            <h1 class="section-title-v2">Quản lý thực đơn</h1>
+            <h1 class="section-title-v2">Quản lý mặt hàng</h1>
             <p style="margin: 4px 0 0 0; color: var(--muted); font-size: 13px;">Thiết lập danh sách món ăn, nước uống và phân loại phục vụ</p>
           </div>
           <button class="btn btn-primary btn-pill" id="btn-create-menu-item" style="height: 40px; font-weight: 600;">Tạo món ăn mới</button>
         </div>
       </div>
       
-      <!-- Category Filter Tabs -->
-      <div class="category-strip" id="menu-mgmt-category-strip" style="margin-bottom: var(--space-md); border-bottom: 1px solid var(--hairline); padding-top: 0;">
+      <!-- Control Bar with Search Input -->
+      <div style="margin-bottom: 20px; width: 100%; max-width: 420px; position: relative;">
+        <input type="text" id="menu-mgmt-search-input" placeholder="🔍 Tìm kiếm món ăn..." style="width: 100%; padding: 12px 16px; border: 1.5px solid var(--border-strong); border-radius: var(--rounded-md); font-size: 14px; outline: none; box-sizing: border-box; font-family: inherit; font-weight: 500; background-color: #ffffff; transition: border-color 0.2s, box-shadow 0.2s;">
+      </div>
+      
+      <!-- Category Filter Tabs (Hidden) -->
+      <div class="category-strip" id="menu-mgmt-category-strip" style="display: none; margin-bottom: var(--space-md); border-bottom: 1px solid var(--hairline); padding-top: 0;">
         <div class="category-tab active" data-category="all">
           <span class="category-emoji">🍽️</span>
           <span>Tất cả</span>
@@ -1345,6 +1720,23 @@
         <div class="text-center text-muted p-md full-width">Đang tải danh sách món ăn...</div>
       </div>
     </div>
+
+    <!-- VIEW 4.1: Menu Groups Dashboard (Hidden by default) -->
+    <div id="menu-preview-dashboard-view" style="display: none; width: 100%;">
+      <div class="dashboard-header-block" style="margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; width: 100%; flex-wrap: wrap; gap: 12px;">
+        <div>
+          <h1 class="section-title-v2">Quản lý thực đơn</h1>
+          <p style="margin: 4px 0 0 0; color: var(--muted); font-size: 13px;">Thiết lập các nhóm thực đơn và lựa chọn mặt hàng tương ứng</p>
+        </div>
+        <button class="btn btn-primary btn-pill" id="btn-create-menu-group" style="height: 40px; font-weight: 600;">Tạo thực đơn mới</button>
+      </div>
+      
+      <!-- List of Menu Groups -->
+      <div class="menu-groups-grid" id="menu-groups-container" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 24px;">
+        <!-- Rendered dynamically -->
+      </div>
+    </div>
+
 
       </main>
     </div>
@@ -1447,23 +1839,16 @@
 
             <!-- Bank Transfer Section (shown when bank is active) -->
             <div id="bank-payment-fields" style="display: none;">
-              <div class="bank-qr-container" style="align-items: flex-start; padding: 16px;">
-                <div class="bank-details-text" style="font-size: 14px; gap: 8px;">
-                  <p style="margin: 0;"><strong>🏦 Ngân hàng:</strong> MB Bank (Quân Đội)</p>
-                  <p style="margin: 0;"><strong>💳 Số tài khoản:</strong> 0987654321</p>
-                  <p style="margin: 0;"><strong>👤 Chủ tài khoản:</strong> NHA HANG TAM XUA</p>
-                </div>
-              </div>
             </div>
           </div>
         </div>
       </div>
 
       <div class="modal-footer" style="background-color: var(--surface-soft); border-top: 1px solid var(--hairline-soft); padding: 16px 24px; justify-content: space-between; align-items: center; width: 100%;">
-        <button class="btn btn-secondary btn-pill" id="btn-print-checkout" style="border-color: var(--primary); color: var(--primary); height: 40px; padding: 0 20px;"><span style="margin-right: 4px;">🖨️</span> In hóa đơn</button>
+        <button class="btn btn-secondary" id="btn-print-checkout" style="border-color: var(--primary); color: var(--primary); height: 40px; padding: 0 20px; border-radius: 8px;"><span style="margin-right: 4px;">🖨️</span> In hóa đơn</button>
         <div style="display: flex; gap: var(--space-base);">
-          <button class="btn btn-secondary btn-pill" id="btn-cancel-checkout" style="border-color: var(--border-strong); height: 40px; padding: 0 20px;">Quay lại</button>
-          <button class="btn btn-primary btn-pill" id="btn-confirm-checkout-pay" disabled style="height: 40px; padding: 0 24px; font-weight: 600;">Xác nhận thanh toán</button>
+          <button class="btn btn-secondary" id="btn-cancel-checkout" style="border-color: var(--border-strong); height: 40px; padding: 0 20px; border-radius: 8px;">Quay lại</button>
+          <button class="btn btn-primary" id="btn-confirm-checkout-pay" disabled style="height: 40px; padding: 0 24px; font-weight: 600; border-radius: 8px;">Xác nhận thanh toán</button>
         </div>
       </div>
     </div>
@@ -1502,8 +1887,8 @@
               
               <p class="upload-hint">Hỗ trợ định dạng JPG, PNG. Dung lượng tối đa 5MB.</p>
               
-              <!-- Emoji Input -->
-              <div class="text-input-container" style="margin-top: 16px;">
+              <!-- Emoji Input (Hidden) -->
+              <div class="text-input-container" style="margin-top: 16px; display: none;">
                 <label class="text-input-label" for="menu-item-emoji-input">Biểu tượng Emoji (nếu không có ảnh)</label>
                 <input type="text" id="menu-item-emoji-input" class="text-input" placeholder="Ví dụ: 🍜, 🥗, 🥤" autocomplete="off" style="font-size: 18px;">
               </div>
@@ -1526,11 +1911,11 @@
                 <span class="currency-suffix">đ</span>
               </div>
 
-              <!-- Category Input -->
-              <div class="text-input-container">
+              <!-- Category Input (Hidden) -->
+              <div class="text-input-container" style="display: none;">
                 <label class="text-input-label" for="menu-item-category-input">Phân loại món</label>
                 <select id="menu-item-category-input" class="text-input" style="padding-top: 24px; font-weight: 600; appearance: none; -webkit-appearance: none;" required>
-                  <option value="main">🍛 Món chính</option>
+                  <option value="main" selected>🍛 Món chính</option>
                   <option value="side">🥗 Món thêm</option>
                   <option value="drink">🥤 Nước uống</option>
                 </select>
@@ -1553,6 +1938,8 @@
           </div>
         </div>
       </form>
+    </div>
+  </div>
   <!-- Khu vực ẩn dành riêng cho việc in ấn hóa đơn -->
   <div id="print-receipt-template" class="print-only">
     <div class="receipt-header">
@@ -1652,6 +2039,51 @@
         <div class="modal-footer" style="background-color: var(--surface-soft); border-top: 1px solid var(--hairline-soft); padding: 12px 24px; display: flex; justify-content: flex-end; gap: var(--space-base);">
           <button type="button" class="btn btn-secondary btn-pill" id="btn-cancel-add-table-modal" onclick="closeAddTableModalInline()" style="height: 38px; padding: 0 16px;">Hủy</button>
           <button type="submit" class="btn btn-primary btn-pill" id="btn-submit-add-table" style="height: 38px; padding: 0 20px; font-weight: 600;">Thêm bàn</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL 4: Create/Edit Menu Group -->
+  <div class="modal-backdrop" id="menu-group-modal" style="display: none;">
+    <div class="modal-content" style="max-width: 600px; border-radius: var(--rounded-lg); overflow: hidden;">
+      <div class="modal-header" style="border-bottom: 1px solid var(--hairline-soft); padding: 16px 24px;">
+        <h3 class="modal-title" style="font-size: 18px; font-weight: 700;">Tạo thực đơn mới</h3>
+        <button class="btn-close" id="btn-close-menu-group-modal" style="font-size: 24px;">&times;</button>
+      </div>
+      <form id="menu-group-form" style="margin: 0;">
+        <div class="modal-body" style="padding: 24px; max-height: 580px; overflow-y: auto;">
+          <!-- Name Input -->
+          <div class="text-input-container">
+            <span class="text-input-label">Tên nhóm thực đơn</span>
+            <input type="text" id="menu-group-name-input" class="text-input" placeholder="Ví dụ: Thực đơn sáng, Thực đơn tối, Đồ uống..." required autocomplete="off">
+          </div>
+          
+          <!-- Custom Search Select for Items -->
+          <div style="margin-top: 20px; position: relative;">
+            <span style="font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; text-align: left; display: block;">Lựa chọn mặt hàng vào thực đơn</span>
+            
+            <div class="custom-select-wrapper" id="menu-group-select-wrapper" style="position: relative; width: 100%;">
+              <div class="custom-select-trigger" id="menu-group-select-trigger" style="min-height: 48px; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; border: 1px solid var(--border-strong); border-radius: var(--rounded-md); background: #ffffff; cursor: pointer; user-select: none; box-sizing: border-box; position: relative;">
+                <span id="menu-group-select-value" style="font-size: 14px; color: var(--muted); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 85%;">Chọn mặt hàng...</span>
+                <span class="custom-select-chevron" style="pointer-events: none;">▼</span>
+              </div>
+              
+              <div class="custom-select-menu" id="menu-group-select-menu" style="position: absolute; top: calc(100% + 4px); left: 0; right: 0; background: #ffffff; border: 1px solid var(--border-strong); border-radius: var(--rounded-md); box-shadow: var(--shadow); z-index: 1010; padding: 12px; box-sizing: border-box; display: flex; flex-direction: column; gap: 8px;">
+                <input type="text" id="menu-group-search-input" placeholder="🔍 Tìm kiếm mặt hàng..." style="width: 100%; padding: 10px 12px; border: 1.5px solid var(--border-strong); border-radius: var(--rounded-sm); font-size: 13px; outline: none; box-sizing: border-box; font-family: inherit; font-weight: 500; margin-bottom: 4px; background-color: var(--canvas);">
+                
+                <!-- Items list -->
+                <div id="menu-group-items-checklist" style="display: flex; flex-direction: column; gap: 6px; max-height: 300px; overflow-y: auto; padding-right: 4px;">
+                  <!-- Rendered dynamically -->
+                </div>
+              </div>
+            </div>
+          </div>
+          <div id="menu-group-error-msg" style="color: var(--primary-error-text); font-size: 12px; margin-top: 8px; display: none; font-weight: 500;"></div>
+        </div>
+        <div class="modal-footer" style="background-color: var(--surface-soft); border-top: 1px solid var(--hairline-soft); padding: 12px 24px; display: flex; justify-content: flex-end; gap: var(--space-base);">
+          <button type="button" class="btn btn-secondary btn-pill" id="btn-cancel-menu-group-modal" style="height: 38px; padding: 0 16px;">Hủy</button>
+          <button type="submit" class="btn btn-primary btn-pill" style="height: 38px; padding: 0 20px; font-weight: 600;">Lưu thực đơn</button>
         </div>
       </form>
     </div>

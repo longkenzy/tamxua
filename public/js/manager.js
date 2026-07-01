@@ -5,33 +5,47 @@ const isVercel = window.location.hostname.endsWith('vercel.app');
 
 // State variables
 let tables = [];
+let playEntranceAnimation = true;
 let transactions = [];
 let filteredTransactions = []; // Filtered copy of transactions list
 let menuItems = [];
 let selectedTableId = null;
 let selectedTransactionId = null;
-let currentTab = 'tables'; // 'tables' or 'reports'
+let currentTab = 'reports'; // Default to Business Overview
 let currentDiscountAmount = 0; // Discount applied in checkout modal
 let currentPaymentMethod = 'cash'; // Payment method in checkout modal ('cash' or 'bank')
 let notificationAudioContext = null;
 let revenueChartInstance = null;
 let revenueBarChartInstance = null;
 let dishesChartInstance = null;
+let overviewHourlyChartInstance = null;
+let overviewTabbedChartInstance = null;
+let paymentMethodDonutChartInstance = null;
+let servingTypeDonutChartInstance = null;
+let itemsCategoryDonutChartInstance = null;
+let itemsBestsellDonutChartInstance = null;
+let activePaymentMethodTab = 'revenue'; // 'revenue' or 'count'
+let activeServingTypeTab = 'revenue'; // 'revenue' or 'count'
+let activeItemsCategoryTab = 'revenue'; // 'revenue' or 'count'
+let activeItemsBestsellTab = 'revenue'; // 'revenue' or 'count'
+let itemsBestsellLimit = 5; // Default Top 5
 let activeMenuMgmtCategory = 'all'; // Filter state for menu management categories
+let menuGroups = [];
+let selectedGroupItemIds = new Set();
+let editingGroupId = null;
+let activeFloorFilter = 'trệt'; // Filter state for manager floor tabs ('trệt' or 'lầu')
 
 // DOM Elements
 const connectionDot = document.getElementById('connection-dot');
 const tabTables = document.getElementById('tab-overview');
 const tabReports = document.getElementById('tab-reports');
 const tabInvoices = document.getElementById('tab-invoices');
-const tabBookings = document.getElementById('tab-bookings');
 const tabStaff = document.getElementById('tab-staff');
 const tabMenuMgmt = document.getElementById('tab-items');
 
 const tablesDashboardView = document.getElementById('tables-dashboard-view');
 const reportsDashboardView = document.getElementById('reports-dashboard-view');
 const invoicesDashboardView = document.getElementById('invoices-dashboard-view');
-const bookingsDashboardView = document.getElementById('bookings-dashboard-view');
 const staffDashboardView = document.getElementById('staff-dashboard-view');
 const menuMgmtDashboardView = document.getElementById('menu-mgmt-dashboard-view');
 
@@ -152,8 +166,34 @@ async function init() {
     // Initialize custom selects
     initCustomSelects();
 
+    // Initialize sidebar collapse state
+    initSidebarCollapse();
+
+    // Initialize overview selectors sync
+    initOverviewControls();
+
+    // Initialize invoices tab selectors sync
+    initInvoicesFilter();
+
     // Prepare audio context on user gesture to bypass autoplay blocks
     initAudioOnUserInteraction();
+    
+    // Fetch menu groups
+    await loadMenuGroups();
+    
+    // Initialize Menu Group controls
+    initMenuGroupControls();
+
+    // Initialize Menu search input listener
+    const menuSearchInput = document.getElementById('menu-mgmt-search-input');
+    if (menuSearchInput) {
+      menuSearchInput.addEventListener('input', () => {
+        renderMenuMgmtGrid();
+      });
+    }
+
+    // Switch to default reports tab
+    switchTab('reports');
   } catch (error) {
     console.error('Lỗi tải dữ liệu ban đầu:', error);
   }
@@ -217,6 +257,10 @@ function initConnection() {
       socket.on('transactions_updated', (updatedTransactions) => {
         transactions = updatedTransactions;
         applyDateFilter();
+      });
+      
+      socket.on('menu_groups_updated', () => {
+        loadMenuGroups();
       });
       
       socket.on('connect_error', () => {
@@ -400,11 +444,11 @@ function initAudioOnUserInteraction() {
 // Tab Navigation logic
 // Tab Navigation logic
 const tabs = {
-  'tables': { el: document.getElementById('tab-overview'), view: document.getElementById('tables-dashboard-view'), title: 'Tổng quan' },
-  'reports': { el: document.getElementById('tab-reports'), view: document.getElementById('reports-dashboard-view'), title: 'Báo cáo doanh thu' },
+  'reports': { el: document.getElementById('tab-overview'), view: document.getElementById('reports-dashboard-view'), title: 'Tổng quan kinh doanh' },
+  'tables': { el: document.getElementById('tab-reports'), view: document.getElementById('tables-dashboard-view'), title: 'Sơ đồ bàn ăn' },
   'invoices': { el: document.getElementById('tab-invoices'), view: document.getElementById('invoices-dashboard-view'), title: 'Lịch sử hóa đơn' },
-  'menu-mgmt': { el: document.getElementById('tab-items'), view: document.getElementById('menu-mgmt-dashboard-view'), title: 'Quản lý mặt hàng' },
-  'bookings': { el: document.getElementById('tab-bookings'), view: document.getElementById('bookings-dashboard-view'), title: 'Đặt lịch' },
+  'menu-mgmt': { el: document.getElementById('subtab-item-list'), view: document.getElementById('menu-mgmt-dashboard-view'), title: 'Quản lý mặt hàng' },
+  'menu-preview': { el: document.getElementById('subtab-menu-preview'), view: document.getElementById('menu-preview-dashboard-view'), title: 'Thực đơn' },
   'staff': { el: document.getElementById('tab-staff'), view: document.getElementById('staff-dashboard-view'), title: 'Quản lý nhân viên' }
 };
 
@@ -450,6 +494,22 @@ function switchTab(tabKey) {
     }
   }
 
+  // Manage submenu items expansion & chevron rotation
+  const submenu = document.getElementById('submenu-items');
+  const chevron = document.querySelector('#tab-items-toggle .dropdown-chevron-icon');
+  const isSubmenuTab = ['menu-mgmt', 'menu-preview'].includes(tabKey);
+  if (submenu && chevron) {
+    if (isSubmenuTab) {
+      submenu.style.display = 'flex';
+      submenu.classList.add('show');
+      chevron.style.transform = 'rotate(180deg)';
+    } else {
+      submenu.style.display = 'none';
+      submenu.classList.remove('show');
+      chevron.style.transform = 'rotate(0deg)';
+    }
+  }
+
   // Trigger tab-specific loaders
   if (tabKey === 'reports' || tabKey === 'invoices') {
     applyDateFilter();
@@ -461,6 +521,8 @@ function switchTab(tabKey) {
     if (staffPasswordInput) staffPasswordInput.value = '';
   } else if (tabKey === 'menu-mgmt') {
     renderMenuMgmtGrid();
+  } else if (tabKey === 'menu-preview') {
+    renderMenuPreview();
   }
 }
 
@@ -473,6 +535,26 @@ Object.keys(tabs).forEach(key => {
     tabObj.el.addEventListener('click', () => switchTab(key));
   }
 });
+
+// Bind click toggle for Mặt hàng dropdown parent
+const tabItemsToggle = document.getElementById('tab-items-toggle');
+const submenuItems = document.getElementById('submenu-items');
+if (tabItemsToggle && submenuItems) {
+  tabItemsToggle.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const isHidden = submenuItems.style.display === 'none' || !submenuItems.classList.contains('show');
+    const chevronIcon = tabItemsToggle.querySelector('.dropdown-chevron-icon');
+    if (isHidden) {
+      submenuItems.style.display = 'flex';
+      submenuItems.classList.add('show');
+      if (chevronIcon) chevronIcon.style.transform = 'rotate(180deg)';
+    } else {
+      submenuItems.style.display = 'none';
+      submenuItems.classList.remove('show');
+      if (chevronIcon) chevronIcon.style.transform = 'rotate(0deg)';
+    }
+  });
+}
 
 // Render Active Tables Grid Map
 // Calculate sitting time in minutes/hours
@@ -493,6 +575,101 @@ function getSittingTimeText(updatedAtStr) {
   }
 }
 
+// Render read-only Menu Preview Grid
+function renderMenuPreview() {
+  const menuPreviewList = document.getElementById('menu-preview-list');
+  if (!menuPreviewList) return;
+  menuPreviewList.innerHTML = '';
+  
+  if (menuItems.length === 0) {
+    menuPreviewList.innerHTML = `<div style="grid-column: 1/-1; text-align: center; color: var(--muted); padding: 40px; font-size: 14px;">Chưa có món ăn nào trong thực đơn.</div>`;
+    return;
+  }
+  
+  const getCategoryLabel = (cat) => {
+    switch (cat) {
+      case 'main': return '🍛 Món chính';
+      case 'side': return '🥗 Món thêm';
+      case 'drink': return '🥤 Nước uống';
+      default: return '🍽️ Món ăn';
+    }
+  };
+
+  menuItems.forEach(item => {
+    const card = document.createElement('div');
+    card.className = 'property-card';
+    card.style.cssText = 'background: #ffffff; border: 1px solid var(--hairline-soft); border-radius: var(--rounded-md); overflow: hidden; display: flex; flex-direction: column; height: 100%; transition: transform 0.2s, box-shadow 0.2s;';
+    
+    // Photo or Emoji backup
+    let photoHtml = '';
+    if (item.image_url) {
+      photoHtml = `<img src="${item.image_url}" style="width: 100%; height: 160px; object-fit: cover;">`;
+    } else {
+      photoHtml = `<img src="images/logo.png" style="width: 100%; height: 160px; object-fit: cover;">`;
+    }
+
+    card.innerHTML = `
+      <div style="position: relative;">
+        ${photoHtml}
+        <span class="card-badge" style="position: absolute; top: 12px; left: 12px; font-weight: 600; font-size: 11px; padding: 4px 8px; background: rgba(255,255,255,0.9); backdrop-filter: blur(4px); border-radius: 12px; color: var(--ink); display: none;">${getCategoryLabel(item.category)}</span>
+      </div>
+      <div style="padding: var(--space-base); display: flex; flex-direction: column; flex: 1; justify-content: space-between;">
+        <div>
+          <h3 style="font-size: 15px; font-weight: 700; color: var(--ink); margin: 0 0 6px 0;">${item.name}</h3>
+          <p style="font-size: 12px; color: var(--muted); margin: 0 0 12px 0; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.4;">${item.description || 'Chưa có mô tả chi tiết cho món ăn này.'}</p>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--hairline-soft); padding-top: 10px;">
+          <span style="font-size: 16px; font-weight: 800; color: var(--primary);">${formatVND(item.price)}</span>
+          <span style="font-size: 11px; font-weight: 600; color: #10b981; background: #e6f9f0; padding: 2px 8px; border-radius: 8px;">Đang phục vụ</span>
+        </div>
+      </div>
+    `;
+    
+    // Add micro-hover animation
+    card.style.cursor = 'default';
+    card.addEventListener('mouseenter', () => {
+      card.style.transform = 'translateY(-4px)';
+      card.style.boxShadow = '0 8px 16px rgba(0,0,0,0.06)';
+    });
+    card.addEventListener('mouseleave', () => {
+      card.style.transform = 'none';
+      card.style.boxShadow = 'none';
+    });
+    
+    menuPreviewList.appendChild(card);
+  });
+}
+
+// Render dynamic Categories count table
+function renderCategoriesMgmtTable() {
+  const tbody = document.getElementById('categories-mgmt-table-body');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+  
+  const categoryStats = {
+    'main': { name: '🍛 Món chính', count: 0, status: 'Hoạt động' },
+    'side': { name: '🥗 Món thêm', count: 0, status: 'Hoạt động' },
+    'drink': { name: '🥤 Nước uống', count: 0, status: 'Hoạt động' }
+  };
+  
+  menuItems.forEach(item => {
+    if (categoryStats[item.category]) {
+      categoryStats[item.category].count++;
+    }
+  });
+  
+  Object.values(categoryStats).forEach(cat => {
+    const tr = document.createElement('tr');
+    tr.style.borderBottom = '1px solid var(--hairline-soft)';
+    tr.innerHTML = `
+      <td style="padding: 14px 8px; font-weight: 600; color: var(--ink);">${cat.name}</td>
+      <td style="padding: 14px 8px; text-align: center; font-weight: 700; color: var(--ink-soft);">${cat.count} sản phẩm</td>
+      <td style="padding: 14px 8px; text-align: center;"><span class="badge badge-success" style="background-color: #10b981; color: white; padding: 2px 8px; border-radius: 12px; font-size: 11px;">${cat.status}</span></td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
 function getFormattedTime(dateStr) {
   if (!dateStr) return '';
   const date = new Date(dateStr);
@@ -502,12 +679,12 @@ function getFormattedTime(dateStr) {
 }
 
 // Render live occupancy status widgets
-function updateTableStatsSummary() {
+function updateTableStatsSummary(filteredTables) {
   const statsContainer = document.getElementById('tables-stats-summary');
   if (!statsContainer) return;
   
-  const total = tables.length;
-  const occupied = tables.filter(t => t.status === 'eating').length;
+  const total = filteredTables.length;
+  const occupied = filteredTables.filter(t => t.status === 'eating').length;
   const empty = total - occupied;
   
   statsContainer.innerHTML = `
@@ -528,12 +705,62 @@ function updateTableStatsSummary() {
 
 function renderTables() {
   managerTablesContainer.innerHTML = '';
-  updateTableStatsSummary();
   
-  tables.forEach(table => {
+  // Update occupied counts on tab headers dynamically
+  const tretOccupiedCount = tables.filter(t => {
+    const tableId = parseInt(t.id);
+    return tableId >= 1 && tableId <= 20 && t.status === 'eating';
+  }).length;
+  
+  const lauOccupiedCount = tables.filter(t => {
+    const tableId = parseInt(t.id);
+    return tableId >= 21 && tableId <= 40 && t.status === 'eating';
+  }).length;
+  
+  const takeawayOccupiedCount = tables.filter(t => {
+    return t.location && t.location.toLowerCase() === 'mang về' && t.status === 'eating';
+  }).length;
+  
+  const tretCountEl = document.getElementById('tret-occupied-count');
+  const lauCountEl = document.getElementById('lau-occupied-count');
+  const takeawayCountEl = document.getElementById('takeaway-occupied-count');
+  if (tretCountEl) tretCountEl.textContent = tretOccupiedCount;
+  if (lauCountEl) lauCountEl.textContent = lauOccupiedCount;
+  if (takeawayCountEl) takeawayCountEl.textContent = takeawayOccupiedCount;
+  
+  const filteredTables = tables.filter(table => {
+    const tableId = parseInt(table.id);
+    if (activeFloorFilter === 'trệt') {
+      return tableId >= 1 && tableId <= 20;
+    } else if (activeFloorFilter === 'lầu') {
+      return tableId >= 21 && tableId <= 40;
+    } else if (activeFloorFilter === 'mang đi') {
+      return table.location && table.location.toLowerCase() === 'mang về' && table.status === 'eating';
+    }
+    return true;
+  });
+
+  updateTableStatsSummary(filteredTables);
+
+  if (filteredTables.length === 0) {
+    managerTablesContainer.innerHTML = `
+      <div style="grid-column: 1 / -1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 60px 20px; color: #64748b; font-size: 14px; gap: 8px; text-align: center;">
+        <span style="font-size: 32px;">🛍️</span>
+        <span style="font-weight: 600;">Không có đơn mang đi nào đang hoạt động</span>
+      </div>
+    `;
+    playEntranceAnimation = false;
+    return;
+  }
+
+  filteredTables.forEach((table, index) => {
     const isOccupied = table.status === 'eating';
     const card = document.createElement('div');
-    card.className = `manager-table-card ${isOccupied ? 'occupied' : ''} ${selectedTableId === table.id ? 'active' : ''}`;
+    const animClass = playEntranceAnimation ? 'entrance-anim' : '';
+    card.className = `manager-table-card ${isOccupied ? 'occupied' : ''} ${selectedTableId === table.id ? 'active' : ''} ${animClass}`;
+    if (playEntranceAnimation) {
+      card.style.animationDelay = `${index * 20}ms`;
+    }
     
     let subtotal = 0;
     let itemsCount = 0;
@@ -605,6 +832,7 @@ function renderTables() {
     
     managerTablesContainer.appendChild(card);
   });
+  playEntranceAnimation = false;
 }
 
 // Auto-refresh sitting time timer in UI every 15 seconds
@@ -626,17 +854,9 @@ function renderTableDetails(table) {
         <p style="font-size:14px; line-height: 1.4; margin-bottom: 20px; max-width: 280px; margin-left: auto; margin-right: auto;">
           ${table ? 'Bàn này đang trống. Hãy đợi phục vụ gửi order hoặc ghi món ăn.' : 'Chọn một bàn ăn ở bản đồ bên trái để xem chi tiết các món ăn đã gọi và xử lý thanh toán.'}
         </p>
-        ${table ? `
-          <button type="button" class="btn btn-danger btn-pill" id="btn-delete-table" style="height: 38px; padding: 0 20px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;">
-            🗑️ Xóa bàn
-          </button>
-        ` : ''}
       </div>
     `;
     
-    if (table) {
-      document.getElementById('btn-delete-table').addEventListener('click', () => deleteTable(table));
-    }
     return;
   }
 
@@ -672,7 +892,7 @@ function renderTableDetails(table) {
     </div>
 
     <button class="btn btn-primary full-width mt-md" id="btn-trigger-checkout" style="margin-top: 12px; height: 50px;">
-      Thanh toán & Trả bàn
+      Thanh toán và in hoá đơn
     </button>
   `;
 
@@ -1045,7 +1265,7 @@ btnConfirmCheckoutPay.addEventListener('click', async () => {
   }
 });
 
-// Render Paid Bills History List
+// Render Paid Bills History List in Table Format
 function renderTransactionsList() {
   historyListContainer.innerHTML = '';
   
@@ -1058,119 +1278,774 @@ function renderTransactionsList() {
     return;
   }
 
-  filteredTransactions.forEach(tx => {
-    const card = document.createElement('div');
-    const isActive = selectedTransactionId === tx.id;
-    card.className = `history-card ${isActive ? 'active' : ''}`;
-    
-    const itemsCount = tx.items.reduce((sum, item) => sum + item.quantity, 0);
-    const cleanTime = formatTime(tx.timestamp).replace(' - ', ' • ');
+  // Create table wrapper for horizontal scrolling on smaller screens
+  const wrapper = document.createElement('div');
+  wrapper.style.overflowX = 'auto';
+  wrapper.style.overflowY = 'auto';
+  wrapper.style.maxHeight = 'calc(100vh - 210px)';
+  wrapper.style.position = 'relative';
+  wrapper.style.width = '100%';
+  wrapper.style.borderRadius = '8px';
+  wrapper.style.border = '1px solid var(--hairline)';
+  wrapper.style.backgroundColor = '#ffffff';
+
+  const table = document.createElement('table');
+  table.style.width = '100%';
+  table.style.borderCollapse = 'collapse';
+  table.style.textAlign = 'left';
+  table.style.fontSize = '13px';
+
+  // Table header
+  table.innerHTML = `
+    <thead>
+      <tr style="background-color: #f8fafc; color: #475569; font-weight: 700;">
+        <th style="position: sticky; top: 0; background-color: #f8fafc; z-index: 5; border-bottom: 1px solid var(--hairline); padding: 12px 16px; width: 60px; text-align: center;">STT</th>
+        <th style="position: sticky; top: 0; background-color: #f8fafc; z-index: 5; border-bottom: 1px solid var(--hairline); padding: 12px 16px;">Thời gian thanh toán</th>
+        <th style="position: sticky; top: 0; background-color: #f8fafc; z-index: 5; border-bottom: 1px solid var(--hairline); padding: 12px 16px;">Loại hình</th>
+        <th style="position: sticky; top: 0; background-color: #f8fafc; z-index: 5; border-bottom: 1px solid var(--hairline); padding: 12px 16px;">Khu vực</th>
+        <th style="position: sticky; top: 0; background-color: #f8fafc; z-index: 5; border-bottom: 1px solid var(--hairline); padding: 12px 16px;">Thanh toán</th>
+        <th style="position: sticky; top: 0; background-color: #f8fafc; z-index: 5; border-bottom: 1px solid var(--hairline); padding: 12px 16px; text-align: right; width: 120px;">Tổng tiền</th>
+        <th style="position: sticky; top: 0; background-color: #f8fafc; z-index: 5; border-bottom: 1px solid var(--hairline); padding: 12px 16px; text-align: center; width: 120px;">Thao tác</th>
+      </tr>
+    </thead>
+    <tbody id="history-table-body"></tbody>
+  `;
+
+  const tbody = table.querySelector('#history-table-body');
+
+  filteredTransactions.forEach((tx, index) => {
     const finalPaid = tx.subtotal - (tx.discountAmount || 0);
-    const paymentMethodLabel = tx.paymentMethod === 'bank' ? '🏦 Chuyển khoản' : '💵 Tiền mặt';
-    
-    let detailsHtml = '';
-    if (isActive) {
-      detailsHtml = `
-        <div class="history-card-detail" style="margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--hairline); font-size: 13px; cursor: default; width: 100%; display: flex; flex-direction: column; gap: 8px;" onclick="event.stopPropagation();">
-          <!-- Info -->
-          <div class="flex justify-between">
-            <span class="text-muted">Mã HĐ:</span>
-            <span class="bold">${tx.id}</span>
-          </div>
-          <div class="flex justify-between">
-            <span class="text-muted">Hình thức:</span>
-            <span class="bold">${paymentMethodLabel}</span>
-          </div>
+    const cleanTime = formatTime(tx.timestamp).replace(' - ', ' • ');
+    const cleanPayment = tx.paymentMethod === 'bank' ? 'Chuyển khoản' : 'Tiền mặt';
 
-          <!-- Items list -->
-          <div style="margin: 4px 0; border: 1px solid var(--hairline-soft); border-radius: var(--rounded-sm); background-color: var(--surface-soft); padding: 8px 10px; max-height: 150px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px;">
-            ${tx.items.map(item => `
-              <div class="flex justify-between" style="line-height: 1.3;">
-                <div>
-                  <span class="bold">${item.emoji} ${item.name}</span>
-                  <div style="font-size: 11px; color: var(--muted); margin-top: 2px;">SL: ${item.quantity} × ${formatVND(item.price)}</div>
-                  ${item.notes ? `<div style="font-size: 11px; color: #ef4444; font-style: italic;">Ghi chú: ${item.notes}</div>` : ''}
-                </div>
-                <span class="bold">${formatVND(item.price * item.quantity)}</span>
-              </div>
-            `).join('')}
-          </div>
-
-          <!-- Calculation -->
-          <div class="flex-col" style="gap: 4px; border-top: 1px dashed var(--hairline); padding-top: 6px;">
-            <div class="flex justify-between">
-              <span class="text-muted">Tiền món:</span>
-              <span>${formatVND(tx.subtotal)}</span>
-            </div>
-            ${tx.discountAmount > 0 ? `
-              <div class="flex justify-between" style="color: var(--primary);">
-                <span>Giảm giá:</span>
-                <span>-${formatVND(tx.discountAmount)}</span>
-              </div>
-            ` : ''}
-            <div class="flex justify-between" style="border-top: 1px dashed var(--hairline); padding-top: 4px; font-weight: 700;">
-              <span style="font-weight: 700;">Thực thu:</span>
-              <span style="color: var(--primary); font-weight: 700;">${formatVND(finalPaid)}</span>
-            </div>
-            <div class="flex justify-between" style="font-size: 12px; color: var(--muted);">
-              <span>Khách đưa:</span>
-              <span>${formatVND(tx.receivedAmount)}</span>
-            </div>
-            <div class="flex justify-between" style="font-size: 12px; color: var(--muted);">
-              <span>Trả lại:</span>
-              <span class="text-success bold">${formatVND(tx.changeAmount)}</span>
-            </div>
-          </div>
-
-          <!-- Reprint Button -->
-          <button class="btn btn-secondary full-width btn-reprint-inline" style="height: 34px; font-size: 12px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 4px; border-color: var(--primary); color: var(--primary); margin-top: 6px;">
-            🖨️ In lại hóa đơn
-          </button>
-        </div>
-      `;
+    // Determine loại hình and khu vực
+    let loaihinh = 'Mang đi';
+    let khuvuc = 'Mang đi';
+    const tableName = tx.tableName || '';
+    if (tableName.startsWith('Bàn ')) {
+      const tableNumberStr = tableName.replace('Bàn ', '').trim();
+      loaihinh = `Tại bàn số ${tableNumberStr}`;
+      const tableNum = parseInt(tableNumberStr);
+      if (!isNaN(tableNum)) {
+        if (tableNum >= 1 && tableNum <= 20) {
+          khuvuc = 'Trệt';
+        } else if (tableNum >= 21 && tableNum <= 40) {
+          khuvuc = 'Lầu';
+        }
+      }
     }
 
-    card.innerHTML = `
-      <div class="history-card-summary" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-        <div class="history-card-left">
-          <div class="history-card-title" title="${tx.tableName}">${tx.tableName}</div>
-          <div class="history-card-time">${cleanTime}</div>
-        </div>
-        <div class="history-card-right">
-          <div class="history-card-price">${formatVND(finalPaid)}</div>
-          <div class="history-card-qty">${itemsCount} món</div>
-        </div>
-      </div>
-      ${detailsHtml}
+    const tr = document.createElement('tr');
+    tr.style.borderBottom = '1px solid var(--hairline-soft)';
+    tr.style.cursor = 'pointer';
+    tr.style.transition = 'background-color 0.2s';
+    
+    // Zebra striping style
+    if (index % 2 === 1) {
+      tr.style.backgroundColor = '#f8fafc';
+    }
+
+    // Hover effect
+    tr.addEventListener('mouseenter', () => { tr.style.backgroundColor = '#f1f5f9'; });
+    tr.addEventListener('mouseleave', () => { tr.style.backgroundColor = (index % 2 === 1) ? '#f8fafc' : 'transparent'; });
+
+    tr.innerHTML = `
+      <td style="padding: 12px 16px; text-align: center; font-weight: 600; color: #64748b;">${index + 1}</td>
+      <td style="padding: 12px 16px; font-weight: 500; color: #0f172a;">${cleanTime}</td>
+      <td style="padding: 12px 16px; font-weight: 600; color: #0f172a;">${loaihinh}</td>
+      <td style="padding: 12px 16px; font-weight: 500; color: #475569;">${khuvuc}</td>
+      <td style="padding: 12px 16px; font-weight: 500; color: #475569;">${cleanPayment}</td>
+      <td style="padding: 12px 16px; text-align: right; font-weight: 700; color: var(--primary);">${formatVND(finalPaid)}</td>
+      <td style="padding: 12px 16px; text-align: center;">
+        <button class="btn btn-secondary btn-detail-inline" data-index="${index}" style="padding: 6px 12px; font-size: 11px; border-radius: 6px; cursor: pointer; border: 1px solid #cbd5e1; display: inline-flex; align-items: center; gap: 4px; font-weight: 600; background: #ffffff; white-space: nowrap;">
+          🔍 Chi tiết
+        </button>
+      </td>
     `;
-    
-    card.addEventListener('click', () => {
-      if (selectedTransactionId === tx.id) {
-        selectedTransactionId = null;
-      } else {
-        selectedTransactionId = tx.id;
-      }
-      renderTransactionsList();
-      renderTransactionDetails(selectedTransactionId ? tx : null);
+
+    // Row click opens details modal
+    tr.addEventListener('click', () => {
+      openTransactionDetail(index);
     });
-    
-    if (isActive) {
-      const btnReprintInline = card.querySelector('.btn-reprint-inline');
-      if (btnReprintInline) {
-        btnReprintInline.addEventListener('click', (e) => {
-          e.stopPropagation();
-          const tableObj = { name: tx.tableName };
-          printReceipt(tableObj, tx.items, tx.discountAmount || 0, tx.receivedAmount, tx.id, tx.timestamp);
-        });
-      }
-    }
-    
-    historyListContainer.appendChild(card);
+
+    // Prevent row click when clicking button to open modal
+    tr.querySelector('.btn-detail-inline').addEventListener('click', (e) => {
+      e.stopPropagation();
+      openTransactionDetail(index);
+    });
+
+    tbody.appendChild(tr);
   });
+
+  wrapper.appendChild(table);
+  historyListContainer.appendChild(wrapper);
 }
 
-// Render detailed page for a selected transaction record (No-op as details are shown inline)
+let activeDetailTx = null;
+
+function openTransactionDetail(index) {
+  const tx = filteredTransactions[index];
+  if (!tx) return;
+  activeDetailTx = tx;
+
+  const modalBody = document.getElementById('transaction-detail-modal-body');
+  if (!modalBody) return;
+
+  const itemsCount = tx.items.reduce((sum, item) => sum + item.quantity, 0);
+  const cleanTime = formatTime(tx.timestamp).replace(' - ', ' • ');
+  const finalPaid = tx.subtotal - (tx.discountAmount || 0);
+  const paymentMethodLabel = tx.paymentMethod === 'bank' ? 'Chuyển khoản' : 'Tiền mặt';
+
+  // Determine loại hình and khu vực
+  let loaihinh = 'Mang đi';
+  let khuvuc = 'Mang đi';
+  const tableName = tx.tableName || '';
+  if (tableName.startsWith('Bàn ')) {
+    const tableNumberStr = tableName.replace('Bàn ', '').trim();
+    loaihinh = `Tại bàn số ${tableNumberStr}`;
+    const tableNum = parseInt(tableNumberStr);
+    if (!isNaN(tableNum)) {
+      if (tableNum >= 1 && tableNum <= 20) {
+        khuvuc = 'Trệt';
+      } else if (tableNum >= 21 && tableNum <= 40) {
+        khuvuc = 'Lầu';
+      }
+    }
+  }
+
+  modalBody.innerHTML = `
+    <div style="display: flex; flex-direction: column; gap: 8px; font-size: 13px;">
+      <div style="display: flex; justify-content: space-between;">
+        <span style="color: #64748b;">Mã hóa đơn:</span>
+        <span style="font-weight: 700; color: #0f172a;">#${tx.id}</span>
+      </div>
+      <div style="display: flex; justify-content: space-between;">
+        <span style="color: #64748b;">Thời gian:</span>
+        <span style="font-weight: 600; color: #0f172a;">${cleanTime}</span>
+      </div>
+      <div style="display: flex; justify-content: space-between;">
+        <span style="color: #64748b;">Loại hình:</span>
+        <span style="font-weight: 600; color: #0f172a;">${loaihinh}</span>
+      </div>
+      <div style="display: flex; justify-content: space-between;">
+        <span style="color: #64748b;">Khu vực:</span>
+        <span style="font-weight: 600; color: #0f172a;">${khuvuc}</span>
+      </div>
+      <div style="display: flex; justify-content: space-between;">
+        <span style="color: #64748b;">Phương thức thanh toán:</span>
+        <span style="font-weight: 600; color: #0f172a;">${paymentMethodLabel}</span>
+      </div>
+      
+      <div style="margin-top: 8px; font-weight: 700; color: #475569; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px;">Danh sách món ăn</div>
+      <div style="display: flex; flex-direction: column; gap: 8px; max-height: 180px; overflow-y: auto; padding: 4px 0;">
+        ${tx.items.map(item => `
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div style="display: flex; flex-direction: column; text-align: left;">
+              <span style="font-weight: 600; color: #0f172a;">${item.emoji} ${item.name}</span>
+              <span style="font-size: 11px; color: #64748b;">SL: ${item.quantity} × ${formatVND(item.price)}</span>
+              ${item.notes ? `<span style="font-size: 11px; color: #ef4444; font-style: italic;">Ghi chú: ${item.notes}</span>` : ''}
+            </div>
+            <span style="font-weight: 700; color: #0f172a;">${formatVND(item.price * item.quantity)}</span>
+          </div>
+        `).join('')}
+      </div>
+
+      <div style="border-top: 1px dashed #cbd5e1; margin: 8px 0;"></div>
+      
+      <div style="display: flex; justify-content: space-between;">
+        <span style="color: #64748b;">Tiền hàng:</span>
+        <span style="font-weight: 600;">${formatVND(tx.subtotal)}</span>
+      </div>
+      ${tx.discountAmount > 0 ? `
+        <div style="display: flex; justify-content: space-between; color: var(--primary);">
+          <span>Giảm giá:</span>
+          <span>-${formatVND(tx.discountAmount)}</span>
+        </div>
+      ` : ''}
+      <div style="display: flex; justify-content: space-between; font-size: 15px; font-weight: 700; border-top: 1px dashed #cbd5e1; padding-top: 6px;">
+        <span>Tổng cộng thực thu:</span>
+        <span style="color: var(--primary);">${formatVND(finalPaid)}</span>
+      </div>
+      <div style="display: flex; justify-content: space-between; font-size: 12px; color: #64748b;">
+        <span>Khách đưa:</span>
+        <span>${formatVND(tx.receivedAmount)}</span>
+      </div>
+      <div style="display: flex; justify-content: space-between; font-size: 12px; color: #64748b;">
+        <span>Thối lại:</span>
+        <span style="color: #10b981; font-weight: 700;">${formatVND(tx.changeAmount)}</span>
+      </div>
+    </div>
+  `;
+
+  // Attach print reprint action
+  const reprintBtn = document.getElementById('btn-reprint-modal');
+  if (reprintBtn) {
+    // Remove old listeners by replacing the element
+    const newReprintBtn = reprintBtn.cloneNode(true);
+    reprintBtn.parentNode.replaceChild(newReprintBtn, reprintBtn);
+    newReprintBtn.addEventListener('click', () => {
+      const tableObj = { name: tx.tableName };
+      printReceipt(tableObj, tx.items, tx.discountAmount || 0, tx.receivedAmount, tx.id, tx.timestamp);
+    });
+  }
+
+  const detailModal = document.getElementById('transaction-detail-modal');
+  if (detailModal) detailModal.style.display = 'flex';
+}
+
+function closeTransactionDetailModal() {
+  const detailModal = document.getElementById('transaction-detail-modal');
+  if (detailModal) detailModal.style.display = 'none';
+  activeDetailTx = null;
+}
+
+window.openTransactionDetail = openTransactionDetail;
+window.closeTransactionDetailModal = closeTransactionDetailModal;
+
+// Render detailed page for a selected transaction record (No-op as details are shown in modal)
 function renderTransactionDetails(tx) {}
+
+// Number counter animation helper
+function animateCounter(id, endValue, isCurrency = false, decimals = 0) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  
+  let startValue = 0;
+  // Parse existing number content as start point
+  const curText = el.textContent.replace(/[^0-9]/g, '');
+  if (curText) {
+    startValue = parseFloat(curText) || 0;
+  }
+  
+  let startTimestamp = null;
+  const duration = 800; // 800ms
+  
+  const step = (timestamp) => {
+    if (!startTimestamp) startTimestamp = timestamp;
+    const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+    const easeProgress = progress * (2 - progress); // Ease out quad
+    const current = easeProgress * (endValue - startValue) + startValue;
+    
+    if (isCurrency) {
+      el.textContent = formatVND(Math.round(current));
+    } else {
+      el.textContent = decimals > 0 ? current.toFixed(decimals) : Math.round(current);
+    }
+    
+    if (progress < 1) {
+      window.requestAnimationFrame(step);
+    }
+  };
+  window.requestAnimationFrame(step);
+}
+
+// Sapo date picker state variables
+let calCurrentDate = new Date(2026, 5, 30); // Use June 30, 2026 as current base
+let tempRangeStart = new Date(2026, 5, 30);
+let tempRangeEnd = new Date(2026, 5, 30);
+let rangeStart = new Date(2026, 5, 30);
+let rangeEnd = new Date(2026, 5, 30);
+let activeChartTab = 'revenue'; // 'revenue' or 'orders'
+
+// Sync Sapo custom select dropdown & calendar picker
+function initOverviewControls() {
+  const trigger = document.getElementById('sapo-date-trigger');
+  const menu = document.getElementById('sapo-date-menu');
+  const popup = document.getElementById('sapo-calendar-popup');
+  const filterPreset = document.getElementById('filter-preset');
+  
+  if (!trigger || !menu || !popup) return;
+
+  // Toggle dropdown menu
+  trigger.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (menu.style.display === 'none') {
+      menu.style.display = 'flex';
+      popup.style.display = 'none'; // Close calendar popup
+    } else {
+      menu.style.display = 'none';
+    }
+  });
+
+  // Handle dropdown option click
+  document.querySelectorAll('.sapo-dropdown-option').forEach(opt => {
+    opt.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const val = opt.getAttribute('data-value');
+      
+      // Update active class
+      document.querySelectorAll('.sapo-dropdown-option').forEach(o => o.classList.remove('active'));
+      opt.classList.add('active');
+      
+      menu.style.display = 'none';
+      
+      if (val === 'custom') {
+        popup.style.display = 'flex';
+        renderCalendarPanes();
+      } else {
+        popup.style.display = 'none';
+        
+        // Update label text
+        document.getElementById('sapo-date-label').textContent = opt.textContent;
+        
+        // Sync invoices tab date label & option active class
+        const invoicesLabel = document.getElementById('invoices-date-label');
+        if (invoicesLabel) {
+          const matchOpt = Array.from(document.querySelectorAll('.invoices-dropdown-option')).find(o => o.getAttribute('data-value') === val);
+          if (matchOpt) {
+            document.querySelectorAll('.invoices-dropdown-option').forEach(o => o.classList.remove('active'));
+            matchOpt.classList.add('active');
+            invoicesLabel.textContent = matchOpt.textContent;
+            
+            const customDatesDiv = document.getElementById('invoices-custom-dates');
+            if (customDatesDiv) customDatesDiv.style.display = 'none';
+          }
+        }
+        
+        // Apply preset
+        if (filterPreset) {
+          filterPreset.value = val;
+          if (typeof filterPreset.onchange === 'function') {
+            filterPreset.onchange();
+          }
+        }
+      }
+    });
+  });
+
+  // Prev/Next month navigation click handlers
+  document.getElementById('cal-prev-btn').addEventListener('click', (e) => {
+    e.stopPropagation();
+    calCurrentDate.setMonth(calCurrentDate.getMonth() - 1);
+    renderCalendarPanes();
+  });
+  
+  document.getElementById('cal-next-btn').addEventListener('click', (e) => {
+    e.stopPropagation();
+    calCurrentDate.setMonth(calCurrentDate.getMonth() + 1);
+    renderCalendarPanes();
+  });
+
+  // Calendar footer action click handlers
+  document.getElementById('cal-cancel-btn').addEventListener('click', (e) => {
+    e.stopPropagation();
+    popup.style.display = 'none';
+    // Restore selection from saved range
+    tempRangeStart = rangeStart ? new Date(rangeStart) : null;
+    tempRangeEnd = rangeEnd ? new Date(rangeEnd) : null;
+  });
+
+  document.getElementById('cal-select-btn').addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (!tempRangeStart) return;
+    
+    if (!tempRangeEnd) {
+      tempRangeEnd = new Date(tempRangeStart);
+    }
+    
+    rangeStart = new Date(tempRangeStart);
+    rangeEnd = new Date(tempRangeEnd);
+    
+    // Save to hidden inputs
+    const startInput = document.getElementById('filter-start-date');
+    const endInput = document.getElementById('filter-end-date');
+    if (startInput && endInput) {
+      const formatToYYYYMMDD = (d) => {
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const date = String(d.getDate()).padStart(2, '0');
+        return `${year}-${month}-${date}`;
+      };
+      startInput.value = formatToYYYYMMDD(rangeStart);
+      endInput.value = formatToYYYYMMDD(rangeEnd);
+    }
+    
+    // Format trigger label: DD/MM/YYYY - DD/MM/YYYY
+    const formatToDDMMYYYY = (d) => {
+      const date = String(d.getDate()).padStart(2, '0');
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const year = d.getFullYear();
+      return `${date}/${month}/${year}`;
+    };
+    
+    const rangeText = `${formatToDDMMYYYY(rangeStart)} - ${formatToDDMMYYYY(rangeEnd)}`;
+    document.getElementById('sapo-date-label').textContent = rangeText;
+    popup.style.display = 'none';
+    
+    // Sync invoices label & custom dates visibility
+    const invoicesLabel = document.getElementById('invoices-date-label');
+    if (invoicesLabel) {
+      invoicesLabel.textContent = rangeText;
+      
+      // Update options active class for custom selection
+      document.querySelectorAll('.invoices-dropdown-option').forEach(o => {
+        if (o.getAttribute('data-value') === 'custom') o.classList.add('active');
+        else o.classList.remove('active');
+      });
+      
+      const customDatesDiv = document.getElementById('invoices-custom-dates');
+      if (customDatesDiv) {
+        customDatesDiv.style.display = 'flex';
+        
+        const startDateInput = document.getElementById('invoices-start-date');
+        const endDateInput = document.getElementById('invoices-end-date');
+        if (startDateInput && startInput) startDateInput.value = startInput.value;
+        if (endDateInput && endInput) endDateInput.value = endInput.value;
+      }
+    }
+    
+    // Trigger custom filtering
+    if (filterPreset) {
+      filterPreset.value = 'custom';
+      applyDateFilter();
+    }
+  });
+
+  // Close popup and menu on clicking outside Sapo component
+  document.addEventListener('click', (e) => {
+    const container = document.getElementById('sapo-date-dropdown');
+    if (container && !container.contains(e.target)) {
+      menu.style.display = 'none';
+      popup.style.display = 'none';
+    }
+  });
+
+  // Chart tab switchers click handlers
+  const btnChartRevenue = document.getElementById('btn-chart-revenue');
+  const btnChartOrders = document.getElementById('btn-chart-orders');
+  const legendTab1 = document.getElementById('chart-legend-tab1');
+  const legendTab2 = document.getElementById('chart-legend-tab2');
+
+  if (btnChartRevenue && btnChartOrders) {
+    btnChartRevenue.addEventListener('click', () => {
+      if (activeChartTab === 'revenue') return;
+      activeChartTab = 'revenue';
+      btnChartRevenue.classList.add('active');
+      btnChartOrders.classList.remove('active');
+      if (legendTab1) legendTab1.style.display = 'flex';
+      if (legendTab2) legendTab2.style.display = 'none';
+      renderCharts();
+    });
+
+    btnChartOrders.addEventListener('click', () => {
+      if (activeChartTab === 'orders') return;
+      activeChartTab = 'orders';
+      btnChartOrders.classList.add('active');
+      btnChartRevenue.classList.remove('active');
+      if (legendTab2) legendTab2.style.display = 'flex';
+      if (legendTab1) legendTab1.style.display = 'none';
+      renderCharts();
+    });
+  }
+
+  // Payment Method sub-tab switchers
+  const btnPayRevenue = document.getElementById('btn-pay-revenue');
+  const btnPayCount = document.getElementById('btn-pay-count');
+  if (btnPayRevenue && btnPayCount) {
+    btnPayRevenue.addEventListener('click', () => {
+      if (activePaymentMethodTab === 'revenue') return;
+      activePaymentMethodTab = 'revenue';
+      btnPayRevenue.classList.add('active');
+      btnPayCount.classList.remove('active');
+      updateAnalytics(); // recalculate & render
+    });
+    btnPayCount.addEventListener('click', () => {
+      if (activePaymentMethodTab === 'count') return;
+      activePaymentMethodTab = 'count';
+      btnPayCount.classList.add('active');
+      btnPayRevenue.classList.remove('active');
+      updateAnalytics();
+    });
+  }
+
+  // Serving Type sub-tab switchers
+  const btnServeRevenue = document.getElementById('btn-serve-revenue');
+  const btnServeCount = document.getElementById('btn-serve-count');
+  if (btnServeRevenue && btnServeCount) {
+    btnServeRevenue.addEventListener('click', () => {
+      if (activeServingTypeTab === 'revenue') return;
+      activeServingTypeTab = 'revenue';
+      btnServeRevenue.classList.add('active');
+      btnServeCount.classList.remove('active');
+      updateAnalytics();
+    });
+    btnServeCount.addEventListener('click', () => {
+      if (activeServingTypeTab === 'count') return;
+      activeServingTypeTab = 'count';
+      btnServeCount.classList.add('active');
+      btnServeRevenue.classList.remove('active');
+      updateAnalytics();
+    });
+  }
+
+  // Items by Category sub-tab switchers
+  const btnCatRevenue = document.getElementById('btn-cat-revenue');
+  const btnCatCount = document.getElementById('btn-cat-count');
+  if (btnCatRevenue && btnCatCount) {
+    btnCatRevenue.addEventListener('click', () => {
+      if (activeItemsCategoryTab === 'revenue') return;
+      activeItemsCategoryTab = 'revenue';
+      btnCatRevenue.classList.add('active');
+      btnCatCount.classList.remove('active');
+      updateAnalytics();
+    });
+    btnCatCount.addEventListener('click', () => {
+      if (activeItemsCategoryTab === 'count') return;
+      activeItemsCategoryTab = 'count';
+      btnCatCount.classList.add('active');
+      btnCatRevenue.classList.remove('active');
+      updateAnalytics();
+    });
+  }
+
+  // Best Selling Items sub-tab switchers
+  const btnBestsellRevenue = document.getElementById('btn-bestsell-revenue');
+  const btnBestsellCount = document.getElementById('btn-bestsell-count');
+  if (btnBestsellRevenue && btnBestsellCount) {
+    btnBestsellRevenue.addEventListener('click', () => {
+      if (activeItemsBestsellTab === 'revenue') return;
+      activeItemsBestsellTab = 'revenue';
+      btnBestsellRevenue.classList.add('active');
+      btnBestsellCount.classList.remove('active');
+      updateAnalytics();
+    });
+    btnBestsellCount.addEventListener('click', () => {
+      if (activeItemsBestsellTab === 'count') return;
+      activeItemsBestsellTab = 'count';
+      btnBestsellCount.classList.add('active');
+      btnBestsellRevenue.classList.remove('active');
+      updateAnalytics();
+    });
+  }
+
+  // Best Selling Items Limit dropdown change listener
+  const selectTopLimit = document.getElementById('select-top-limit');
+  if (selectTopLimit) {
+    selectTopLimit.addEventListener('change', () => {
+      itemsBestsellLimit = parseInt(selectTopLimit.value) || 5;
+      updateAnalytics();
+    });
+  }
+}
+
+function initInvoicesFilter() {
+  const trigger = document.getElementById('invoices-date-trigger');
+  const menu = document.getElementById('invoices-date-menu');
+  const customDatesDiv = document.getElementById('invoices-custom-dates');
+  const btnApply = document.getElementById('invoices-btn-apply');
+  const startDateInput = document.getElementById('invoices-start-date');
+  const endDateInput = document.getElementById('invoices-end-date');
+  
+  const filterPreset = document.getElementById('filter-preset');
+  const filterStartDate = document.getElementById('filter-start-date');
+  const filterEndDate = document.getElementById('filter-end-date');
+
+  if (!trigger || !menu) return;
+
+  // Set initial dates to today (matching 2026-06-30 base)
+  const baseDateStr = '2026-06-30';
+  if (startDateInput) startDateInput.value = baseDateStr;
+  if (endDateInput) endDateInput.value = baseDateStr;
+
+  // Close menus when clicking outside
+  document.addEventListener('click', (e) => {
+    if (trigger && !trigger.contains(e.target) && menu && !menu.contains(e.target)) {
+      menu.style.display = 'none';
+    }
+  });
+
+  trigger.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (menu.style.display === 'none') {
+      menu.style.display = 'flex';
+    } else {
+      menu.style.display = 'none';
+    }
+  });
+
+  document.querySelectorAll('.invoices-dropdown-option').forEach(opt => {
+    opt.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const val = opt.getAttribute('data-value');
+      
+      // Update options styling
+      document.querySelectorAll('.invoices-dropdown-option').forEach(o => o.classList.remove('active'));
+      opt.classList.add('active');
+      
+      menu.style.display = 'none';
+      document.getElementById('invoices-date-label').textContent = opt.textContent;
+
+      if (val === 'custom') {
+        if (customDatesDiv) customDatesDiv.style.display = 'flex';
+      } else {
+        if (customDatesDiv) customDatesDiv.style.display = 'none';
+        
+        // Synchronize with global filter-preset and Overview's dropdown
+        if (filterPreset) {
+          filterPreset.value = val;
+          // Sync overview tab dropdown label if it exists
+          const overviewLabel = document.getElementById('sapo-date-label');
+          if (overviewLabel) {
+            const matchOpt = Array.from(document.querySelectorAll('.sapo-dropdown-option')).find(o => o.getAttribute('data-value') === val);
+            if (matchOpt) {
+              document.querySelectorAll('.sapo-dropdown-option').forEach(o => o.classList.remove('active'));
+              matchOpt.classList.add('active');
+              overviewLabel.textContent = matchOpt.textContent;
+            }
+          }
+          applyDateFilter();
+        }
+      }
+    });
+  });
+
+  if (btnApply) {
+    btnApply.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (filterPreset && filterStartDate && filterEndDate) {
+        filterStartDate.value = startDateInput.value;
+        filterEndDate.value = endDateInput.value;
+        filterPreset.value = 'custom';
+        
+        // Sync overview label
+        const overviewLabel = document.getElementById('sapo-date-label');
+        if (overviewLabel) {
+          const formatDateStr = (val) => {
+            const d = new Date(val);
+            const date = String(d.getDate()).padStart(2, '0');
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const year = d.getFullYear();
+            return `${date}/${month}/${year}`;
+          };
+          overviewLabel.textContent = `${formatDateStr(startDateInput.value)} - ${formatDateStr(endDateInput.value)}`;
+        }
+        
+        // Sync overview dropdown active options
+        document.querySelectorAll('.sapo-dropdown-option').forEach(o => {
+          if (o.getAttribute('data-value') === 'custom') o.classList.add('active');
+          else o.classList.remove('active');
+        });
+        
+        applyDateFilter();
+      }
+    });
+  }
+}
+
+function renderCalendarPanes() {
+  const leftMonth = new Date(calCurrentDate.getFullYear(), calCurrentDate.getMonth() - 1, 1);
+  const rightMonth = new Date(calCurrentDate.getFullYear(), calCurrentDate.getMonth(), 1);
+  
+  const monthNames = ['Tháng 1', 'Tháng 2', 'Tháng 3', 'Tháng 4', 'Tháng 5', 'Tháng 6', 'Tháng 7', 'Tháng 8', 'Tháng 9', 'Tháng 10', 'Tháng 11', 'Tháng 12'];
+  document.getElementById('cal-month-left-label').textContent = `${monthNames[leftMonth.getMonth()]} ${leftMonth.getFullYear()}`;
+  document.getElementById('cal-month-right-label').textContent = `${monthNames[rightMonth.getMonth()]} ${rightMonth.getFullYear()}`;
+  
+  // Render both panes
+  renderMonthDays('cal-days-left', leftMonth);
+  renderMonthDays('cal-days-right', rightMonth);
+  
+  updateRangeText();
+}
+
+function renderMonthDays(containerId, monthDate) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  container.innerHTML = '';
+  
+  const year = monthDate.getFullYear();
+  const month = monthDate.getMonth();
+  
+  const firstDay = new Date(year, month, 1);
+  const lastDay = new Date(year, month + 1, 0);
+  const numDays = lastDay.getDate();
+  
+  let startDayIndex = firstDay.getDay();
+  startDayIndex = startDayIndex === 0 ? 6 : startDayIndex - 1; // Mon=0, Sun=6
+  
+  // Previous month overflow days
+  const prevMonthLastDay = new Date(year, month, 0).getDate();
+  for (let i = startDayIndex - 1; i >= 0; i--) {
+    const cell = document.createElement('div');
+    cell.className = 'calendar-day-cell overflow-day';
+    cell.textContent = prevMonthLastDay - i;
+    container.appendChild(cell);
+  }
+  
+  // Current month days
+  for (let d = 1; d <= numDays; d++) {
+    const cell = document.createElement('div');
+    cell.className = 'calendar-day-cell';
+    cell.textContent = d;
+    
+    const dateObj = new Date(year, month, d);
+    
+    // Set highlights based on temporary selection ranges
+    if (tempRangeStart && isSameDay(dateObj, tempRangeStart)) {
+      cell.classList.add('selected-start');
+    } else if (tempRangeEnd && isSameDay(dateObj, tempRangeEnd)) {
+      cell.classList.add('selected-end');
+    } else if (tempRangeStart && tempRangeEnd && dateObj > tempRangeStart && dateObj < tempRangeEnd) {
+      cell.classList.add('in-range');
+    }
+    
+    cell.addEventListener('click', (e) => {
+      e.stopPropagation();
+      handleDayClick(dateObj);
+    });
+    
+    container.appendChild(cell);
+  }
+  
+  // Next month overflow days (fill grid to multiple of 7)
+  const totalRendered = startDayIndex + numDays;
+  const nextMonthDaysNeeded = totalRendered % 7 === 0 ? 0 : 7 - (totalRendered % 7);
+  for (let i = 1; i <= nextMonthDaysNeeded; i++) {
+    const cell = document.createElement('div');
+    cell.className = 'calendar-day-cell overflow-day';
+    cell.textContent = i;
+    container.appendChild(cell);
+  }
+}
+
+function handleDayClick(date) {
+  if (!tempRangeStart || (tempRangeStart && tempRangeEnd)) {
+    tempRangeStart = date;
+    tempRangeEnd = null;
+  } else if (tempRangeStart && !tempRangeEnd) {
+    if (date < tempRangeStart) {
+      tempRangeStart = date;
+    } else {
+      tempRangeEnd = date;
+    }
+  }
+  renderCalendarPanes();
+}
+
+function isSameDay(d1, d2) {
+  return d1.getFullYear() === d2.getFullYear() &&
+         d1.getMonth() === d2.getMonth() &&
+         d1.getDate() === d2.getDate();
+}
+
+function updateRangeText() {
+  const display = document.getElementById('cal-range-display');
+  if (!display) return;
+  
+  const formatToDDMMYYYY = (d) => {
+    const date = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    return `${date}/${month}/${year}`;
+  };
+  
+  if (tempRangeStart && tempRangeEnd) {
+    display.textContent = `${formatToDDMMYYYY(tempRangeStart)} - ${formatToDDMMYYYY(tempRangeEnd)}`;
+  } else if (tempRangeStart) {
+    display.textContent = `${formatToDDMMYYYY(tempRangeStart)} - Đang chọn...`;
+  } else {
+    display.textContent = 'Chọn khoảng thời gian';
+  }
+}
 
 // Compute Statistics Widgets
 function updateAnalytics() {
@@ -1208,66 +2083,261 @@ function updateAnalytics() {
     });
   });
 
-  // Determine label dynamically based on active filter preset
-  const preset = filterPreset.value;
-  let labelText = 'Doanh thu';
-  if (preset === 'today') {
-    labelText = 'Doanh thu Hôm nay';
-  } else if (preset === 'month') {
-    labelText = 'Doanh thu Tháng này';
-  } else if (preset === 'year') {
-    labelText = 'Doanh thu Năm nay';
-  } else if (preset === 'all') {
-    labelText = 'Tổng Doanh thu';
-  } else if (preset === 'custom') {
-    labelText = 'Doanh thu (Lọc)';
-  }
+  const totalRevenue = cashAmount + bankAmount;
+  
+  let totalItemsQty = 0;
+  let totalItemsAmount = 0;
+  filteredTransactions.forEach(tx => {
+    totalItemsAmount += tx.subtotal;
+    tx.items.forEach(item => {
+      totalItemsQty += item.quantity;
+    });
+  });
+  
+  const avgItemsPerBill = filteredTransactions.length > 0 ? (totalItemsQty / filteredTransactions.length) : 0;
+  const avgRevenuePerBill = filteredTransactions.length > 0 ? (totalRevenue / filteredTransactions.length) : 0;
 
-  if (statRevenueLabel) {
-    statRevenueLabel.textContent = labelText;
-  }
-  if (statRevenue) {
-    statRevenue.textContent = formatVND(cashAmount + bankAmount);
-  }
+  // Animate metrics row 1 (Primary cards)
+  animateCounter('overview-items-amount', totalItemsAmount, true, 0);
+  animateCounter('overview-void-amount', 0, true, 0);
+  animateCounter('overview-discount-amount', totalDiscount, true, 0);
+  animateCounter('overview-tax-amount', 0, true, 0);
+  animateCounter('overview-revenue-amount', totalRevenue, true, 0);
 
-  // Render Stats widgets
-  statTotalDiscount.textContent = formatVND(totalDiscount);
-  statTotalBills.textContent = filteredTransactions.length;
+  // Animate metrics row 2 (Secondary cards with border accents)
+  animateCounter('overview-customers-count', filteredTransactions.length, false, 0);
+  animateCounter('overview-bills-count', filteredTransactions.length, false, 0);
+  animateCounter('overview-avg-items', avgItemsPerBill, false, 1);
+  animateCounter('overview-avg-bill-value', avgRevenuePerBill, true, 0);
 
-  if (statCashBills) statCashBills.textContent = cashBills;
-  if (statCashAmount) statCashAmount.textContent = formatVND(cashAmount);
-  if (statBankBills) statBankBills.textContent = bankBills;
-  if (statBankAmount) statBankAmount.textContent = formatVND(bankAmount);
+  // Animate chart legend revenue
+  animateCounter('chart-legend-revenue', totalRevenue, true, 0);
 
   // Render Menu Item Sales list
   const sortedStats = Object.values(itemStats).sort((a, b) => b.qty - a.qty);
   
-  if (sortedStats.length === 0) {
-    menuSalesStatsBody.innerHTML = `
-      <tr>
-        <td colspan="3" class="text-center text-muted" style="padding: var(--space-base);">Chưa có dữ liệu bán hàng.</td>
-      </tr>
-    `;
-  } else {
-    menuSalesStatsBody.innerHTML = sortedStats.map(stat => `
-      <tr>
-        <td style="padding: 8px 12px; font-weight: 500;">${stat.emoji} ${stat.name}</td>
-        <td class="text-center bold" style="padding: 8px 12px; font-size: 14px;">${stat.qty}</td>
-        <td class="text-right bold" style="padding: 8px 12px; color: var(--primary);">${formatVND(stat.revenue)}</td>
-      </tr>
-    `).join('');
+  if (menuSalesStatsBody) {
+    if (sortedStats.length === 0) {
+      menuSalesStatsBody.innerHTML = `
+        <tr>
+          <td colspan="3" class="text-center text-muted" style="padding: var(--space-base);">Chưa có dữ liệu bán hàng.</td>
+        </tr>
+      `;
+    } else {
+      menuSalesStatsBody.innerHTML = sortedStats.map(stat => `
+        <tr>
+          <td style="padding: 8px 12px; font-weight: 500;">${stat.emoji} ${stat.name}</td>
+          <td class="text-center bold" style="padding: 8px 12px; font-size: 14px;">${stat.qty}</td>
+          <td class="text-right bold" style="padding: 8px 12px; color: var(--primary);">${formatVND(stat.revenue)}</td>
+        </tr>
+      `).join('');
+    }
   }
 
   // Update Best Seller widget
   const bestItem = sortedStats[0];
-  if (bestItem) {
-    statBestSeller.textContent = `${bestItem.emoji} ${bestItem.name} (${bestItem.qty} suất)`;
-  } else {
-    statBestSeller.textContent = '--';
+  if (statBestSeller) {
+    if (bestItem) {
+      statBestSeller.textContent = `${bestItem.emoji} ${bestItem.name} (${bestItem.qty} suất)`;
+    } else {
+      statBestSeller.textContent = '--';
+    }
+  }
+
+  // 1. Incomplete Orders Calculation
+  let activeTableCount = 0;
+  let activeTableAmount = 0;
+  let activeTakeawayCount = 0;
+  let activeTakeawayAmount = 0;
+
+  tables.forEach(table => {
+    if (table.status === 'eating' && table.order && table.order.length > 0) {
+      const subtotal = table.order.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+      const isTakeaway = table.name && (table.name.includes('Mang đi') || table.name.toLowerCase().includes('takeaway'));
+      if (isTakeaway) {
+        activeTakeawayCount++;
+        activeTakeawayAmount += subtotal;
+      } else {
+        activeTableCount++;
+        activeTableAmount += subtotal;
+      }
+    }
+  });
+
+  const totalIncompleteCount = activeTableCount + activeTakeawayCount;
+  const totalIncompleteAmount = activeTableAmount + activeTakeawayAmount;
+
+  // Update HTML elements
+  const elIncompleteTableCount = document.getElementById('incomplete-table-count');
+  const elIncompleteTableAmount = document.getElementById('incomplete-table-amount');
+  const elIncompleteTakeawayCount = document.getElementById('incomplete-takeaway-count');
+  const elIncompleteTakeawayAmount = document.getElementById('incomplete-takeaway-amount');
+  const elIncompleteTotalCount = document.getElementById('incomplete-total-count');
+  const elIncompleteTotalAmount = document.getElementById('incomplete-total-amount');
+
+  if (elIncompleteTableCount) elIncompleteTableCount.textContent = activeTableCount;
+  if (elIncompleteTableAmount) elIncompleteTableAmount.textContent = formatVND(activeTableAmount);
+  if (elIncompleteTakeawayCount) elIncompleteTakeawayCount.textContent = activeTakeawayCount;
+  if (elIncompleteTakeawayAmount) elIncompleteTakeawayAmount.textContent = formatVND(activeTakeawayAmount);
+  if (elIncompleteTotalCount) elIncompleteTotalCount.textContent = totalIncompleteCount;
+  if (elIncompleteTotalAmount) elIncompleteTotalAmount.textContent = formatVND(totalIncompleteAmount);
+
+  // 2. Staff Revenue Calculation
+  const elStaffOwnerAmount = document.getElementById('staff-owner-amount');
+  if (elStaffOwnerAmount) elStaffOwnerAmount.textContent = formatVND(totalRevenue);
+
+  // 3. Payment Methods Data Calculation
+  let payBankRevenue = 0;
+  let payCashRevenue = 0;
+  let payBankCount = 0;
+  let payCashCount = 0;
+
+  filteredTransactions.forEach(tx => {
+    const amount = tx.subtotal - (tx.discountAmount || 0);
+    if (tx.paymentMethod === 'bank') {
+      payBankRevenue += amount;
+      payBankCount += 1;
+    } else {
+      payCashRevenue += amount;
+      payCashCount += 1;
+    }
+  });
+
+  const elPayBankValue = document.getElementById('pay-bank-value');
+  const elPayCashValue = document.getElementById('pay-cash-value');
+  if (elPayBankValue && elPayCashValue) {
+    if (activePaymentMethodTab === 'revenue') {
+      elPayBankValue.textContent = formatVND(payBankRevenue);
+      elPayCashValue.textContent = formatVND(payCashRevenue);
+    } else {
+      elPayBankValue.textContent = `${payBankCount} hóa đơn`;
+      elPayCashValue.textContent = `${payCashCount} hóa đơn`;
+    }
+  }
+
+  // 4. Serving Types Data Calculation
+  let serveTableRevenue = 0;
+  let serveTakeawayRevenue = 0;
+  let serveTableCount = 0;
+  let serveTakeawayCount = 0;
+
+  filteredTransactions.forEach(tx => {
+    const amount = tx.subtotal - (tx.discountAmount || 0);
+    const isTakeaway = tx.table_name && (tx.table_name.includes('Mang đi') || tx.table_name.toLowerCase().includes('takeaway'));
+    if (isTakeaway) {
+      serveTakeawayRevenue += amount;
+      serveTakeawayCount += 1;
+    } else {
+      serveTableRevenue += amount;
+      serveTableCount += 1;
+    }
+  });
+
+  const elServeTableValue = document.getElementById('serve-table-value');
+  const elServeTakeawayValue = document.getElementById('serve-takeaway-value');
+  if (elServeTableValue && elServeTakeawayValue) {
+    if (activeServingTypeTab === 'revenue') {
+      elServeTableValue.textContent = formatVND(serveTableRevenue);
+      elServeTakeawayValue.textContent = formatVND(serveTakeawayRevenue);
+    } else {
+      elServeTableValue.textContent = `${serveTableCount} hóa đơn`;
+      elServeTakeawayValue.textContent = `${serveTakeawayCount} hóa đơn`;
+    }
+  }
+
+  // 5. Items by Category Calculations
+  const categoryMap = {};
+  const getCategoryLabel = (cat) => {
+    switch (cat) {
+      case 'main': return 'Món chính';
+      case 'side': return 'Món thêm';
+      case 'drink': return 'Nước uống';
+      default: return 'Không có danh mục';
+    }
+  };
+
+  filteredTransactions.forEach(tx => {
+    tx.items.forEach(item => {
+      const menuItem = menuItems.find(m => m.name === item.name);
+      const catKey = menuItem ? menuItem.category : 'default';
+      const catLabel = getCategoryLabel(catKey);
+      
+      if (!categoryMap[catLabel]) {
+        categoryMap[catLabel] = {
+          label: catLabel,
+          revenue: 0,
+          count: 0
+        };
+      }
+      categoryMap[catLabel].revenue += item.price * item.quantity;
+      categoryMap[catLabel].count += item.quantity;
+    });
+  });
+
+  const isCatRev = activeItemsCategoryTab === 'revenue';
+  const sortedCategories = Object.values(categoryMap).sort((a, b) => {
+    return isCatRev ? b.revenue - a.revenue : b.count - a.count;
+  });
+
+  const colorsList = ['#024ad8', '#ff6b8b', '#8b5cf6', '#06b6d4', '#10b981'];
+  const catLegendList = document.getElementById('cat-legend-list');
+  if (catLegendList) {
+    if (sortedCategories.length === 0) {
+      catLegendList.innerHTML = `<div style="text-align: center; color: var(--muted); font-size: 13px; padding-top: 20px;">Chưa có dữ liệu.</div>`;
+    } else {
+      catLegendList.innerHTML = sortedCategories.map((cat, idx) => {
+        const color = colorsList[idx % colorsList.length];
+        const displayValue = isCatRev ? formatVND(cat.revenue) : `${cat.count} sản phẩm`;
+        return `
+          <div class="legend-list-item" style="display: flex; justify-content: space-between; align-items: center; font-size: 13px;">
+            <span style="display: flex; align-items: center; gap: 8px;">
+              <span class="dot-indicator" style="background-color: ${color}; width: 8px; height: 8px; border-radius: 50%; display: inline-block;"></span>
+              ${cat.label}
+            </span>
+            <span class="bold" style="font-weight: 700;">${displayValue}</span>
+          </div>
+        `;
+      }).join('');
+    }
+  }
+
+  // 6. Best Selling Items Calculations
+  const isBestRev = activeItemsBestsellTab === 'revenue';
+  const sortedItems = Object.values(itemStats).sort((a, b) => {
+    return isBestRev ? b.revenue - a.revenue : b.qty - a.qty;
+  });
+  
+  const topItems = sortedItems.slice(0, itemsBestsellLimit);
+  const bestsellLegendList = document.getElementById('bestsell-legend-list');
+  if (bestsellLegendList) {
+    if (topItems.length === 0) {
+      bestsellLegendList.innerHTML = `<div style="text-align: center; color: var(--muted); font-size: 13px; padding-top: 20px;">Chưa có dữ liệu.</div>`;
+    } else {
+      bestsellLegendList.innerHTML = topItems.map((item, idx) => {
+        const color = colorsList[idx % colorsList.length];
+        const displayValue = isBestRev ? formatVND(item.revenue) : `${item.qty} sản phẩm`;
+        
+        let displayName = item.name;
+        if (displayName.length > 26) {
+          displayName = displayName.substring(0, 24) + '...';
+        }
+        return `
+          <div class="legend-list-item" style="display: flex; justify-content: space-between; align-items: center; font-size: 13px; gap: 8px;">
+            <span style="display: flex; align-items: center; gap: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+              <span class="dot-indicator" style="background-color: ${color}; width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex-shrink: 0;"></span>
+              ${item.emoji} ${displayName}
+            </span>
+            <span class="bold" style="font-weight: 700; flex-shrink: 0;">${displayValue}</span>
+          </div>
+        `;
+      }).join('');
+    }
   }
 
   // Render Visual Analytics Charts
   renderCharts(sortedStats);
+  renderDonutCharts(payBankRevenue, payCashRevenue, payBankCount, payCashCount, serveTableRevenue, serveTakeawayRevenue, serveTableCount, serveTakeawayCount);
+  renderItemsDonutCharts(sortedCategories, isCatRev, topItems, isBestRev);
 }
 
 // Filter logic
@@ -1281,6 +2351,27 @@ function applyDateFilter() {
     const todayStr = now.toDateString();
     filteredTransactions = transactions.filter(tx => {
       return new Date(tx.timestamp).toDateString() === todayStr;
+    });
+  } else if (preset === 'yesterday') {
+    const yesterday = new Date(now);
+    yesterday.setDate(now.getDate() - 1);
+    const yesterdayStr = yesterday.toDateString();
+    filteredTransactions = transactions.filter(tx => {
+      return new Date(tx.timestamp).toDateString() === yesterdayStr;
+    });
+  } else if (preset === 'week') {
+    // Current week starting from Monday (T2)
+    const day = now.getDay();
+    const diff = now.getDate() - day + (day === 0 ? -6 : 1);
+    const monday = new Date(now);
+    monday.setDate(diff);
+    monday.setHours(0, 0, 0, 0);
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    sunday.setHours(23, 59, 59, 999);
+    filteredTransactions = transactions.filter(tx => {
+      const txTime = new Date(tx.timestamp).getTime();
+      return txTime >= monday.getTime() && txTime <= sunday.getTime();
     });
   } else if (preset === 'month') {
     const thisMonth = now.getMonth();
@@ -1329,18 +2420,22 @@ function applyDateFilter() {
 }
 
 // Bind Filter Listeners
-filterPreset.onchange = () => {
-  if (filterPreset.value === 'custom') {
-    filterCustomDates.style.display = 'flex';
-  } else {
-    filterCustomDates.style.display = 'none';
-    applyDateFilter();
-  }
-};
+if (filterPreset) {
+  filterPreset.onchange = () => {
+    if (filterPreset.value === 'custom') {
+      if (filterCustomDates) filterCustomDates.style.display = 'flex';
+    } else {
+      if (filterCustomDates) filterCustomDates.style.display = 'none';
+      applyDateFilter();
+    }
+  };
+}
 
-btnApplyFilter.onclick = () => {
-  applyDateFilter();
-};
+if (btnApplyFilter) {
+  btnApplyFilter.onclick = () => {
+    applyDateFilter();
+  };
+}
 
 // Segmented control click handlers for time filter
 document.querySelectorAll('.filter-segment').forEach(btn => {
@@ -1354,6 +2449,12 @@ document.querySelectorAll('.filter-segment').forEach(btn => {
     });
     e.target.classList.add('active');
     
+    // Also sync the Sapo overview dropdown select
+    const overviewSelect = document.getElementById('overview-preset-select');
+    if (overviewSelect) {
+      overviewSelect.value = preset;
+    }
+    
     // Trigger native change event logic
     filterPreset.onchange();
   });
@@ -1361,210 +2462,516 @@ document.querySelectorAll('.filter-segment').forEach(btn => {
 
 // Render Visual Analytics Charts (Chart.js)
 function renderCharts(sortedStats) {
-  // 1. Calculate hourly distribution (for Line Chart)
-  const hourlyPoints = Array(24).fill(0);
+  const hourlyRevenuePoints = Array(24).fill(0);
+  const hourlyInvoicePoints = Array(24).fill(0);
+  
   filteredTransactions.forEach(tx => {
     const d = new Date(tx.timestamp);
     const hour = d.getHours();
     const actualPaid = tx.subtotal - (tx.discountAmount || 0);
-    hourlyPoints[hour] += actualPaid;
+    hourlyRevenuePoints[hour] += actualPaid;
+    hourlyInvoicePoints[hour] += 1;
   });
 
   const hourlyLabels = Array.from({ length: 24 }, (_, i) => `${String(i).padStart(2, '0')}:00`);
-  const hourlyData = hourlyPoints;
 
-  const ctxRev = document.getElementById('revenue-chart').getContext('2d');
-  if (revenueChartInstance) {
-    revenueChartInstance.destroy();
-  }
+  // Update total legends
+  const totalRevenue = hourlyRevenuePoints.reduce((sum, x) => sum + x, 0);
+  const totalInvoices = filteredTransactions.length;
   
-  revenueChartInstance = new Chart(ctxRev, {
-    type: 'line',
-    data: {
-      labels: hourlyLabels,
-      datasets: [{
-        label: 'Doanh thu (VNĐ)',
-        data: hourlyData,
-        borderColor: '#FF385C',
-        backgroundColor: 'rgba(255, 56, 92, 0.08)',
-        borderWidth: 2,
-        tension: 0.35,
-        fill: true,
-        pointBackgroundColor: '#FF385C',
-        pointRadius: 3
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: {
-          display: false
-        }
+  // 1. Update original general chart legend
+  const chartLegendRevenue = document.getElementById('chart-legend-revenue');
+  if (chartLegendRevenue) chartLegendRevenue.textContent = formatVND(totalRevenue);
+  
+  // 2. Update new tabbed chart legends
+  const legendTab1Revenue = document.getElementById('legend-tab1-revenue');
+  const legendTab1Orders = document.getElementById('legend-tab1-orders');
+  const legendTab2Orders = document.getElementById('legend-tab2-orders');
+  
+  if (legendTab1Revenue) legendTab1Revenue.textContent = formatVND(totalRevenue);
+  if (legendTab1Orders) legendTab1Orders.textContent = totalInvoices;
+  if (legendTab2Orders) legendTab2Orders.textContent = totalInvoices;
+
+  // Render original hourly revenue bar chart
+  const canvasOriginal = document.getElementById('overview-hourly-chart');
+  if (canvasOriginal) {
+    const ctxOriginal = canvasOriginal.getContext('2d');
+    if (overviewHourlyChartInstance) {
+      overviewHourlyChartInstance.destroy();
+    }
+    overviewHourlyChartInstance = new Chart(ctxOriginal, {
+      type: 'bar',
+      data: {
+        labels: hourlyLabels,
+        datasets: [{
+          label: 'Doanh thu',
+          data: hourlyRevenuePoints,
+          backgroundColor: '#024ad8',
+          hoverBackgroundColor: '#0e3191',
+          borderRadius: 2,
+          borderWidth: 0,
+          barPercentage: 0.6,
+          categoryPercentage: 0.8
+        }]
       },
-      scales: {
-        y: {
-          beginAtZero: true,
-          ticks: {
-            callback: function(value) {
-              return value.toLocaleString('vi-VN') + 'đ';
-            },
-            font: {
-              size: 9
-            }
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            display: false
           },
-          grid: {
-            color: 'rgba(0, 0, 0, 0.04)'
+          tooltip: {
+            backgroundColor: 'rgba(15, 23, 42, 0.9)',
+            titleColor: '#ffffff',
+            bodyColor: '#ffffff',
+            padding: 12,
+            cornerRadius: 4,
+            displayColors: false,
+            callbacks: {
+              label: function(context) {
+                return 'Doanh thu: ' + formatVND(context.parsed.y);
+              }
+            }
           }
         },
-        x: {
-          ticks: {
-            font: {
-              size: 9
+        scales: {
+          y: {
+            beginAtZero: true,
+            grid: {
+              color: '#f1f5f9',
+              drawBorder: false
+            },
+            ticks: {
+              color: '#6b7280',
+              font: {
+                size: 11
+              },
+              callback: function(value) {
+                return value.toLocaleString('vi-VN') + ' đ';
+              }
             }
           },
-          grid: {
-            display: false
+          x: {
+            grid: {
+              display: false
+            },
+            ticks: {
+              color: '#6b7280',
+              font: {
+                size: 11
+              }
+            }
           }
+        },
+        animation: {
+          duration: 1200,
+          easing: 'easeOutQuart'
         }
       }
-    }
-  });
+    });
+  }
 
-  // 1.2 Calculate trend points (for Bar Chart)
-  const sortedTxs = [...filteredTransactions].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-  
-  const trendPoints = {};
-  sortedTxs.forEach(tx => {
-    const d = new Date(tx.timestamp);
-    const preset = filterPreset.value;
-    let label = '';
-    if (preset === 'today') {
-      const hour = d.getHours();
-      label = `${String(hour).padStart(2, '0')}:00`;
-    } else if (preset === 'month') {
-      label = `${d.getDate()}/${d.getMonth() + 1}`;
-    } else if (preset === 'year') {
-      label = `Thg ${d.getMonth() + 1}`;
+  // Render new tabbed combo/line charts
+  const canvasTabbed = document.getElementById('overview-tabbed-chart');
+  if (canvasTabbed) {
+    const ctxTabbed = canvasTabbed.getContext('2d');
+    if (overviewTabbedChartInstance) {
+      overviewTabbedChartInstance.destroy();
+    }
+
+    let chartConfig = {};
+    if (activeChartTab === 'revenue') {
+      // Dual Axis Combo Chart: Bar (Revenue) + Line (Invoices)
+      chartConfig = {
+        type: 'bar',
+        data: {
+          labels: hourlyLabels,
+          datasets: [
+            {
+              label: 'Tổng doanh thu',
+              data: hourlyRevenuePoints,
+              backgroundColor: '#024ad8',
+              hoverBackgroundColor: '#0e3191',
+              borderRadius: 2,
+              borderWidth: 0,
+              barPercentage: 0.6,
+              categoryPercentage: 0.8,
+              yAxisID: 'y1',
+              type: 'bar',
+              order: 2
+            },
+            {
+              label: 'Tổng hóa đơn',
+              data: hourlyInvoicePoints,
+              borderColor: '#ff6b8b',
+              backgroundColor: '#ff6b8b',
+              tension: 0.3,
+              fill: false,
+              pointRadius: 4,
+              pointBackgroundColor: '#ff6b8b',
+              yAxisID: 'y2',
+              type: 'line',
+              order: 1
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              display: false
+            },
+            tooltip: {
+              backgroundColor: 'rgba(15, 23, 42, 0.9)',
+              titleColor: '#ffffff',
+              bodyColor: '#ffffff',
+              padding: 12,
+              cornerRadius: 4,
+              displayColors: true,
+              callbacks: {
+                label: function(context) {
+                  if (context.dataset.label === 'Tổng doanh thu') {
+                    return 'Doanh thu: ' + formatVND(context.parsed.y);
+                  } else {
+                    return 'Hóa đơn: ' + context.parsed.y;
+                  }
+                }
+              }
+            }
+          },
+          scales: {
+            y1: {
+              type: 'linear',
+              position: 'left',
+              beginAtZero: true,
+              grid: {
+                color: '#f1f5f9',
+                drawBorder: false
+              },
+              ticks: {
+                color: '#6b7280',
+                font: {
+                  size: 11
+                },
+                callback: function(value) {
+                  return value.toLocaleString('vi-VN') + ' đ';
+                }
+              }
+            },
+            y2: {
+              type: 'linear',
+              position: 'right',
+              beginAtZero: true,
+              grid: {
+                drawOnChartArea: false
+              },
+              ticks: {
+                color: '#6b7280',
+                font: {
+                  size: 11
+                },
+                precision: 0
+              }
+            },
+            x: {
+              grid: {
+                display: false
+              },
+              ticks: {
+                color: '#6b7280',
+                font: {
+                  size: 11
+                }
+              }
+            }
+          },
+          animation: {
+            duration: 1200,
+            easing: 'easeOutQuart'
+          }
+        }
+      };
     } else {
-      label = `${d.getDate()}/${d.getMonth() + 1}`;
+      // Single Line Chart (Total orders complete by order creation time)
+      chartConfig = {
+        type: 'line',
+        data: {
+          labels: hourlyLabels,
+          datasets: [{
+            label: 'Tổng hóa đơn',
+            data: hourlyInvoicePoints,
+            borderColor: '#10b981',
+            backgroundColor: '#10b981',
+            tension: 0.3,
+            fill: false,
+            pointRadius: 4,
+            pointBackgroundColor: '#10b981',
+            borderWidth: 2
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              display: false
+            },
+            tooltip: {
+              backgroundColor: 'rgba(15, 23, 42, 0.9)',
+              titleColor: '#ffffff',
+              bodyColor: '#ffffff',
+              padding: 12,
+              cornerRadius: 4,
+              displayColors: false,
+              callbacks: {
+                label: function(context) {
+                  return 'Số hóa đơn: ' + context.parsed.y;
+                }
+              }
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              grid: {
+                color: '#f1f5f9',
+                drawBorder: false
+              },
+              ticks: {
+                color: '#6b7280',
+                font: {
+                  size: 11
+                },
+                precision: 0
+              }
+            },
+            x: {
+              grid: {
+                display: false
+              },
+              ticks: {
+                color: '#6b7280',
+                font: {
+                  size: 11
+                }
+              }
+            }
+          },
+          animation: {
+            duration: 1200,
+            easing: 'easeOutQuart'
+          }
+        }
+      };
+    }
+    overviewTabbedChartInstance = new Chart(ctxTabbed, chartConfig);
+  }
+}
+
+function renderDonutCharts(payBankRevenue, payCashRevenue, payBankCount, payCashCount, serveTableRevenue, serveTakeawayRevenue, serveTableCount, serveTakeawayCount) {
+  // 1. Payment Method Donut Chart
+  const canvasPay = document.getElementById('payment-method-donut-chart');
+  if (canvasPay) {
+    const ctxPay = canvasPay.getContext('2d');
+    if (paymentMethodDonutChartInstance) {
+      paymentMethodDonutChartInstance.destroy();
     }
     
-    const actualPaid = tx.subtotal - (tx.discountAmount || 0);
-    trendPoints[label] = (trendPoints[label] || 0) + actualPaid;
-  });
-
-  const trendLabels = Object.keys(trendPoints);
-  const trendData = Object.values(trendPoints);
-
-  const ctxBar = document.getElementById('revenue-bar-chart').getContext('2d');
-  if (revenueBarChartInstance) {
-    revenueBarChartInstance.destroy();
-  }
-
-  revenueBarChartInstance = new Chart(ctxBar, {
-    type: 'bar',
-    data: {
-      labels: trendLabels.length > 0 ? trendLabels : ['Chưa có dữ liệu'],
-      datasets: [{
-        label: 'Doanh thu (VNĐ)',
-        data: trendData.length > 0 ? trendData : [0],
-        backgroundColor: '#00A699', // Teal color for bar chart to distinguish it
-        borderRadius: 4,
-        maxBarThickness: 32
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: {
-          display: false
-        }
+    const isRev = activePaymentMethodTab === 'revenue';
+    const dataVals = isRev ? [payBankRevenue, payCashRevenue] : [payBankCount, payCashCount];
+    const total = dataVals[0] + dataVals[1];
+    
+    paymentMethodDonutChartInstance = new Chart(ctxPay, {
+      type: 'doughnut',
+      data: {
+        labels: ['Chuyển khoản', 'Tiền mặt'],
+        datasets: [{
+          data: dataVals,
+          backgroundColor: ['#024ad8', '#ff6b8b'],
+          borderWidth: 1,
+          borderColor: '#ffffff'
+        }]
       },
-      scales: {
-        y: {
-          beginAtZero: true,
-          ticks: {
-            callback: function(value) {
-              return value.toLocaleString('vi-VN') + 'đ';
-            },
-            font: {
-              size: 9
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '65%',
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: 'rgba(15, 23, 42, 0.9)',
+            callbacks: {
+              label: function(context) {
+                const label = context.label || '';
+                const val = context.parsed;
+                const pct = total > 0 ? ((val / total) * 100).toFixed(2) : 0;
+                if (isRev) {
+                  return ` ${label}: ${formatVND(val)} (${pct}%)`;
+                } else {
+                  return ` ${label}: ${val} hóa đơn (${pct}%)`;
+                }
+              }
             }
-          },
-          grid: {
-            color: 'rgba(0, 0, 0, 0.04)'
-          }
-        },
-        x: {
-          ticks: {
-            font: {
-              size: 9
-            }
-          },
-          grid: {
-            display: false
           }
         }
       }
+    });
+  }
+
+  // 2. Serving Type Donut Chart
+  const canvasServe = document.getElementById('serving-type-donut-chart');
+  if (canvasServe) {
+    const ctxServe = canvasServe.getContext('2d');
+    if (servingTypeDonutChartInstance) {
+      servingTypeDonutChartInstance.destroy();
     }
-  });
-
-  // 2. Dish Breakdown Doughnut Chart
-  const topStats = sortedStats.slice(0, 5);
-  const otherStats = sortedStats.slice(5);
-  
-  const dishLabels = topStats.map(s => `${s.emoji} ${s.name}`);
-  const dishData = topStats.map(s => s.qty);
-  
-  if (otherStats.length > 0) {
-    const otherQty = otherStats.reduce((sum, s) => sum + s.qty, 0);
-    dishLabels.push('🍔 Khác');
-    dishData.push(otherQty);
-  }
-
-  const ctxDishes = document.getElementById('dishes-chart').getContext('2d');
-  if (dishesChartInstance) {
-    dishesChartInstance.destroy();
-  }
-  
-  const colors = [
-    '#FF385C', // Rausch
-    '#00A699', // Teal
-    '#FC642D', // Arches
-    '#484848', // Hof
-    '#767676', // Foggy
-    '#A61D24'  // Dark Rausch
-  ];
-  
-  dishesChartInstance = new Chart(ctxDishes, {
-    type: 'doughnut',
-    data: {
-      labels: dishLabels.length > 0 ? dishLabels : ['Chưa có dữ liệu'],
-      datasets: [{
-        data: dishData.length > 0 ? dishData : [1],
-        backgroundColor: dishData.length > 0 ? colors : ['rgba(0,0,0,0.05)'],
-        borderWidth: 1
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: {
-          position: 'right',
-          labels: {
-            boxWidth: 10,
-            font: {
-              size: 9
+    
+    const isRev = activeServingTypeTab === 'revenue';
+    const dataVals = isRev ? [serveTableRevenue, serveTakeawayRevenue] : [serveTableCount, serveTakeawayCount];
+    const total = dataVals[0] + dataVals[1];
+    
+    servingTypeDonutChartInstance = new Chart(ctxServe, {
+      type: 'doughnut',
+      data: {
+        labels: ['Ăn tại bàn', 'Mang đi'],
+        datasets: [{
+          data: dataVals,
+          backgroundColor: ['#024ad8', '#ff6b8b'],
+          borderWidth: 1,
+          borderColor: '#ffffff'
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '65%',
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: 'rgba(15, 23, 42, 0.9)',
+            callbacks: {
+              label: function(context) {
+                const label = context.label || '';
+                const val = context.parsed;
+                const pct = total > 0 ? ((val / total) * 100).toFixed(2) : 0;
+                if (isRev) {
+                  return ` ${label}: ${formatVND(val)} (${pct}%)`;
+                } else {
+                  return ` ${label}: ${val} hóa đơn (${pct}%)`;
+                }
+              }
             }
           }
         }
-      },
-      cutout: '65%'
+      }
+    });
+  }
+}
+
+function renderItemsDonutCharts(sortedCategories, isCatRev, topItems, isBestRev) {
+  const colorsList = ['#024ad8', '#ff6b8b', '#8b5cf6', '#06b6d4', '#10b981'];
+
+  // 1. Items Category Donut Chart
+  const canvasCat = document.getElementById('items-category-donut-chart');
+  if (canvasCat) {
+    const ctxCat = canvasCat.getContext('2d');
+    if (itemsCategoryDonutChartInstance) {
+      itemsCategoryDonutChartInstance.destroy();
     }
-  });
+    
+    const labels = sortedCategories.map(cat => cat.label);
+    const dataVals = sortedCategories.map(cat => isCatRev ? cat.revenue : cat.count);
+    const total = dataVals.reduce((sum, v) => sum + v, 0);
+    const backgroundColors = sortedCategories.map((_, idx) => colorsList[idx % colorsList.length]);
+
+    itemsCategoryDonutChartInstance = new Chart(ctxCat, {
+      type: 'doughnut',
+      data: {
+        labels: labels,
+        datasets: [{
+          data: dataVals,
+          backgroundColor: backgroundColors,
+          borderWidth: 1,
+          borderColor: '#ffffff'
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '65%',
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: 'rgba(15, 23, 42, 0.9)',
+            callbacks: {
+              label: function(context) {
+                const label = context.label || '';
+                const val = context.parsed;
+                const pct = total > 0 ? ((val / total) * 100).toFixed(2) : 0;
+                if (isCatRev) {
+                  return ` ${label}: ${formatVND(val)} (${pct}%)`;
+                } else {
+                  return ` ${label}: ${val} sản phẩm (${pct}%)`;
+                }
+              }
+            }
+          }
+        }
+      }
+    });
+  }
+
+  // 2. Best Selling Items Donut Chart
+  const canvasBest = document.getElementById('items-bestsell-donut-chart');
+  if (canvasBest) {
+    const ctxBest = canvasBest.getContext('2d');
+    if (itemsBestsellDonutChartInstance) {
+      itemsBestsellDonutChartInstance.destroy();
+    }
+    
+    const labels = topItems.map(item => item.name);
+    const dataVals = topItems.map(item => isBestRev ? item.revenue : item.qty);
+    const total = dataVals.reduce((sum, v) => sum + v, 0);
+    const backgroundColors = topItems.map((_, idx) => colorsList[idx % colorsList.length]);
+
+    itemsBestsellDonutChartInstance = new Chart(ctxBest, {
+      type: 'doughnut',
+      data: {
+        labels: labels,
+        datasets: [{
+          data: dataVals,
+          backgroundColor: backgroundColors,
+          borderWidth: 1,
+          borderColor: '#ffffff'
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '65%',
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: 'rgba(15, 23, 42, 0.9)',
+            callbacks: {
+              label: function(context) {
+                const label = context.label || '';
+                const val = context.parsed;
+                const pct = total > 0 ? ((val / total) * 100).toFixed(2) : 0;
+                if (isBestRev) {
+                  return ` ${label}: ${formatVND(val)} (${pct}%)`;
+                } else {
+                  return ` ${label}: ${val} sản phẩm (${pct}%)`;
+                }
+              }
+            }
+          }
+        }
+      }
+    });
+  }
 }
 
 // Load Staff accounts list
@@ -1672,15 +3079,20 @@ function renderMenuMgmtGrid() {
     return;
   }
 
-  // Filter based on active category
+  // Filter based on active category and search query
+  const searchInput = document.getElementById('menu-mgmt-search-input');
+  const query = searchInput ? searchInput.value.trim().toLowerCase() : '';
+
   const filtered = menuItems.filter(item => {
-    return activeMenuMgmtCategory === 'all' || item.category === activeMenuMgmtCategory;
+    const matchesCategory = activeMenuMgmtCategory === 'all' || item.category === activeMenuMgmtCategory;
+    const matchesSearch = !query || item.name.toLowerCase().includes(query) || (item.description && item.description.toLowerCase().includes(query));
+    return matchesCategory && matchesSearch;
   });
 
   if (filtered.length === 0) {
     menuMgmtGridContainer.innerHTML = `
       <div class="text-center text-muted p-md full-width" style="padding: var(--space-xl) 0;">
-        Không có món ăn nào thuộc phân loại này.
+        Không tìm thấy món ăn nào khớp với từ khóa tìm kiếm.
       </div>
     `;
     return;
@@ -1705,17 +3117,13 @@ function renderMenuMgmtGrid() {
     if (item.image_url) {
       photoHtml = `<img src="${item.image_url}" style="width:100%; height:100%; object-fit:cover;">`;
     } else {
-      photoHtml = `
-        <div style="width:100%; height:100%; background-color:var(--surface-soft); display:flex; align-items:center; justify-content:center; font-size:64px; user-select:none;">
-          ${item.emoji || '🍽️'}
-        </div>
-      `;
+      photoHtml = `<img src="images/logo.png" style="width:100%; height:100%; object-fit:cover;">`;
     }
 
     card.innerHTML = `
       <div class="card-img-container" style="height:160px; overflow:hidden;">
         ${photoHtml}
-        <span class="card-badge" style="top:12px; left:12px; font-weight:600;">${getCategoryText(item.category)}</span>
+        <span class="card-badge" style="top:12px; left:12px; font-weight:600; display: none;">${getCategoryText(item.category)}</span>
       </div>
       <div class="card-body" style="padding:16px; flex-grow:1; display:flex; flex-direction:column; gap:4px; min-height:120px;">
         <div class="card-title" style="font-size:16px; font-weight:600;">${item.name}</div>
@@ -1748,15 +3156,12 @@ function openMenuItemModal(item = null) {
     menuItemEmojiInput.value = item.emoji || '🍽️';
 
     // Update visual preview for edit mode
+    menuItemEmojiPreview.style.display = 'none';
+    menuItemImagePreview.style.display = 'block';
     if (item.image_url) {
       menuItemImagePreview.src = item.image_url;
-      menuItemImagePreview.style.display = 'block';
-      menuItemEmojiPreview.style.display = 'none';
     } else {
-      menuItemImagePreview.src = '';
-      menuItemImagePreview.style.display = 'none';
-      menuItemEmojiPreview.textContent = item.emoji || '🍽️';
-      menuItemEmojiPreview.style.display = 'block';
+      menuItemImagePreview.src = 'images/logo.png';
     }
   } else {
     menuItemModalTitle.textContent = 'Thêm món ăn mới';
@@ -1767,10 +3172,9 @@ function openMenuItemModal(item = null) {
     menuItemEmojiInput.value = '🍽️';
 
     // Reset visual preview for create mode
-    menuItemImagePreview.src = '';
-    menuItemImagePreview.style.display = 'none';
-    menuItemEmojiPreview.textContent = '🍽️';
-    menuItemEmojiPreview.style.display = 'block';
+    menuItemEmojiPreview.style.display = 'none';
+    menuItemImagePreview.src = 'images/logo.png';
+    menuItemImagePreview.style.display = 'block';
   }
   
   menuItemImageInput.value = ''; // Reset file input
@@ -2076,8 +3480,59 @@ function initCustomSelects() {
   makeSelectCustom(categorySelect, 'Phân loại món', true);
 }
 
+function initSidebarCollapse() {
+  const sidebar = document.getElementById('sidebar');
+  const btnCollapse = document.getElementById('btn-sidebar-collapse');
+  const sidebarLogoImg = document.getElementById('sidebar-logo-img');
+  const sidebarLogoEmoji = document.getElementById('sidebar-logo-emoji');
+
+  if (!sidebar || !btnCollapse) return;
+
+  // 1. Handle logo loading fallback to emoji if fails
+  if (sidebarLogoImg && sidebarLogoEmoji) {
+    sidebarLogoImg.onerror = function() {
+      sidebarLogoImg.style.display = 'none';
+      sidebarLogoEmoji.style.display = 'inline-block';
+    };
+  }
+
+  // 2. Load and apply collapsed state
+  const isCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
+  if (isCollapsed) {
+    sidebar.classList.add('collapsed');
+  }
+
+  // 3. Toggle collapse logic
+  btnCollapse.addEventListener('click', (e) => {
+    e.stopPropagation();
+    sidebar.classList.toggle('collapsed');
+    const currentlyCollapsed = sidebar.classList.contains('collapsed');
+    localStorage.setItem('sidebarCollapsed', currentlyCollapsed ? 'true' : 'false');
+  });
+}
+
 // Close custom dropdown menus when clicking outside
 document.addEventListener('click', closeAllCustomSelects);
+
+window.switchManagerFloor = function(floor) {
+  activeFloorFilter = floor;
+  
+  // Enable animation for floor transition
+  playEntranceAnimation = true;
+  
+  // Update active state in UI tabs
+  const tabs = document.querySelectorAll('#manager-floor-tabs .category-tab');
+  tabs.forEach(tab => {
+    if (tab.getAttribute('data-floor') === floor) {
+      tab.classList.add('active');
+    } else {
+      tab.classList.remove('active');
+    }
+  });
+  
+  // Re-render tables with the selected floor
+  renderTables();
+};
 
 // Add Table Location segment selector helper
 window.selectLocationSegment = (el) => {
@@ -2200,4 +3655,365 @@ if (form) {
 }
 
 // App Initialization
+async function loadMenuGroups() {
+  try {
+    const res = await fetch('/api/menu-groups');
+    if (res.ok) {
+      menuGroups = await res.json();
+      renderMenuGroups();
+    }
+  } catch (error) {
+    console.error('Lỗi lấy nhóm thực đơn:', error);
+  }
+}
+
+function renderMenuGroups() {
+  const container = document.getElementById('menu-groups-container');
+  if (!container) return;
+  container.innerHTML = '';
+  
+  if (menuGroups.length === 0) {
+    container.innerHTML = `
+      <div style="grid-column: 1/-1; text-align: center; background: #ffffff; border: 1.5px dashed var(--hairline-strong); border-radius: var(--rounded-md); padding: 40px; color: var(--muted); font-size: 14px;">
+        Chưa có thực đơn nào được tạo. Click "Tạo thực đơn mới" để bắt đầu!
+      </div>
+    `;
+    return;
+  }
+  
+  menuGroups.forEach(group => {
+    const card = document.createElement('div');
+    card.className = 'overview-card-panel';
+    card.style.cssText = 'padding: 24px; display: flex; flex-direction: column; justify-content: space-between; min-height: 280px; background: #ffffff; border-radius: 12px; border: 1.5px solid var(--border-soft); box-shadow: 0 4px 12px rgba(0,0,0,0.02); transition: all 0.2s ease-in-out; cursor: default;';
+    
+    // Smooth premium hover scaling and border highlights
+    card.addEventListener('mouseenter', () => {
+      card.style.transform = 'translateY(-4px)';
+      card.style.boxShadow = '0 10px 25px rgba(0,0,0,0.06)';
+      card.style.borderColor = 'var(--primary-disabled)';
+    });
+    card.addEventListener('mouseleave', () => {
+      card.style.transform = 'none';
+      card.style.boxShadow = '0 4px 12px rgba(0,0,0,0.02)';
+      card.style.borderColor = 'var(--border-soft)';
+    });
+
+    let itemsListHtml = '';
+    if (group.items && group.items.length > 0) {
+      itemsListHtml = group.items.map(item => `
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 12px; background-color: var(--canvas-soft); border: 1px solid var(--hairline); border-radius: var(--rounded-sm); transition: background-color 0.15s;">
+          <div style="display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0;">
+            <img src="${item.image_url || 'images/logo.png'}" style="width: 24px; height: 24px; object-fit: cover; border-radius: 4px; border: 1px solid var(--hairline); flex-shrink: 0;" onerror="this.src='images/logo.png'">
+            <span style="font-size: 13px; font-weight: 600; color: var(--ink); word-break: break-word; white-space: normal; line-height: 1.3;">${item.name}</span>
+          </div>
+          <span style="font-size: 12px; font-weight: 700; color: var(--primary); flex-shrink: 0; background-color: rgba(2, 74, 216, 0.05); padding: 2px 6px; border-radius: 4px;">${formatVND(item.price)}</span>
+        </div>
+      `).join('');
+    } else {
+      itemsListHtml = `<div style="font-size: 12px; color: var(--muted); font-style: italic; text-align: center; padding: 20px 0;">Chưa có món ăn nào trong thực đơn này.</div>`;
+    }
+    
+    card.innerHTML = `
+      <div>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 1.5px dashed var(--hairline-soft); padding-bottom: 12px;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 20px; line-height: 1;">📂</span>
+            <h3 style="font-size: 16px; font-weight: 700; color: var(--ink); margin: 0; letter-spacing: -0.3px;">${group.name}</h3>
+          </div>
+          <span style="font-size: 11px; font-weight: 700; color: var(--primary); background-color: rgba(2, 74, 216, 0.08); padding: 4px 10px; border-radius: var(--rounded-full); text-transform: uppercase; letter-spacing: 0.5px;">${group.items ? group.items.length : 0} món</span>
+        </div>
+        
+        <div style="display: flex; flex-direction: column; gap: 8px; max-height: 190px; overflow-y: auto; padding-right: 4px;">
+          ${itemsListHtml}
+        </div>
+      </div>
+      
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 16px; border-top: 1.5px solid var(--hairline-soft); padding-top: 12px; gap: 8px;">
+        <button class="btn btn-secondary btn-pill" onclick="editMenuGroup(${group.id})" style="border-color: var(--border-strong); color: var(--ink-soft); height: 32px; font-size: 12px; padding: 0 12px; font-weight: 600; background: transparent; display: flex; align-items: center; gap: 4px; transition: all 0.2s;">
+          <svg style="width: 13px; height: 13px;" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4z"></path></svg>
+          Sửa thực đơn
+        </button>
+        <button class="btn btn-secondary btn-pill" onclick="deleteMenuGroup(${group.id})" style="border-color: #fca5a5; color: #ef4444; height: 32px; font-size: 12px; padding: 0 12px; font-weight: 600; background: transparent; display: flex; align-items: center; gap: 4px; transition: all 0.2s;">
+          <svg style="width: 13px; height: 13px;" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+          Xóa thực đơn
+        </button>
+      </div>
+    `;
+    container.appendChild(card);
+  });
+}
+
+function renderItemsChecklist() {
+  const container = document.getElementById('menu-group-items-checklist');
+  if (!container) return;
+  container.innerHTML = '';
+  
+  const searchInput = document.getElementById('menu-group-search-input');
+  const query = searchInput ? searchInput.value.trim().toLowerCase() : '';
+  
+  const filtered = menuItems.filter(item => {
+    return !query || item.name.toLowerCase().includes(query);
+  });
+  
+  if (filtered.length === 0) {
+    container.innerHTML = `<div style="text-align: center; color: var(--muted); font-size: 13px; padding: 10px;">Không tìm thấy mặt hàng nào.</div>`;
+    return;
+  }
+  
+  filtered.forEach(item => {
+    const label = document.createElement('label');
+    
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.value = item.id;
+    checkbox.name = 'group-items';
+    checkbox.checked = selectedGroupItemIds.has(item.id);
+    
+    checkbox.addEventListener('change', () => {
+      if (checkbox.checked) {
+        selectedGroupItemIds.add(item.id);
+      } else {
+        selectedGroupItemIds.delete(item.id);
+      }
+      
+      // Update select value text
+      const selectValue = document.getElementById('menu-group-select-value');
+      if (selectValue) {
+        if (selectedGroupItemIds.size === 0) {
+          selectValue.textContent = 'Chọn mặt hàng...';
+          selectValue.style.color = 'var(--muted)';
+        } else {
+          const selectedNames = menuItems
+            .filter(m => selectedGroupItemIds.has(m.id))
+            .map(m => m.name);
+          selectValue.textContent = selectedNames.join(', ');
+          selectValue.style.color = 'var(--ink)';
+        }
+      }
+    });
+    
+    const span = document.createElement('span');
+    span.style.color = 'var(--ink)';
+    span.textContent = `${item.emoji} ${item.name}`;
+    
+    label.appendChild(checkbox);
+    label.appendChild(span);
+    
+    container.appendChild(label);
+  });
+}
+
+async function deleteMenuGroup(id) {
+  if (!confirm('Bạn có chắc chắn muốn xóa thực đơn này không?')) return;
+  try {
+    const res = await fetch(`/api/menu-groups/${id}`, { method: 'DELETE' });
+    const result = await res.json();
+    if (result.success) {
+      showToast('✅ Đã xóa thực đơn thành công!');
+      loadMenuGroups();
+    } else {
+      showToast(`❌ Lỗi: ${result.error || 'Không thể xóa thực đơn'}`);
+    }
+  } catch (error) {
+    console.error('Lỗi xóa thực đơn:', error);
+    showToast('❌ Không thể kết nối tới server.');
+  }
+}
+
+function initMenuGroupControls() {
+  const modal = document.getElementById('menu-group-modal');
+  const openBtn = document.getElementById('btn-create-menu-group');
+  const closeBtn = document.getElementById('btn-close-menu-group-modal');
+  const cancelBtn = document.getElementById('btn-cancel-menu-group-modal');
+  const form = document.getElementById('menu-group-form');
+  const nameInput = document.getElementById('menu-group-name-input');
+  const errorMsg = document.getElementById('menu-group-error-msg');
+  
+  const selectWrapper = document.getElementById('menu-group-select-wrapper');
+  const selectTrigger = document.getElementById('menu-group-select-trigger');
+  const selectValue = document.getElementById('menu-group-select-value');
+  const selectMenu = document.getElementById('menu-group-select-menu');
+  const searchInput = document.getElementById('menu-group-search-input');
+  
+  if (selectTrigger && selectWrapper) {
+    selectTrigger.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const isOpen = selectWrapper.classList.contains('open');
+      closeAllCustomSelects();
+      if (!isOpen) {
+        selectWrapper.classList.add('open');
+        if (searchInput) {
+          searchInput.value = '';
+          searchInput.focus();
+          renderItemsChecklist();
+        }
+      }
+    });
+  }
+  
+  if (selectMenu) {
+    selectMenu.addEventListener('click', (e) => {
+      e.stopPropagation();
+    });
+  }
+  
+  if (searchInput) {
+    searchInput.addEventListener('input', () => {
+      renderItemsChecklist();
+    });
+  }
+  
+  if (openBtn) {
+    openBtn.addEventListener('click', () => {
+      editingGroupId = null;
+      const modalTitle = document.querySelector('#menu-group-modal .modal-title');
+      if (modalTitle) modalTitle.textContent = 'Tạo thực đơn mới';
+      
+      if (nameInput) nameInput.value = '';
+      if (errorMsg) {
+        errorMsg.style.display = 'none';
+        errorMsg.textContent = '';
+      }
+      
+      // Reset search-select dropdown state
+      selectedGroupItemIds.clear();
+      if (searchInput) searchInput.value = '';
+      if (selectValue) {
+        selectValue.textContent = 'Chọn mặt hàng...';
+        selectValue.style.color = 'var(--muted)';
+      }
+      if (selectWrapper) selectWrapper.classList.remove('open');
+      
+      renderItemsChecklist();
+      if (modal) modal.style.display = 'flex';
+      if (nameInput) nameInput.focus();
+    });
+  }
+  
+  const closeModal = () => {
+    if (modal) modal.style.display = 'none';
+    if (selectWrapper) selectWrapper.classList.remove('open');
+  };
+  
+  if (closeBtn) closeBtn.addEventListener('click', closeModal);
+  if (cancelBtn) cancelBtn.addEventListener('click', closeModal);
+  
+  if (form) {
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (errorMsg) errorMsg.style.display = 'none';
+      
+      const name = nameInput ? nameInput.value.trim() : '';
+      if (!name) {
+        if (errorMsg) {
+          errorMsg.textContent = 'Tên thực đơn không được để trống.';
+          errorMsg.style.display = 'block';
+        }
+        return;
+      }
+      
+      const itemIds = Array.from(selectedGroupItemIds);
+      const isEdit = editingGroupId !== null;
+      const url = isEdit ? `/api/menu-groups/${editingGroupId}` : '/api/menu-groups';
+      const method = isEdit ? 'PUT' : 'POST';
+      
+      try {
+        const response = await fetch(url, {
+          method: method,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, itemIds })
+        });
+        
+        if (!response.ok) {
+          let errorMessage = 'Lỗi lưu thực đơn.';
+          try {
+            const errResult = await response.json();
+            errorMessage = errResult.error || errorMessage;
+          } catch (e) {
+            errorMessage = `Lỗi hệ thống (${response.status}). Bạn đã khởi động lại server.js chưa?`;
+          }
+          if (errorMsg) {
+            errorMsg.textContent = errorMessage;
+            errorMsg.style.display = 'block';
+          }
+          return;
+        }
+        
+        const result = await response.json();
+        if (result.success) {
+          showToast(isEdit ? `✅ Đã cập nhật thực đơn "${name}" thành công!` : `✅ Đã tạo thực đơn "${name}" thành công!`);
+          closeModal();
+          loadMenuGroups();
+        } else {
+          if (errorMsg) {
+            errorMsg.textContent = result.error || 'Không thể lưu thực đơn.';
+            errorMsg.style.display = 'block';
+          }
+        }
+      } catch (err) {
+        console.error(err);
+        if (errorMsg) {
+          errorMsg.textContent = 'Không thể kết nối tới server.';
+          errorMsg.style.display = 'block';
+        }
+      }
+    });
+  }
+}
+
+function editMenuGroup(id) {
+  const group = menuGroups.find(g => g.id === id);
+  if (!group) return;
+  
+  editingGroupId = id;
+  
+  const modalTitle = document.querySelector('#menu-group-modal .modal-title');
+  if (modalTitle) modalTitle.textContent = 'Chỉnh sửa thực đơn';
+  
+  const nameInput = document.getElementById('menu-group-name-input');
+  if (nameInput) nameInput.value = group.name;
+  
+  const errorMsg = document.getElementById('menu-group-error-msg');
+  if (errorMsg) {
+    errorMsg.style.display = 'none';
+    errorMsg.textContent = '';
+  }
+  
+  selectedGroupItemIds.clear();
+  if (group.items) {
+    group.items.forEach(item => {
+      selectedGroupItemIds.add(item.id);
+    });
+  }
+  
+  const selectValue = document.getElementById('menu-group-select-value');
+  if (selectValue) {
+    if (selectedGroupItemIds.size === 0) {
+      selectValue.textContent = 'Chọn mặt hàng...';
+      selectValue.style.color = 'var(--muted)';
+    } else {
+      const selectedNames = menuItems
+        .filter(m => selectedGroupItemIds.has(m.id))
+        .map(m => m.name);
+      selectValue.textContent = selectedNames.join(', ');
+      selectValue.style.color = 'var(--ink)';
+    }
+  }
+  
+  const searchInput = document.getElementById('menu-group-search-input');
+  if (searchInput) searchInput.value = '';
+  
+  const selectWrapper = document.getElementById('menu-group-select-wrapper');
+  if (selectWrapper) selectWrapper.classList.remove('open');
+  
+  renderItemsChecklist();
+  
+  const modal = document.getElementById('menu-group-modal');
+  if (modal) modal.style.display = 'flex';
+  if (nameInput) nameInput.focus();
+}
+
+window.deleteMenuGroup = deleteMenuGroup;
+window.editMenuGroup = editMenuGroup;
+
 init();

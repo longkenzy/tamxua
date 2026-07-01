@@ -330,6 +330,132 @@ app.delete('/api/menu/:id', requireManager, async (req, res) => {
   }
 });
 
+// Get menu groups
+app.get('/api/menu-groups', async (req, res) => {
+  try {
+    const groupsRes = await db.query('SELECT * FROM menu_groups ORDER BY id');
+    const itemsRes = await db.query(`
+      SELECT mgi.menu_group_id, m.* 
+      FROM menu_group_items mgi 
+      JOIN menu m ON mgi.item_id = m.id
+      ORDER BY mgi.menu_group_id, m.category, m.id
+    `);
+    
+    const groups = groupsRes.rows.map(g => ({
+      id: g.id,
+      name: g.name,
+      items: itemsRes.rows.filter(i => i.menu_group_id === g.id)
+    }));
+    res.json(groups);
+  } catch (error) {
+    console.error('Lỗi lấy nhóm thực đơn:', error);
+    res.status(500).json({ error: 'Lỗi hệ thống.' });
+  }
+});
+
+// Create menu group
+app.post('/api/menu-groups', requireManager, async (req, res) => {
+  const { name, itemIds } = req.body;
+  if (!name) {
+    return res.status(400).json({ error: 'Tên thực đơn là bắt buộc.' });
+  }
+  
+  try {
+    await db.query('BEGIN');
+    
+    const insertGroupRes = await db.query(
+      'INSERT INTO menu_groups (name) VALUES ($1) RETURNING id',
+      [name]
+    );
+    const newGroupId = insertGroupRes.rows[0].id;
+    
+    if (itemIds && Array.isArray(itemIds) && itemIds.length > 0) {
+      for (const itemId of itemIds) {
+        await db.query(
+          'INSERT INTO menu_group_items (menu_group_id, item_id) VALUES ($1, $2)',
+          [newGroupId, itemId]
+        );
+      }
+    }
+    
+    await db.query('COMMIT');
+    
+    // Broadcast updated groups to all clients
+    io.emit('menu_groups_updated');
+    
+    res.json({ success: true, id: newGroupId });
+  } catch (error) {
+    await db.query('ROLLBACK');
+    console.error('Lỗi tạo nhóm thực đơn:', error);
+    if (error.code === '23505') {
+      res.status(400).json({ error: 'Tên thực đơn đã tồn tại.' });
+    } else {
+      res.status(500).json({ error: 'Lỗi hệ thống.' });
+    }
+  }
+});
+
+// Update menu group
+app.put('/api/menu-groups/:id', requireManager, async (req, res) => {
+  const { id } = req.params;
+  const { name, itemIds } = req.body;
+  
+  if (!name) {
+    return res.status(400).json({ error: 'Tên thực đơn là bắt buộc.' });
+  }
+  
+  try {
+    await db.query('BEGIN');
+    
+    // Update name
+    await db.query(
+      'UPDATE menu_groups SET name = $1 WHERE id = $2',
+      [name, parseInt(id)]
+    );
+    
+    // Delete existing links
+    await db.query('DELETE FROM menu_group_items WHERE menu_group_id = $1', [parseInt(id)]);
+    
+    // Insert new links
+    if (itemIds && Array.isArray(itemIds) && itemIds.length > 0) {
+      for (const itemId of itemIds) {
+        await db.query(
+          'INSERT INTO menu_group_items (menu_group_id, item_id) VALUES ($1, $2)',
+          [parseInt(id), itemId]
+        );
+      }
+    }
+    
+    await db.query('COMMIT');
+    
+    // Broadcast updated groups to all clients
+    io.emit('menu_groups_updated');
+    
+    res.json({ success: true });
+  } catch (error) {
+    await db.query('ROLLBACK');
+    console.error('Lỗi cập nhật nhóm thực đơn:', error);
+    if (error.code === '23505') {
+      res.status(400).json({ error: 'Tên thực đơn đã tồn tại.' });
+    } else {
+      res.status(500).json({ error: 'Lỗi hệ thống.' });
+    }
+  }
+});
+
+// Delete menu group
+app.delete('/api/menu-groups/:id', requireManager, async (req, res) => {
+  const { id } = req.params;
+  try {
+    await db.query('DELETE FROM menu_groups WHERE id = $1', [parseInt(id)]);
+    io.emit('menu_groups_updated');
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Lỗi xóa nhóm thực đơn:', error);
+    res.status(500).json({ error: 'Lỗi hệ thống.' });
+  }
+});
+
 // Get tables
 app.get('/api/tables', async (req, res) => {
   try {
@@ -347,10 +473,10 @@ app.post('/api/tables', requireAuth, async (req, res) => {
     return res.status(400).json({ error: 'Tên số bàn không được để trống.' });
   }
   const cleanName = name.trim();
-  const validLocations = ['trệt', 'lầu', 'máy lạnh', 'mang về'];
+  const validLocations = ['trệt', 'lầu', 'máy lạnh', 'mang về', 'giao hàng', 'đối tác'];
   let cleanLocation = (location || 'trệt').trim().toLowerCase();
   if (!validLocations.includes(cleanLocation)) {
-    return res.status(400).json({ error: 'Vị trí không hợp lệ. Vui lòng chọn một trong: trệt, lầu, máy lạnh, mang về.' });
+    return res.status(400).json({ error: 'Vị trí không hợp lệ. Vui lòng chọn một trong: trệt, lầu, máy lạnh, mang về, giao hàng, đối tác.' });
   }
 
   try {
