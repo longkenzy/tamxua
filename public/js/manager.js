@@ -3156,8 +3156,7 @@ function renderMenuMgmtGrid() {
     <thead>
       <tr style="background-color: var(--canvas); border-bottom: 1px solid var(--hairline); font-weight: 600;">
         <th style="padding: 14px 16px; color: var(--ink-soft); width: 80px;">Hình ảnh</th>
-        <th style="padding: 14px 16px; color: var(--ink-soft); width: 220px;">Tên món</th>
-        <th style="padding: 14px 16px; color: var(--ink-soft); width: 140px;">Phân loại</th>
+        <th style="padding: 14px 16px; color: var(--ink-soft); width: 250px;">Tên món</th>
         <th style="padding: 14px 16px; color: var(--ink-soft); width: 140px; text-align: right;">Giá bán</th>
         <th style="padding: 14px 16px; color: var(--ink-soft);">Mô tả</th>
         <th style="padding: 14px 16px; color: var(--ink-soft); width: 100px; text-align: center;">Hành động</th>
@@ -3189,8 +3188,7 @@ function renderMenuMgmtGrid() {
     tr.innerHTML = `
       <td style="padding: 12px 16px; vertical-align: middle;">${photoHtml}</td>
       <td style="padding: 12px 16px; vertical-align: middle; font-weight: 600; color: var(--ink);">${item.name}</td>
-      <td style="padding: 12px 16px; vertical-align: middle; color: var(--ink-soft);">${getCategoryText(item.category)}</td>
-      <td style="padding: 12px 16px; vertical-align: middle; text-align: right; font-weight: 700; color: var(--rausch);">${formatVND(item.price)}</td>
+      <td style="padding: 12px 16px; vertical-align: middle; text-align: right; font-weight: 700; color: var(--primary);">${formatVND(item.price)}</td>
       <td style="padding: 12px 16px; vertical-align: middle; color: var(--muted); max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${item.description || '<span style="color: #cbd5e1; font-style: italic;">Chưa có mô tả</span>'}</td>
       <td style="padding: 12px 16px; vertical-align: middle; text-align: center;">
         <button class="btn btn-secondary btn-pill btn-edit-menu-item" style="height: 30px; padding: 0 12px; font-size: 12px; border-color: var(--ink-soft); font-weight: 500;">Sửa</button>
