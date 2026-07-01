@@ -1580,8 +1580,14 @@
           </div>
           
           <div style="display: flex; align-items: center; justify-content: space-between;">
-            <label for="checkout-discount-input" style="font-size: 13px; font-weight: 600; color: #475569;">Giảm giá (đ):</label>
-            <input type="number" id="checkout-discount-input" class="text-input" style="width: 120px; text-align: right; height: 32px; padding: 0 8px; font-size: 13px;" value="0" min="0">
+            <label for="checkout-discount-input" style="font-size: 13px; font-weight: 600; color: #475569;">Giảm giá:</label>
+            <div style="display: flex; align-items: center; gap: 4px;">
+              <input type="number" id="checkout-discount-input" class="text-input" style="width: 100px; text-align: right; height: 32px; padding: 0 8px; font-size: 13px;" value="0" min="0">
+              <select id="checkout-discount-type" style="height: 32px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 13px; font-weight: 600; color: #475569; padding: 0 4px; outline: none; cursor: pointer; background-color: #ffffff;">
+                <option value="amount">đ</option>
+                <option value="percent">%</option>
+              </select>
+            </div>
           </div>
           
           <div style="display: flex; justify-content: space-between; font-size: 15px; font-weight: 800; color: #0f172a; border-top: 1px dashed #e2e8f0; padding-top: 8px;">

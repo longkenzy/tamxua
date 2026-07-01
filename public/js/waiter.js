@@ -1687,15 +1687,18 @@ window.openCheckoutModal = (tableId) => {
   document.getElementById('checkout-subtotal-val').textContent = formatVND(subtotal);
   
   const discountInput = document.getElementById('checkout-discount-input');
+  const discountTypeSelect = document.getElementById('checkout-discount-type');
   const receivedInput = document.getElementById('checkout-received-input');
   
-  discountInput.value = 0;
-  receivedInput.value = subtotal;
+  if (discountInput) discountInput.value = 0;
+  if (discountTypeSelect) discountTypeSelect.value = 'amount';
+  if (receivedInput) receivedInput.value = subtotal;
   
   updateCheckoutCalculations(subtotal);
   
-  discountInput.oninput = () => updateCheckoutCalculations(subtotal);
-  receivedInput.oninput = () => updateCheckoutCalculations(subtotal);
+  if (discountInput) discountInput.oninput = () => updateCheckoutCalculations(subtotal);
+  if (discountTypeSelect) discountTypeSelect.onchange = () => updateCheckoutCalculations(subtotal);
+  if (receivedInput) receivedInput.oninput = () => updateCheckoutCalculations(subtotal);
   
   checkoutModal.style.display = 'flex';
 };
@@ -1706,11 +1709,24 @@ window.closeCheckoutModal = () => {
 };
 
 function updateCheckoutCalculations(subtotal) {
-  const discountVal = parseInt(document.getElementById('checkout-discount-input').value || 0);
-  const total = Math.max(0, subtotal - discountVal);
+  const discountInput = document.getElementById('checkout-discount-input');
+  const discountTypeSelect = document.getElementById('checkout-discount-type');
+  
+  const discountInputValue = parseInt(discountInput ? discountInput.value : 0) || 0;
+  const discountType = discountTypeSelect ? discountTypeSelect.value : 'amount';
+  
+  let discountAmount = 0;
+  if (discountType === 'percent') {
+    discountAmount = Math.round(subtotal * (discountInputValue / 100));
+  } else {
+    discountAmount = discountInputValue;
+  }
+  
+  const total = Math.max(0, subtotal - discountAmount);
   document.getElementById('checkout-total-val').textContent = formatVND(total);
   
-  const receivedVal = parseInt(document.getElementById('checkout-received-input').value || 0);
+  const receivedInput = document.getElementById('checkout-received-input');
+  const receivedVal = parseInt(receivedInput ? receivedInput.value : 0) || 0;
   const change = Math.max(0, receivedVal - total);
   document.getElementById('checkout-change-val').textContent = formatVND(change);
 }
@@ -1719,14 +1735,22 @@ if (btnConfirmCheckout) {
   btnConfirmCheckout.addEventListener('click', async () => {
     if (!activeCheckoutTableId) return;
     
-    const discountAmount = parseInt(document.getElementById('checkout-discount-input').value || 0);
-    const receivedAmount = parseInt(document.getElementById('checkout-received-input').value || 0);
-    
-    const paymentMethodChecked = document.querySelector('input[name="checkout-payment-method"]:checked');
-    const paymentMethod = paymentMethodChecked ? paymentMethodChecked.value : 'cash';
+    const discountInput = document.getElementById('checkout-discount-input');
+    const discountTypeSelect = document.getElementById('checkout-discount-type');
+    const discountInputValue = parseInt(discountInput ? discountInput.value : 0) || 0;
+    const discountType = discountTypeSelect ? discountTypeSelect.value : 'amount';
     
     const table = tables.find(t => t.id === activeCheckoutTableId);
     const subtotal = table.order.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    
+    let discountAmount = 0;
+    if (discountType === 'percent') {
+      discountAmount = Math.round(subtotal * (discountInputValue / 100));
+    } else {
+      discountAmount = discountInputValue;
+    }
+    
+    const receivedAmount = parseInt(document.getElementById('checkout-received-input').value || 0);
     const total = Math.max(0, subtotal - discountAmount);
     
     if (receivedAmount < total) {
