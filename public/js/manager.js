@@ -2315,7 +2315,7 @@ function updateAnalytics() {
   tables.forEach(table => {
     if (table.status === 'eating' && table.order && table.order.length > 0) {
       const subtotal = table.order.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-      const isTakeaway = table.name && (table.name.includes('Mang đi') || table.name.toLowerCase().includes('takeaway'));
+      const isTakeaway = (table.location && table.location.toLowerCase() === 'mang về') || (table.name && !table.name.startsWith('Bàn '));
       if (isTakeaway) {
         activeTakeawayCount++;
         activeTakeawayAmount += subtotal;
@@ -2385,7 +2385,8 @@ function updateAnalytics() {
 
   filteredTransactions.forEach(tx => {
     const amount = tx.subtotal - (tx.discountAmount || 0);
-    const isTakeaway = tx.table_name && (tx.table_name.includes('Mang đi') || tx.table_name.toLowerCase().includes('takeaway'));
+    const tableName = tx.tableName || '';
+    const isTakeaway = !tableName.startsWith('Bàn ');
     if (isTakeaway) {
       serveTakeawayRevenue += amount;
       serveTakeawayCount += 1;
