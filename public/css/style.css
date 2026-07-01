@@ -2245,3 +2245,52 @@ a {
 .sidebar.collapsed .dropdown-chevron-icon {
   display: none !important;
 }
+
+/* Modern Filter Select Styles */
+.modern-filter-select {
+  height: 38px;
+  font-family: var(--font-family);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  background-color: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 0 32px 0 14px;
+  appearance: none;
+  cursor: pointer;
+  outline: none;
+  box-sizing: border-box;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+}
+
+.modern-filter-select:hover {
+  border-color: var(--primary);
+  background-color: var(--surface-soft);
+}
+
+.modern-filter-select:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(2, 74, 216, 0.12), 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.modern-select-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.modern-select-chevron {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 8px;
+  color: #64748b;
+  pointer-events: none;
+  transition: all 0.2s;
+}
+
+.modern-select-wrapper:hover .modern-select-chevron {
+  color: var(--primary);
+}
