@@ -1384,9 +1384,14 @@ function renderTransactionsList() {
       <td style="padding: 12px 16px; font-weight: 500; color: #475569;">${cleanPayment}</td>
       <td style="padding: 12px 16px; text-align: right; font-weight: 700; color: var(--primary);">${formatVND(finalPaid)}</td>
       <td style="padding: 12px 16px; text-align: center;">
-        <button class="btn btn-secondary btn-detail-inline" data-index="${index}" style="padding: 6px 12px; font-size: 11px; border-radius: 6px; cursor: pointer; border: 1px solid #cbd5e1; display: inline-flex; align-items: center; gap: 4px; font-weight: 600; background: #ffffff; white-space: nowrap;">
-          🔍 Chi tiết
-        </button>
+        <div style="display: inline-flex; gap: 6px; justify-content: center; align-items: center;">
+          <button class="btn btn-secondary btn-detail-inline" data-index="${index}" style="padding: 6px 12px; font-size: 11px; border-radius: 6px; cursor: pointer; border: 1px solid #cbd5e1; display: inline-flex; align-items: center; gap: 4px; font-weight: 600; background: #ffffff; white-space: nowrap;">
+            🔍 Chi tiết
+          </button>
+          <button class="btn btn-danger btn-delete-inline" data-id="${tx.id}" style="padding: 6px 12px; font-size: 11px; border-radius: 6px; cursor: pointer; border: 1px solid #fca5a5; display: inline-flex; align-items: center; gap: 4px; font-weight: 600; background: #fef2f2; color: #ef4444; white-space: nowrap;">
+            🗑️ Xóa
+          </button>
+        </div>
       </td>
     `;
 
@@ -1400,6 +1405,36 @@ function renderTransactionsList() {
       e.stopPropagation();
       openTransactionDetail(index);
     });
+
+    // Prevent row click when clicking delete button
+    const btnDelete = tr.querySelector('.btn-delete-inline');
+    if (btnDelete) {
+      btnDelete.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const txId = e.currentTarget.getAttribute('data-id');
+        if (confirm(`⚠️ Bạn có chắc chắn muốn xóa hóa đơn ${txId} này? Thao tác này không thể hoàn tác.`)) {
+          try {
+            const res = await fetch(`/api/transactions/${txId}`, {
+              method: 'DELETE'
+            });
+            const result = await res.json();
+            if (result.success) {
+              showToast('✅ Đã xóa hóa đơn thành công!');
+              const transactionsRes = await fetch('/api/transactions');
+              if (transactionsRes.ok) {
+                transactions = await transactionsRes.json();
+                applyDateFilter();
+              }
+            } else {
+              alert(`Lỗi: ${result.error}`);
+            }
+          } catch (err) {
+            console.error(err);
+            alert('Không thể kết nối đến máy chủ.');
+          }
+        }
+      });
+    }
 
     tbody.appendChild(tr);
   });

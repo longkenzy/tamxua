@@ -624,6 +624,24 @@ app.get('/api/transactions', async (req, res) => {
     console.error('Lỗi lấy lịch sử:', error);
     res.status(500).json({ error: 'Lỗi hệ thống.' });
   }
+});// Delete transaction
+app.delete('/api/transactions/:id', requireManager, async (req, res) => {
+  const { id } = req.params;
+  try {
+    const deleteRes = await db.query('DELETE FROM transactions WHERE id = $1', [id]);
+    if (deleteRes.rowCount === 0) {
+      return res.status(404).json({ error: 'Không tìm thấy hóa đơn.' });
+    }
+
+    // Broadcast updated transactions to all clients
+    const txList = await getTransactionsWithItems();
+    io.emit('transactions_updated', txList);
+
+    res.json({ success: true, message: 'Đã xóa hóa đơn thành công.' });
+  } catch (error) {
+    console.error('Lỗi khi xóa hóa đơn:', error);
+    res.status(500).json({ error: 'Lỗi hệ thống.' });
+  }
 });
 
 // Submit Order
