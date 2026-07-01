@@ -351,6 +351,32 @@ app.post('/api/menu/:id', requireManager, upload.single('image'), async (req, re
   }
 });
 
+// Delete all food/drink menu items
+app.delete('/api/menu-all', requireManager, async (req, res) => {
+  try {
+    // 1. Clear all active order items
+    await db.query('DELETE FROM order_items');
+
+    // 2. Reset all table statuses to empty
+    await db.query("UPDATE tables SET status = 'empty', updated_at = NULL");
+
+    // 3. Delete all menu items (will cascade to menu_group_items)
+    await db.query('DELETE FROM menu');
+
+    // 4. Broadcast updated menu and tables list to all clients
+    const menuRes = await db.query('SELECT * FROM menu ORDER BY category, id');
+    io.emit('menu_updated', menuRes.rows);
+    
+    const updatedTables = await getTablesWithOrders();
+    io.emit('tables_updated', updatedTables);
+
+    res.json({ success: true, message: 'Đã xóa tất cả các món ăn trong thực đơn.' });
+  } catch (error) {
+    console.error('Lỗi xóa tất cả món ăn:', error);
+    res.status(500).json({ error: 'Lỗi hệ thống.' });
+  }
+});
+
 // Delete food/drink menu item
 app.delete('/api/menu/:id', requireManager, async (req, res) => {
   const { id } = req.params;

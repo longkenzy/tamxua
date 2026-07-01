@@ -101,6 +101,7 @@ const menuMgmtGridContainer = document.getElementById('menu-mgmt-grid-container'
 const btnCreateMenuItem = document.getElementById('btn-create-menu-item');
 const btnDownloadExcelTemplate = document.getElementById('btn-download-excel-template');
 const btnImportExcel = document.getElementById('btn-import-excel');
+const btnDeleteAllMenu = document.getElementById('btn-delete-all-menu');
 const excelImportFileInput = document.getElementById('excel-import-file-input');
 const menuMgmtCategoryStrip = document.getElementById('menu-mgmt-category-strip');
 const menuItemModal = document.getElementById('menu-item-modal');
@@ -3101,13 +3102,14 @@ async function handleCreateStaff(event) {
   }
 }
 
-// Render Menu Items Grid inside Menu Management Dashboard
+// Render Menu Items Grid inside Menu Management Dashboard (Rendered as list/table)
 function renderMenuMgmtGrid() {
   menuMgmtGridContainer.innerHTML = '';
+  menuMgmtGridContainer.style.display = 'block'; // Use block layout for list
   
   if (menuItems.length === 0) {
     menuMgmtGridContainer.innerHTML = `
-      <div class="text-center text-muted p-md full-width">
+      <div class="text-center text-muted p-md full-width" style="padding: 40px;">
         Thực đơn rỗng. Hãy thêm món ăn mới nhé!
       </div>
     `;
@@ -3120,13 +3122,13 @@ function renderMenuMgmtGrid() {
 
   const filtered = menuItems.filter(item => {
     const matchesCategory = activeMenuMgmtCategory === 'all' || item.category === activeMenuMgmtCategory;
-    const matchesSearch = !query || item.name.toLowerCase().includes(query) || (item.description && item.description.toLowerCase().includes(query));
+    const matchesSearch = !query || item.name.toLowerCase().includes(query);
     return matchesCategory && matchesSearch;
   });
 
   if (filtered.length === 0) {
     menuMgmtGridContainer.innerHTML = `
-      <div class="text-center text-muted p-md full-width" style="padding: var(--space-xl) 0;">
+      <div class="text-center text-muted p-md full-width" style="padding: 40px;">
         Không tìm thấy món ăn nào khớp với từ khóa tìm kiếm.
       </div>
     `;
@@ -3143,37 +3145,60 @@ function renderMenuMgmtGrid() {
     }
   };
 
+  // Create table structure
+  const tableContainer = document.createElement('div');
+  tableContainer.style.cssText = 'width: 100%; overflow-x: auto; background: #ffffff; border: 1px solid var(--hairline); border-radius: var(--rounded-md); box-shadow: var(--shadow-sm);';
+
+  const table = document.createElement('table');
+  table.style.cssText = 'width: 100%; border-collapse: collapse; text-align: left; font-size: 14px;';
+  
+  table.innerHTML = `
+    <thead>
+      <tr style="background-color: var(--canvas); border-bottom: 1px solid var(--hairline); font-weight: 600;">
+        <th style="padding: 14px 16px; color: var(--ink-soft); width: 80px;">Hình ảnh</th>
+        <th style="padding: 14px 16px; color: var(--ink-soft); width: 220px;">Tên món</th>
+        <th style="padding: 14px 16px; color: var(--ink-soft); width: 140px;">Phân loại</th>
+        <th style="padding: 14px 16px; color: var(--ink-soft); width: 140px; text-align: right;">Giá bán</th>
+        <th style="padding: 14px 16px; color: var(--ink-soft);">Mô tả</th>
+        <th style="padding: 14px 16px; color: var(--ink-soft); width: 100px; text-align: center;">Hành động</th>
+      </tr>
+    </thead>
+    <tbody id="menu-mgmt-table-body"></tbody>
+  `;
+
+  tableContainer.appendChild(table);
+  menuMgmtGridContainer.appendChild(tableContainer);
+
+  const tbody = table.querySelector('#menu-mgmt-table-body');
+
   filtered.forEach(item => {
-    const card = document.createElement('div');
-    card.className = 'property-card';
+    const tr = document.createElement('tr');
+    tr.style.cssText = 'border-bottom: 1px solid var(--hairline-soft); transition: background-color 0.2s;';
     
-    // Photo container handles image or emoji backup
+    // Hover row styling
+    tr.addEventListener('mouseenter', () => { tr.style.backgroundColor = 'var(--canvas)'; });
+    tr.addEventListener('mouseleave', () => { tr.style.backgroundColor = 'transparent'; });
+
     let photoHtml = '';
     if (item.image_url) {
-      photoHtml = `<img src="${item.image_url}" style="width:100%; height:100%; object-fit:cover;">`;
+      photoHtml = `<img src="${item.image_url}" style="width: 44px; height: 44px; object-fit: cover; border-radius: var(--rounded-sm); border: 1px solid var(--hairline-soft);">`;
     } else {
-      photoHtml = `<img src="images/logo.png" style="width:100%; height:100%; object-fit:cover;">`;
+      photoHtml = `<div style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; font-size: 22px; background-color: var(--canvas); border-radius: var(--rounded-sm); border: 1px solid var(--hairline-soft);">${item.emoji || '🍽️'}</div>`;
     }
 
-    card.innerHTML = `
-      <div class="card-img-container" style="height:160px; overflow:hidden;">
-        ${photoHtml}
-        <span class="card-badge" style="top:12px; left:12px; font-weight:600; display: none;">${getCategoryText(item.category)}</span>
-      </div>
-      <div class="card-body" style="padding:16px; flex-grow:1; display:flex; flex-direction:column; gap:4px; min-height:120px;">
-        <div class="card-title" style="font-size:16px; font-weight:600;">${item.name}</div>
-        <div class="bold text-rausch" style="font-size:15px; margin-top:2px;">${formatVND(item.price)}</div>
-        <div class="card-desc" style="font-size:12px; color:var(--muted); margin-top:4px; height:34px; overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;">
-          ${item.description || 'Chưa có mô tả.'}
-        </div>
-      </div>
-      <div class="card-footer" style="padding:12px 16px; background-color:var(--canvas); border-top:1px solid var(--hairline-soft);">
-        <button class="btn btn-secondary btn-pill btn-edit-menu-item" style="height:36px; padding:0 16px; font-size:13px; width:100%; border-color:var(--ink);">Chỉnh sửa</button>
-      </div>
+    tr.innerHTML = `
+      <td style="padding: 12px 16px; vertical-align: middle;">${photoHtml}</td>
+      <td style="padding: 12px 16px; vertical-align: middle; font-weight: 600; color: var(--ink);">${item.name}</td>
+      <td style="padding: 12px 16px; vertical-align: middle; color: var(--ink-soft);">${getCategoryText(item.category)}</td>
+      <td style="padding: 12px 16px; vertical-align: middle; text-align: right; font-weight: 700; color: var(--rausch);">${formatVND(item.price)}</td>
+      <td style="padding: 12px 16px; vertical-align: middle; color: var(--muted); max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${item.description || '<span style="color: #cbd5e1; font-style: italic;">Chưa có mô tả</span>'}</td>
+      <td style="padding: 12px 16px; vertical-align: middle; text-align: center;">
+        <button class="btn btn-secondary btn-pill btn-edit-menu-item" style="height: 30px; padding: 0 12px; font-size: 12px; border-color: var(--ink-soft); font-weight: 500;">Sửa</button>
+      </td>
     `;
 
-    card.querySelector('.btn-edit-menu-item').addEventListener('click', () => openMenuItemModal(item));
-    menuMgmtGridContainer.appendChild(card);
+    tr.querySelector('.btn-edit-menu-item').addEventListener('click', () => openMenuItemModal(item));
+    tbody.appendChild(tr);
   });
 }
 
@@ -3335,6 +3360,38 @@ if (btnDownloadExcelTemplate) {
 if (btnImportExcel && excelImportFileInput) {
   btnImportExcel.addEventListener('click', () => excelImportFileInput.click());
   excelImportFileInput.addEventListener('change', handleExcelImport);
+}
+
+if (btnDeleteAllMenu) {
+  btnDeleteAllMenu.addEventListener('click', async () => {
+    if (confirm('⚠️ CẢNH BÁO: Hành động này sẽ xóa vĩnh viễn TẤT CẢ các món ăn trong thực đơn và toàn bộ các order hiện tại của các bàn. Bạn có chắc chắn muốn tiếp tục không?')) {
+      const secondConfirm = confirm('Xác nhận lần cuối: Bạn thực sự muốn xóa toàn bộ thực đơn?');
+      if (!secondConfirm) return;
+      
+      try {
+        const res = await fetch('/api/menu-all', {
+          method: 'DELETE'
+        });
+        
+        if (res.status === 401) {
+          window.location.href = '/login.html';
+          return;
+        }
+        
+        const result = await res.json();
+        if (res.ok && result.success) {
+          showToast('✅ Đã xóa toàn bộ thực đơn thành công!');
+          menuItems = [];
+          renderMenuMgmtGrid();
+        } else {
+          showToast(`❌ Lỗi: ${result.error || 'Không thể xóa thực đơn'}`);
+        }
+      } catch (err) {
+        console.error(err);
+        showToast('❌ Không thể kết nối tới server.');
+      }
+    }
+  });
 }
 
 // Image Upload click trigger
