@@ -1321,7 +1321,8 @@ function renderTransactionsList() {
         Không tìm thấy hóa đơn nào phù hợp với bộ lọc.
       </div>
     `;
-    updateBulkDeleteButtonVisibility();
+    const btnBulkDelete = document.getElementById('btn-bulk-delete-tx');
+    if (btnBulkDelete) btnBulkDelete.style.display = 'none';
     return;
   }
 
