@@ -1326,6 +1326,9 @@ function renderTransactionsList() {
   table.innerHTML = `
     <thead>
       <tr style="background-color: #f8fafc; color: #475569; font-weight: 700;">
+        <th style="position: sticky; top: 0; background-color: #f8fafc; z-index: 5; border-bottom: 1px solid var(--hairline); padding: 12px 16px; width: 40px; text-align: center;">
+          <input type="checkbox" id="th-select-all-tx" style="transform: scale(1.2); cursor: pointer;">
+        </th>
         <th style="position: sticky; top: 0; background-color: #f8fafc; z-index: 5; border-bottom: 1px solid var(--hairline); padding: 12px 16px; width: 60px; text-align: center;">STT</th>
         <th style="position: sticky; top: 0; background-color: #f8fafc; z-index: 5; border-bottom: 1px solid var(--hairline); padding: 12px 16px;">Thời gian thanh toán</th>
         <th style="position: sticky; top: 0; background-color: #f8fafc; z-index: 5; border-bottom: 1px solid var(--hairline); padding: 12px 16px;">Loại hình</th>
@@ -1377,6 +1380,9 @@ function renderTransactionsList() {
     tr.addEventListener('mouseleave', () => { tr.style.backgroundColor = (index % 2 === 1) ? '#f8fafc' : 'transparent'; });
 
     tr.innerHTML = `
+      <td style="padding: 12px 16px; text-align: center;" onclick="event.stopPropagation();">
+        <input type="checkbox" class="row-select-tx" data-id="${tx.id}" style="transform: scale(1.2); cursor: pointer;">
+      </td>
       <td style="padding: 12px 16px; text-align: center; font-weight: 600; color: #64748b;">${index + 1}</td>
       <td style="padding: 12px 16px; font-weight: 500; color: #0f172a;">${cleanTime}</td>
       <td style="padding: 12px 16px; font-weight: 600; color: #0f172a;">${loaihinh}</td>
@@ -1438,6 +1444,46 @@ function renderTransactionsList() {
 
     tbody.appendChild(tr);
   });
+
+  // Wire Select All and Checkbox update logic
+  const thSelectAll = table.querySelector('#th-select-all-tx');
+  const rowCheckboxes = table.querySelectorAll('.row-select-tx');
+  
+  if (thSelectAll) {
+    thSelectAll.addEventListener('change', () => {
+      const isChecked = thSelectAll.checked;
+      rowCheckboxes.forEach(cb => {
+        cb.checked = isChecked;
+      });
+      updateBulkDeleteButtonVisibility();
+    });
+  }
+
+  rowCheckboxes.forEach(cb => {
+    cb.addEventListener('change', () => {
+      const allChecked = Array.from(rowCheckboxes).every(c => c.checked);
+      if (thSelectAll) thSelectAll.checked = allChecked;
+      updateBulkDeleteButtonVisibility();
+    });
+  });
+
+  function updateBulkDeleteButtonVisibility() {
+    const checkedBoxes = Array.from(table.querySelectorAll('.row-select-tx:checked'));
+    const btnBulkDelete = document.getElementById('btn-bulk-delete-tx');
+    const bulkCount = document.getElementById('bulk-delete-count');
+    
+    if (btnBulkDelete && bulkCount) {
+      if (checkedBoxes.length > 0) {
+        bulkCount.textContent = checkedBoxes.length;
+        btnBulkDelete.style.display = 'inline-flex';
+      } else {
+        btnBulkDelete.style.display = 'none';
+      }
+    }
+  }
+
+  // Reset bulk delete button visibility since view list re-rendered
+  updateBulkDeleteButtonVisibility();
 
   wrapper.appendChild(table);
   historyListContainer.appendChild(wrapper);
@@ -2004,6 +2050,45 @@ function initInvoicesFilter() {
         });
         
         applyDateFilter();
+      }
+    });
+  }
+
+  const btnBulkDelete = document.getElementById('btn-bulk-delete-tx');
+  if (btnBulkDelete) {
+    btnBulkDelete.addEventListener('click', async () => {
+      const checkedBoxes = Array.from(document.querySelectorAll('.row-select-tx:checked'));
+      const ids = checkedBoxes.map(cb => cb.getAttribute('data-id'));
+      if (ids.length === 0) return;
+      
+      if (confirm(`⚠️ Bạn có chắc chắn muốn xóa ${ids.length} hóa đơn đã chọn không? Thao tác này không thể hoàn tác.`)) {
+        btnBulkDelete.disabled = true;
+        btnBulkDelete.textContent = 'Đang xóa...';
+        try {
+          const res = await fetch('/api/transactions-bulk', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ids })
+          });
+          const result = await res.json();
+          if (result.success) {
+            showToast(`✅ Đã xóa thành công ${result.count || ids.length} hóa đơn!`);
+            const transactionsRes = await fetch('/api/transactions');
+            if (transactionsRes.ok) {
+              transactions = await transactionsRes.json();
+              applyDateFilter();
+            }
+          } else {
+            alert(`Lỗi: ${result.error}`);
+          }
+        } catch (err) {
+          console.error(err);
+          alert('Không thể kết nối đến máy chủ.');
+        } finally {
+          btnBulkDelete.disabled = false;
+          btnBulkDelete.textContent = 'Xóa đã chọn';
+          btnBulkDelete.style.display = 'none';
+        }
       }
     });
   }

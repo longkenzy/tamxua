@@ -643,6 +643,26 @@ app.delete('/api/transactions/:id', requireManager, async (req, res) => {
     res.status(500).json({ error: 'Lỗi hệ thống.' });
   }
 });
+// Bulk delete transactions
+app.delete('/api/transactions-bulk', requireManager, async (req, res) => {
+  const { ids } = req.body;
+  if (!ids || !Array.isArray(ids) || ids.length === 0) {
+    return res.status(400).json({ error: 'Không tìm thấy danh sách hóa đơn để xóa.' });
+  }
+
+  try {
+    const deleteRes = await db.query('DELETE FROM transactions WHERE id = ANY($1)', [ids]);
+
+    // Broadcast updated transactions list to all clients
+    const txList = await getTransactionsWithItems();
+    io.emit('transactions_updated', txList);
+
+    res.json({ success: true, count: deleteRes.rowCount });
+  } catch (error) {
+    console.error('Lỗi khi xóa hàng loạt hóa đơn:', error);
+    res.status(500).json({ error: 'Lỗi hệ thống.' });
+  }
+});
 
 // Submit Order
 app.post('/api/order', async (req, res) => {

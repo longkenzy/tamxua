@@ -1574,6 +1574,9 @@
 
         <!-- Custom Date preset dropdown (Sapo style) for Invoices tab -->
         <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap; position: relative; z-index: 120;">
+          <button id="btn-bulk-delete-tx" class="btn" style="display: none; height: 38px; padding: 0 16px; font-size: 13px; font-weight: 600; border-radius: 6px; background-color: var(--primary-error-text); border: none; color: #ffffff; align-items: center; gap: 4px; cursor: pointer;">
+            🗑️ Xóa đã chọn (<span id="bulk-delete-count">0</span>)
+          </button>
           <div class="sapo-dropdown-container" id="invoices-date-dropdown" style="width: fit-content; position: relative;">
             <div class="sapo-dropdown-trigger" id="invoices-date-trigger" style="border: 1.5px solid var(--primary); min-width: 240px; height: 38px; display: flex; align-items: center; justify-content: space-between; padding: 0 12px; border-radius: 6px; background: #ffffff; cursor: pointer; user-select: none; box-sizing: border-box;">
               <span id="invoices-date-label" style="font-size: 13px; font-weight: 600; color: var(--ink);">Hôm nay</span>
