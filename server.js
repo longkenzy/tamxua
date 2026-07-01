@@ -248,13 +248,13 @@ app.post('/api/menu-import', requireManager, async (req, res) => {
 
   try {
     await db.query('BEGIN');
-    
+
     for (const item of items) {
       const { name, price, description, category, emoji, imageUrlLink } = item;
       if (!name || price === undefined || price === null) {
         throw new Error('Tên món ăn và giá bán là bắt buộc cho tất cả mặt hàng.');
       }
-      
+
       const cleanPrice = parseInt(price);
       if (isNaN(cleanPrice) || cleanPrice < 0) {
         throw new Error(`Giá bán của món "${name}" không hợp lệ.`);
@@ -375,7 +375,7 @@ app.delete('/api/menu-all', requireManager, async (req, res) => {
     // 4. Broadcast updated menu and tables list to all clients
     const menuRes = await db.query('SELECT * FROM menu ORDER BY category, id');
     io.emit('menu_updated', menuRes.rows);
-    
+
     const updatedTables = await getTablesWithOrders();
     io.emit('tables_updated', updatedTables);
 
@@ -393,7 +393,7 @@ app.delete('/api/menu/:id', requireManager, async (req, res) => {
   try {
     // 1. Delete active order items referencing this dish
     await db.query('DELETE FROM order_items WHERE TRIM(menu_id) = $1', [cleanId]);
-    
+
     // 2. Delete the menu item itself
     const deleteRes = await db.query('DELETE FROM menu WHERE TRIM(id) = $1', [cleanId]);
     if (deleteRes.rowCount === 0) {
@@ -403,7 +403,7 @@ app.delete('/api/menu/:id', requireManager, async (req, res) => {
     // 3. Broadcast updated menu and tables list
     const menuRes = await db.query('SELECT * FROM menu ORDER BY category, id');
     io.emit('menu_updated', menuRes.rows);
-    
+
     const updatedTables = await getTablesWithOrders();
     io.emit('tables_updated', updatedTables);
 
@@ -424,7 +424,7 @@ app.get('/api/menu-groups', async (req, res) => {
       JOIN menu m ON mgi.item_id = m.id
       ORDER BY mgi.menu_group_id, m.category, m.id
     `);
-    
+
     const groups = groupsRes.rows.map(g => ({
       id: g.id,
       name: g.name,
@@ -443,16 +443,16 @@ app.post('/api/menu-groups', requireManager, async (req, res) => {
   if (!name) {
     return res.status(400).json({ error: 'Tên thực đơn là bắt buộc.' });
   }
-  
+
   try {
     await db.query('BEGIN');
-    
+
     const insertGroupRes = await db.query(
       'INSERT INTO menu_groups (name) VALUES ($1) RETURNING id',
       [name]
     );
     const newGroupId = insertGroupRes.rows[0].id;
-    
+
     if (itemIds && Array.isArray(itemIds) && itemIds.length > 0) {
       for (const itemId of itemIds) {
         await db.query(
@@ -461,12 +461,12 @@ app.post('/api/menu-groups', requireManager, async (req, res) => {
         );
       }
     }
-    
+
     await db.query('COMMIT');
-    
+
     // Broadcast updated groups to all clients
     io.emit('menu_groups_updated');
-    
+
     res.json({ success: true, id: newGroupId });
   } catch (error) {
     await db.query('ROLLBACK');
@@ -483,23 +483,23 @@ app.post('/api/menu-groups', requireManager, async (req, res) => {
 app.put('/api/menu-groups/:id', requireManager, async (req, res) => {
   const { id } = req.params;
   const { name, itemIds } = req.body;
-  
+
   if (!name) {
     return res.status(400).json({ error: 'Tên thực đơn là bắt buộc.' });
   }
-  
+
   try {
     await db.query('BEGIN');
-    
+
     // Update name
     await db.query(
       'UPDATE menu_groups SET name = $1 WHERE id = $2',
       [name, parseInt(id)]
     );
-    
+
     // Delete existing links
     await db.query('DELETE FROM menu_group_items WHERE menu_group_id = $1', [parseInt(id)]);
-    
+
     // Insert new links
     if (itemIds && Array.isArray(itemIds) && itemIds.length > 0) {
       for (const itemId of itemIds) {
@@ -509,12 +509,12 @@ app.put('/api/menu-groups/:id', requireManager, async (req, res) => {
         );
       }
     }
-    
+
     await db.query('COMMIT');
-    
+
     // Broadcast updated groups to all clients
     io.emit('menu_groups_updated');
-    
+
     res.json({ success: true });
   } catch (error) {
     await db.query('ROLLBACK');
@@ -597,7 +597,7 @@ app.delete('/api/tables/:id', requireAuth, async (req, res) => {
     if (checkRes.rowCount === 0) {
       return res.status(404).json({ error: 'Không tìm thấy bàn ăn.' });
     }
-    
+
     if (checkRes.rows[0].status === 'eating') {
       return res.status(400).json({ error: 'Không thể xóa bàn đang có khách dùng.' });
     }
@@ -814,13 +814,13 @@ app.post('/api/checkout', async (req, res) => {
 app.post('/api/print-docx', async (req, res) => {
   try {
     const templateData = req.body;
-    
+
     // Path to the docx template
     const templatePath = path.join(__dirname, 'templates', 'hoadon.docx');
     if (!fs.existsSync(templatePath)) {
       return res.status(404).json({ error: 'Không tìm thấy file hoadon.docx trong thư mục templates.' });
     }
-    
+
     // Load Word template file as binary
     const content = fs.readFileSync(templatePath, 'binary');
     const zip = new PizZip(content);
@@ -860,7 +860,7 @@ app.post('/api/print-docx', async (req, res) => {
               line-height: 1.4;
             }
             p {
-              margin: 6px 0;
+              margin: 1px 0;
               text-align: center;
             }
             table ~ p {
@@ -868,25 +868,30 @@ app.post('/api/print-docx', async (req, res) => {
             }
             body > p:last-child {
               text-align: center;
-              margin-top: 15px;
+              margin-top: 6px;
               font-style: italic;
             }
             table {
               width: 100%;
               border-collapse: collapse;
-              margin: 12px 0;
+              margin: 6px 0;
             }
             table, th, td {
               border: 1px solid #000;
             }
             th, td {
-              padding: 6px 8px;
+              padding: 0px 1px;
               font-size: 12px;
               vertical-align: middle;
+            }
+            td p, th p {
+              text-align: inherit;
+              margin: 0;
             }
             tr:first-child td, tr:first-child th, th {
               font-weight: bold !important;
               background-color: #f9f9f9;
+              text-align: center !important;
             }
             /* Column alignments */
             td:nth-child(1), th:nth-child(1) {
