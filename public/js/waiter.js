@@ -671,12 +671,9 @@ function renderMenuItems() {
         imgHtml = `<img src="images/logo.png" style="object-fit: cover;">`;
       }
       
-      const hasOverlay = group.name.toLowerCase().includes('combo');
-      
       card.innerHTML = `
         <div class="sapo-food-card-img">
           ${imgHtml}
-          ${hasOverlay ? '<div class="sapo-food-card-overlay-badge">Hoặc</div>' : ''}
         </div>
         <div class="sapo-food-card-price-bar">${formatVND(item.price)}</div>
         <div class="sapo-food-card-name-bar">${item.name}</div>
