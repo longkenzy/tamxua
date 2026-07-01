@@ -3155,6 +3155,7 @@ function renderMenuMgmtGrid() {
   table.innerHTML = `
     <thead>
       <tr style="background-color: var(--canvas); border-bottom: 1px solid var(--hairline); font-weight: 600;">
+        <th style="padding: 14px 16px; color: var(--ink-soft); width: 60px; text-align: center;">STT</th>
         <th style="padding: 14px 16px; color: var(--ink-soft); width: 80px;">Hình ảnh</th>
         <th style="padding: 14px 16px; color: var(--ink-soft); width: 250px;">Tên món</th>
         <th style="padding: 14px 16px; color: var(--ink-soft); width: 140px; text-align: right;">Giá bán</th>
@@ -3170,7 +3171,7 @@ function renderMenuMgmtGrid() {
 
   const tbody = table.querySelector('#menu-mgmt-table-body');
 
-  filtered.forEach(item => {
+  filtered.forEach((item, index) => {
     const tr = document.createElement('tr');
     tr.style.cssText = 'border-bottom: 1px solid var(--hairline-soft); transition: background-color 0.2s;';
     
@@ -3186,6 +3187,7 @@ function renderMenuMgmtGrid() {
     }
 
     tr.innerHTML = `
+      <td style="padding: 12px 16px; vertical-align: middle; text-align: center; color: var(--ink-soft); font-weight: 500;">${index + 1}</td>
       <td style="padding: 12px 16px; vertical-align: middle;">${photoHtml}</td>
       <td style="padding: 12px 16px; vertical-align: middle; font-weight: 600; color: var(--ink);">${item.name}</td>
       <td style="padding: 12px 16px; vertical-align: middle; text-align: right; font-weight: 700; color: var(--primary);">${formatVND(item.price)}</td>
