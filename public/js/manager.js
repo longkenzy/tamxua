@@ -3351,7 +3351,13 @@ menuItemForm.addEventListener('submit', async (e) => {
     const result = await res.json();
     if (res.ok && result.success) {
       closeMenuItemModal();
-      // Socket.IO event 'menu_updated' will automatically re-render the list
+      
+      // Refresh local menu list immediately to render new images/details
+      const menuRes = await fetch('/api/menu');
+      if (menuRes.ok) {
+        menuItems = await menuRes.json();
+        renderMenuMgmtGrid();
+      }
     } else {
       alert(`Lỗi lưu món ăn: ${result.error || 'Vui lòng thử lại.'}`);
     }
@@ -4146,10 +4152,10 @@ function editMenuGroup(id) {
 
 // Download template Excel file
 function downloadExcelTemplate() {
-  // Column names in Vietnamese: tên mặt hàng, giá bán, mô tả
+  // Column names in Vietnamese: tên mặt hàng, giá bán, mô tả, hình ảnh (link)
   const data = [
-    { "Tên mặt hàng": "Cơm tấm đặc biệt", "Giá bán": 85000, "Mô tả": "Sườn, bì, chả và trứng ốp la lòng đào" },
-    { "Tên mặt hàng": "Trà đá sả chanh", "Giá bán": 15000, "Mô tả": "Nước uống mát lạnh sảng khoái" }
+    { "Tên mặt hàng": "Cơm tấm đặc biệt", "Giá bán": 85000, "Mô tả": "Sườn, bì, chả và trứng ốp la lòng đào", "Hình ảnh (link)": "https://images.unsplash.com/photo-1541832676-9b763b0239ab?q=80&w=300" },
+    { "Tên mặt hàng": "Trà đá sả chanh", "Giá bán": 15000, "Mô tả": "Nước uống mát lạnh sảng khoái", "Hình ảnh (link)": "https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?q=80&w=300" }
   ];
   
   if (typeof XLSX === 'undefined') {
@@ -4165,7 +4171,8 @@ function downloadExcelTemplate() {
   worksheet["!cols"] = [
     { wch: 30 }, // Tên mặt hàng
     { wch: 15 }, // Giá bán
-    { wch: 40 }  // Mô tả
+    { wch: 40 }, // Mô tả
+    { wch: 40 }  // Hình ảnh (link)
   ];
   
   XLSX.writeFile(workbook, "Mau_nhap_thuc_don.xlsx");
@@ -4212,10 +4219,12 @@ function handleExcelImport(event) {
         const nameKey = Object.keys(row).find(k => k.trim().toLowerCase() === "tên mặt hàng");
         const priceKey = Object.keys(row).find(k => k.trim().toLowerCase() === "giá bán");
         const descKey = Object.keys(row).find(k => k.trim().toLowerCase() === "mô tả");
+        const imgKey = Object.keys(row).find(k => k.trim().toLowerCase().includes("hình ảnh") || k.trim().toLowerCase().includes("ảnh"));
         
         const name = nameKey ? String(row[nameKey]).trim() : "";
         const priceVal = priceKey ? row[priceKey] : null;
         const description = descKey ? String(row[descKey]).trim() : "";
+        const imageUrlLink = imgKey ? String(row[imgKey]).trim() : "";
         
         if (!name) {
           alert(`Dòng số ${i + 2}: Tên mặt hàng không được để trống.`);
@@ -4233,7 +4242,8 @@ function handleExcelImport(event) {
           price,
           description,
           category: "main", // Default category to main as standard in dashboard
-          emoji: "🍽️" // Default emoji
+          emoji: "🍽️", // Default emoji
+          imageUrlLink: imageUrlLink || null
         });
       }
       

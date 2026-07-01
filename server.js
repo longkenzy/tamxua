@@ -250,7 +250,7 @@ app.post('/api/menu-import', requireManager, async (req, res) => {
     await db.query('BEGIN');
     
     for (const item of items) {
-      const { name, price, description, category, emoji } = item;
+      const { name, price, description, category, emoji, imageUrlLink } = item;
       if (!name || price === undefined || price === null) {
         throw new Error('Tên món ăn và giá bán là bắt buộc cho tất cả mặt hàng.');
       }
@@ -265,11 +265,12 @@ app.post('/api/menu-import', requireManager, async (req, res) => {
       const finalCategory = category ? category.trim() : 'main';
       const finalEmoji = emoji ? emoji.trim() : '🍽️';
       const finalDesc = description ? description.trim() : '';
+      const finalImg = imageUrlLink ? imageUrlLink.trim() : null;
 
       await db.query(`
         INSERT INTO menu (id, name, price, category, emoji, description, image_url)
         VALUES ($1, $2, $3, $4, $5, $6, $7)
-      `, [id, name.trim(), cleanPrice, finalCategory, finalEmoji, finalDesc, null]);
+      `, [id, name.trim(), cleanPrice, finalCategory, finalEmoji, finalDesc, finalImg]);
     }
 
     await db.query('COMMIT');
