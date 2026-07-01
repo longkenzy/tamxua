@@ -1309,8 +1309,9 @@ function renderTransactionsList() {
     if (serveType === 'takeaway' && !isTakeaway) return false;
 
     // Filter by payment method
-    if (payMethod === 'cash' && tx.paymentMethod !== 'cash') return false;
-    if (payMethod === 'bank' && tx.paymentMethod !== 'bank') return false;
+    const isBank = tx.paymentMethod && tx.paymentMethod.trim() === 'bank';
+    if (payMethod === 'cash' && isBank) return false;
+    if (payMethod === 'bank' && !isBank) return false;
 
     return true;
   });
@@ -1367,7 +1368,7 @@ function renderTransactionsList() {
   displayTransactions.forEach((tx, index) => {
     const finalPaid = tx.subtotal - (tx.discountAmount || 0);
     const cleanTime = formatTime(tx.timestamp).replace(' - ', ' • ');
-    const cleanPayment = tx.paymentMethod === 'bank' ? 'Chuyển khoản' : 'Tiền mặt';
+    const cleanPayment = (tx.paymentMethod && tx.paymentMethod.trim() === 'bank') ? 'Chuyển khoản' : 'Tiền mặt';
 
     // Determine loại hình and khu vực
     let loaihinh = 'Mang đi';
@@ -1528,7 +1529,7 @@ function openTransactionDetail(txIdOrIndex) {
   const itemsCount = tx.items.reduce((sum, item) => sum + item.quantity, 0);
   const cleanTime = formatTime(tx.timestamp).replace(' - ', ' • ');
   const finalPaid = tx.subtotal - (tx.discountAmount || 0);
-  const paymentMethodLabel = tx.paymentMethod === 'bank' ? 'Chuyển khoản' : 'Tiền mặt';
+  const paymentMethodLabel = (tx.paymentMethod && tx.paymentMethod.trim() === 'bank') ? 'Chuyển khoản' : 'Tiền mặt';
 
   // Determine loại hình and khu vực
   let loaihinh = 'Mang đi';
