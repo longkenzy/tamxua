@@ -1752,12 +1752,15 @@ if (btnConfirmCheckout) {
     
     const receivedAmount = parseInt(document.getElementById('checkout-received-input').value || 0);
     const total = Math.max(0, subtotal - discountAmount);
-    
+
     if (receivedAmount < total) {
       alert('Số tiền khách đưa không đủ thanh toán!');
       return;
     }
-    
+
+    const paymentMethodChecked = document.querySelector('input[name="checkout-payment-method"]:checked');
+    const paymentMethod = paymentMethodChecked ? paymentMethodChecked.value : 'cash';
+
     try {
       const response = await fetch('/api/checkout', {
         method: 'POST',
