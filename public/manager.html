@@ -1017,17 +1017,17 @@
       box-shadow: 0 0 0 3px rgba(34, 34, 34, 0.08) !important;
     }
 
-    .invoices-dropdown-option {
+    .invoices-dropdown-option, .invoices-serve-option, .invoices-pay-option {
       padding: 10px 16px;
       font-size: 13px;
       color: var(--ink);
       cursor: pointer;
       transition: background-color 0.15s;
     }
-    .invoices-dropdown-option:hover {
+    .invoices-dropdown-option:hover, .invoices-serve-option:hover, .invoices-pay-option:hover {
       background-color: var(--surface-soft);
     }
-    .invoices-dropdown-option.active {
+    .invoices-dropdown-option.active, .invoices-serve-option.active, .invoices-pay-option.active {
       background-color: var(--blue-soft);
       color: var(--primary);
       font-weight: 600;
@@ -1595,24 +1595,32 @@
             </div>
           </div>
 
-          <!-- Filter by service type -->
-          <div class="modern-select-wrapper">
-            <select id="select-filter-serve-type" class="modern-filter-select" style="min-width: 155px;">
-              <option value="all">Tất cả hình thức</option>
-              <option value="table">Ăn tại bàn</option>
-              <option value="takeaway">Mang đi</option>
-            </select>
-            <span class="modern-select-chevron">▼</span>
+          <!-- Filter by service type (Custom Dropdown) -->
+          <div class="sapo-dropdown-container" id="invoices-serve-type-dropdown" style="width: fit-content; position: relative;">
+            <div class="sapo-dropdown-trigger" id="invoices-serve-type-trigger" style="border: 1.5px solid var(--primary); min-width: 170px; height: 38px; display: flex; align-items: center; justify-content: space-between; padding: 0 12px; border-radius: 6px; background: #ffffff; cursor: pointer; user-select: none; box-sizing: border-box;">
+              <span id="invoices-serve-type-label" style="font-size: 13px; font-weight: 600; color: var(--ink);">Tất cả hình thức</span>
+              <span class="dropdown-chevron" style="color: var(--primary); font-size: 10px;">▼</span>
+            </div>
+            <!-- Dropdown options list -->
+            <div class="sapo-dropdown-menu" id="invoices-serve-type-menu" style="display: none; width: 170px; position: absolute; top: calc(100% + 4px); left: 0; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); z-index: 130; flex-direction: column; padding: 4px 0; box-sizing: border-box;">
+              <div class="invoices-serve-option active" data-value="all" style="padding: 10px 16px; font-size: 13px; color: var(--ink); cursor: pointer;">Tất cả hình thức</div>
+              <div class="invoices-serve-option" data-value="table" style="padding: 10px 16px; font-size: 13px; color: var(--ink); cursor: pointer;">Ăn tại bàn</div>
+              <div class="invoices-serve-option" data-value="takeaway" style="padding: 10px 16px; font-size: 13px; color: var(--ink); cursor: pointer;">Mang đi</div>
+            </div>
           </div>
 
-          <!-- Filter by payment method -->
-          <div class="modern-select-wrapper">
-            <select id="select-filter-pay-method" class="modern-filter-select" style="min-width: 160px;">
-              <option value="all">Tất cả thanh toán</option>
-              <option value="cash">Tiền mặt</option>
-              <option value="bank">Chuyển khoản</option>
-            </select>
-            <span class="modern-select-chevron">▼</span>
+          <!-- Filter by payment method (Custom Dropdown) -->
+          <div class="sapo-dropdown-container" id="invoices-pay-method-dropdown" style="width: fit-content; position: relative;">
+            <div class="sapo-dropdown-trigger" id="invoices-pay-method-trigger" style="border: 1.5px solid var(--primary); min-width: 175px; height: 38px; display: flex; align-items: center; justify-content: space-between; padding: 0 12px; border-radius: 6px; background: #ffffff; cursor: pointer; user-select: none; box-sizing: border-box;">
+              <span id="invoices-pay-method-label" style="font-size: 13px; font-weight: 600; color: var(--ink);">Tất cả thanh toán</span>
+              <span class="dropdown-chevron" style="color: var(--primary); font-size: 10px;">▼</span>
+            </div>
+            <!-- Dropdown options list -->
+            <div class="sapo-dropdown-menu" id="invoices-pay-method-menu" style="display: none; width: 175px; position: absolute; top: calc(100% + 4px); left: 0; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); z-index: 130; flex-direction: column; padding: 4px 0; box-sizing: border-box;">
+              <div class="invoices-pay-option active" data-value="all" style="padding: 10px 16px; font-size: 13px; color: var(--ink); cursor: pointer;">Tất cả thanh toán</div>
+              <div class="invoices-pay-option" data-value="cash" style="padding: 10px 16px; font-size: 13px; color: var(--ink); cursor: pointer;">Tiền mặt</div>
+              <div class="invoices-pay-option" data-value="bank" style="padding: 10px 16px; font-size: 13px; color: var(--ink); cursor: pointer;">Chuyển khoản</div>
+            </div>
           </div>
 
           <!-- Small custom date range picker (hidden by default) -->

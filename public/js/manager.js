@@ -8,6 +8,8 @@ let tables = [];
 let playEntranceAnimation = true;
 let transactions = [];
 let filteredTransactions = []; // Filtered copy of transactions list
+let activeServeTypeFilter = 'all';
+let activePayMethodFilter = 'all';
 let menuItems = [];
 let selectedTableId = null;
 let selectedTransactionId = null;
@@ -1296,10 +1298,8 @@ btnConfirmCheckoutPay.addEventListener('click', async () => {
 function renderTransactionsList() {
   historyListContainer.innerHTML = '';
   
-  const serveTypeSelect = document.getElementById('select-filter-serve-type');
-  const payMethodSelect = document.getElementById('select-filter-pay-method');
-  const serveType = serveTypeSelect ? serveTypeSelect.value : 'all';
-  const payMethod = payMethodSelect ? payMethodSelect.value : 'all';
+  const serveType = activeServeTypeFilter;
+  const payMethod = activePayMethodFilter;
 
   const displayTransactions = filteredTransactions.filter(tx => {
     // Filter by serving type
@@ -1989,6 +1989,14 @@ function initInvoicesFilter() {
   const filterStartDate = document.getElementById('filter-start-date');
   const filterEndDate = document.getElementById('filter-end-date');
 
+  // Serve Type custom dropdown elements
+  const serveTrigger = document.getElementById('invoices-serve-type-trigger');
+  const serveMenu = document.getElementById('invoices-serve-type-menu');
+
+  // Pay Method custom dropdown elements
+  const payTrigger = document.getElementById('invoices-pay-method-trigger');
+  const payMenu = document.getElementById('invoices-pay-method-menu');
+
   if (!trigger || !menu) return;
 
   // Set initial dates to today (matching 2026-06-30 base)
@@ -2001,26 +2009,49 @@ function initInvoicesFilter() {
     if (trigger && !trigger.contains(e.target) && menu && !menu.contains(e.target)) {
       menu.style.display = 'none';
     }
-  });
-
-  trigger.addEventListener('click', (e) => {
-    e.stopPropagation();
-    if (menu.style.display === 'none') {
-      menu.style.display = 'flex';
-    } else {
-      menu.style.display = 'none';
+    if (serveTrigger && !serveTrigger.contains(e.target) && serveMenu && !serveMenu.contains(e.target)) {
+      serveMenu.style.display = 'none';
+    }
+    if (payTrigger && !payTrigger.contains(e.target) && payMenu && !payMenu.contains(e.target)) {
+      payMenu.style.display = 'none';
     }
   });
 
+  // Toggle Date Menu
+  trigger.addEventListener('click', (e) => {
+    e.stopPropagation();
+    menu.style.display = menu.style.display === 'none' ? 'flex' : 'none';
+    if (serveMenu) serveMenu.style.display = 'none';
+    if (payMenu) payMenu.style.display = 'none';
+  });
+
+  // Toggle Serve Type Menu
+  if (serveTrigger && serveMenu) {
+    serveTrigger.addEventListener('click', (e) => {
+      e.stopPropagation();
+      serveMenu.style.display = serveMenu.style.display === 'none' ? 'flex' : 'none';
+      if (menu) menu.style.display = 'none';
+      if (payMenu) payMenu.style.display = 'none';
+    });
+  }
+
+  // Toggle Pay Method Menu
+  if (payTrigger && payMenu) {
+    payTrigger.addEventListener('click', (e) => {
+      e.stopPropagation();
+      payMenu.style.display = payMenu.style.display === 'none' ? 'flex' : 'none';
+      if (menu) menu.style.display = 'none';
+      if (serveMenu) serveMenu.style.display = 'none';
+    });
+  }
+
+  // Date selection
   document.querySelectorAll('.invoices-dropdown-option').forEach(opt => {
     opt.addEventListener('click', (e) => {
       e.stopPropagation();
       const val = opt.getAttribute('data-value');
-      
-      // Update options styling
       document.querySelectorAll('.invoices-dropdown-option').forEach(o => o.classList.remove('active'));
       opt.classList.add('active');
-      
       menu.style.display = 'none';
       document.getElementById('invoices-date-label').textContent = opt.textContent;
 
@@ -2028,11 +2059,8 @@ function initInvoicesFilter() {
         if (customDatesDiv) customDatesDiv.style.display = 'flex';
       } else {
         if (customDatesDiv) customDatesDiv.style.display = 'none';
-        
-        // Synchronize with global filter-preset and Overview's dropdown
         if (filterPreset) {
           filterPreset.value = val;
-          // Sync overview tab dropdown label if it exists
           const overviewLabel = document.getElementById('sapo-date-label');
           if (overviewLabel) {
             const matchOpt = Array.from(document.querySelectorAll('.sapo-dropdown-option')).find(o => o.getAttribute('data-value') === val);
@@ -2045,6 +2073,40 @@ function initInvoicesFilter() {
           applyDateFilter();
         }
       }
+    });
+  });
+
+  // Serve Type selection
+  document.querySelectorAll('.invoices-serve-option').forEach(opt => {
+    opt.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const val = opt.getAttribute('data-value');
+      document.querySelectorAll('.invoices-serve-option').forEach(o => o.classList.remove('active'));
+      opt.classList.add('active');
+      if (serveMenu) serveMenu.style.display = 'none';
+      
+      const label = document.getElementById('invoices-serve-type-label');
+      if (label) label.textContent = opt.textContent;
+
+      activeServeTypeFilter = val;
+      renderTransactionsList();
+    });
+  });
+
+  // Pay Method selection
+  document.querySelectorAll('.invoices-pay-option').forEach(opt => {
+    opt.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const val = opt.getAttribute('data-value');
+      document.querySelectorAll('.invoices-pay-option').forEach(o => o.classList.remove('active'));
+      opt.classList.add('active');
+      if (payMenu) payMenu.style.display = 'none';
+      
+      const label = document.getElementById('invoices-pay-method-label');
+      if (label) label.textContent = opt.textContent;
+
+      activePayMethodFilter = val;
+      renderTransactionsList();
     });
   });
 
@@ -2626,20 +2688,7 @@ if (btnApplyFilter) {
   };
 }
 
-// Bind service type & payment method filters for invoice history
-const selectFilterServeType = document.getElementById('select-filter-serve-type');
-if (selectFilterServeType) {
-  selectFilterServeType.onchange = () => {
-    renderTransactionsList();
-  };
-}
 
-const selectFilterPayMethod = document.getElementById('select-filter-pay-method');
-if (selectFilterPayMethod) {
-  selectFilterPayMethod.onchange = () => {
-    renderTransactionsList();
-  };
-}
 
 // Segmented control click handlers for time filter
 document.querySelectorAll('.filter-segment').forEach(btn => {
