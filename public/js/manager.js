@@ -4156,9 +4156,16 @@ function handleExcelImport(event) {
     try {
       const data = new Uint8Array(e.target.result);
       const workbook = XLSX.read(data, { type: 'array' });
-      const firstSheetName = workbook.SheetNames[0];
-      const worksheet = workbook.Sheets[firstSheetName];
-      const rawData = XLSX.utils.sheet_to_json(worksheet);
+      
+      // Parse and merge data from all sheets in the workbook
+      const rawData = [];
+      workbook.SheetNames.forEach(sheetName => {
+        const worksheet = workbook.Sheets[sheetName];
+        const sheetData = XLSX.utils.sheet_to_json(worksheet);
+        if (Array.isArray(sheetData)) {
+          rawData.push(...sheetData);
+        }
+      });
       
       if (rawData.length === 0) {
         alert("File Excel trống hoặc không đúng định dạng mẫu.");
