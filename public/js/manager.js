@@ -259,6 +259,11 @@ function initConnection() {
         playNotificationSound();
       });
       
+      socket.on('checkout_completed', (data) => {
+        showToast(`💰 ${data.tableName} đã thanh toán thành công!`);
+        playNotificationSound();
+      });
+      
       socket.on('transactions_updated', (updatedTransactions) => {
         transactions = updatedTransactions;
         applyDateFilter();

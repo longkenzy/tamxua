@@ -760,6 +760,7 @@ app.post('/api/checkout', async (req, res) => {
     ]);
     io.emit('tables_updated', updatedTables);
     io.emit('transactions_updated', updatedTxs);
+    io.emit('checkout_completed', { tableName: table.name });
 
     res.json({ success: true, transaction: { id: txId, changeAmount } });
   } catch (error) {
