@@ -1848,8 +1848,6 @@ const orderDetailsLocIcon = document.getElementById('order-details-loc-icon');
 const orderDetailsLocText = document.getElementById('order-details-loc-text');
 const orderDetailsTableName = document.getElementById('order-details-table-name');
 const orderDetailsSubtotal = document.getElementById('order-details-subtotal');
-const orderDetailsDiscountPercent = document.getElementById('order-details-discount-percent');
-const orderDetailsDiscountVal = document.getElementById('order-details-discount-val');
 const orderDetailsTotalQty = document.getElementById('order-details-total-qty');
 const orderDetailsTotalPrice = document.getElementById('order-details-total-price');
 
@@ -1977,14 +1975,10 @@ function renderOrderDetailsItems() {
 function updateOrderDetailsSummary() {
   const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   const totalQty = cart.reduce((sum, item) => sum + item.quantity, 0);
-  const discountVal = Math.round(subtotal * (tableDiscountPercent / 100));
-  const totalPrice = Math.max(0, subtotal - discountVal);
   
   if (orderDetailsSubtotal) orderDetailsSubtotal.textContent = formatVND(subtotal);
-  if (orderDetailsDiscountPercent) orderDetailsDiscountPercent.textContent = tableDiscountPercent;
-  if (orderDetailsDiscountVal) orderDetailsDiscountVal.textContent = '-' + formatVND(discountVal);
   if (orderDetailsTotalQty) orderDetailsTotalQty.textContent = `SL: ${totalQty}`;
-  if (orderDetailsTotalPrice) orderDetailsTotalPrice.textContent = `TỔNG: ${formatVND(totalPrice)}`;
+  if (orderDetailsTotalPrice) orderDetailsTotalPrice.textContent = `TỔNG: ${formatVND(subtotal)}`;
 }
 
 function closeOrderDetailsView() {
@@ -2001,17 +1995,6 @@ function closeOrderDetailsView() {
   if (selectedPanel) selectedPanel.style.display = 'flex';
 }
 
-window.showOrderDiscountPicker = () => {
-  const percent = prompt("Nhập phần trăm chiết khấu (0 - 100):", tableDiscountPercent || 0);
-  if (percent === null) return;
-  const parsed = parseInt(percent);
-  if (isNaN(parsed) || parsed < 0 || parsed > 100) {
-    alert("Vui lòng nhập số hợp lệ từ 0 đến 100!");
-    return;
-  }
-  tableDiscountPercent = parsed;
-  updateOrderDetailsSummary();
-};
 
 if (btnBackOrderDetails) {
   btnBackOrderDetails.addEventListener('click', closeOrderDetailsView);
@@ -2139,18 +2122,6 @@ if (btnOrderDetailsCheckout) {
   btnOrderDetailsCheckout.addEventListener('click', () => {
     closeOrderDetailsView();
     openCheckoutModal(activeTableId);
-    
-    // Pre-fill the discount in checkout modal
-    const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-    const discountVal = Math.round(subtotal * (tableDiscountPercent / 100));
-    
-    const discountInput = document.getElementById('checkout-discount-input');
-    const receivedInput = document.getElementById('checkout-received-input');
-    if (discountInput && receivedInput) {
-      discountInput.value = discountVal;
-      receivedInput.value = Math.max(0, subtotal - discountVal);
-      updateCheckoutCalculations(subtotal);
-    }
   });
 }
 
