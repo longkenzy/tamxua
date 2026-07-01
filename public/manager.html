@@ -1595,6 +1595,26 @@
             </div>
           </div>
 
+          <!-- Filter by service type -->
+          <div class="small-select-wrapper" style="position: relative;">
+            <select id="select-filter-serve-type" style="height: 38px; font-size: 13px; padding: 0 28px 0 12px; border: 1.5px solid var(--primary); border-radius: 6px; appearance: none; background: #ffffff; cursor: pointer; outline: none; font-weight: 600; color: var(--ink); box-sizing: border-box; min-width: 155px;">
+              <option value="all">Tất cả hình thức</option>
+              <option value="table">Ăn tại bàn</option>
+              <option value="takeaway">Mang đi</option>
+            </select>
+            <span style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-size: 8px; pointer-events: none; color: var(--primary);">▼</span>
+          </div>
+
+          <!-- Filter by payment method -->
+          <div class="small-select-wrapper" style="position: relative;">
+            <select id="select-filter-pay-method" style="height: 38px; font-size: 13px; padding: 0 28px 0 12px; border: 1.5px solid var(--primary); border-radius: 6px; appearance: none; background: #ffffff; cursor: pointer; outline: none; font-weight: 600; color: var(--ink); box-sizing: border-box; min-width: 160px;">
+              <option value="all">Tất cả thanh toán</option>
+              <option value="cash">Tiền mặt</option>
+              <option value="bank">Chuyển khoản</option>
+            </select>
+            <span style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-size: 8px; pointer-events: none; color: var(--primary);">▼</span>
+          </div>
+
           <!-- Small custom date range picker (hidden by default) -->
           <div id="invoices-custom-dates" style="display: none; align-items: center; gap: 8px;">
             <input type="date" id="invoices-start-date" class="text-input" style="height: 38px; padding: 0 10px; width: 135px; font-size: 13px; border-radius: 6px; border: 1px solid #cbd5e1; box-sizing: border-box;">

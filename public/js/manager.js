@@ -1296,12 +1296,32 @@ btnConfirmCheckoutPay.addEventListener('click', async () => {
 function renderTransactionsList() {
   historyListContainer.innerHTML = '';
   
-  if (filteredTransactions.length === 0) {
+  const serveTypeSelect = document.getElementById('select-filter-serve-type');
+  const payMethodSelect = document.getElementById('select-filter-pay-method');
+  const serveType = serveTypeSelect ? serveTypeSelect.value : 'all';
+  const payMethod = payMethodSelect ? payMethodSelect.value : 'all';
+
+  const displayTransactions = filteredTransactions.filter(tx => {
+    // Filter by serving type
+    const tableName = tx.tableName || '';
+    const isTakeaway = !tableName.startsWith('Bàn ');
+    if (serveType === 'table' && isTakeaway) return false;
+    if (serveType === 'takeaway' && !isTakeaway) return false;
+
+    // Filter by payment method
+    if (payMethod === 'cash' && tx.paymentMethod !== 'cash') return false;
+    if (payMethod === 'bank' && tx.paymentMethod !== 'bank') return false;
+
+    return true;
+  });
+
+  if (displayTransactions.length === 0) {
     historyListContainer.innerHTML = `
       <div class="text-center text-muted p-md" style="padding: var(--space-xl) 0;">
-        Không tìm thấy hóa đơn nào trong khoảng thời gian này.
+        Không tìm thấy hóa đơn nào phù hợp với bộ lọc.
       </div>
     `;
+    updateBulkDeleteButtonVisibility();
     return;
   }
 
@@ -1343,7 +1363,7 @@ function renderTransactionsList() {
 
   const tbody = table.querySelector('#history-table-body');
 
-  filteredTransactions.forEach((tx, index) => {
+  displayTransactions.forEach((tx, index) => {
     const finalPaid = tx.subtotal - (tx.discountAmount || 0);
     const cleanTime = formatTime(tx.timestamp).replace(' - ', ' • ');
     const cleanPayment = tx.paymentMethod === 'bank' ? 'Chuyển khoản' : 'Tiền mặt';
@@ -1391,7 +1411,7 @@ function renderTransactionsList() {
       <td style="padding: 12px 16px; text-align: right; font-weight: 700; color: var(--primary);">${formatVND(finalPaid)}</td>
       <td style="padding: 12px 16px; text-align: center;">
         <div style="display: inline-flex; gap: 6px; justify-content: center; align-items: center;">
-          <button class="btn btn-secondary btn-detail-inline" data-index="${index}" style="padding: 6px 12px; font-size: 11px; border-radius: 6px; cursor: pointer; border: 1px solid #cbd5e1; display: inline-flex; align-items: center; gap: 4px; font-weight: 600; background: #ffffff; white-space: nowrap;">
+          <button class="btn btn-secondary btn-detail-inline" data-id="${tx.id}" style="padding: 6px 12px; font-size: 11px; border-radius: 6px; cursor: pointer; border: 1px solid #cbd5e1; display: inline-flex; align-items: center; gap: 4px; font-weight: 600; background: #ffffff; white-space: nowrap;">
             🔍 Chi tiết
           </button>
           <button class="btn btn-danger btn-delete-inline" data-id="${tx.id}" style="padding: 6px 12px; font-size: 11px; border-radius: 6px; cursor: pointer; border: 1px solid #fca5a5; display: inline-flex; align-items: center; gap: 4px; font-weight: 600; background: #fef2f2; color: #ef4444; white-space: nowrap;">
@@ -1403,13 +1423,13 @@ function renderTransactionsList() {
 
     // Row click opens details modal
     tr.addEventListener('click', () => {
-      openTransactionDetail(index);
+      openTransactionDetail(tx.id);
     });
 
     // Prevent row click when clicking button to open modal
     tr.querySelector('.btn-detail-inline').addEventListener('click', (e) => {
       e.stopPropagation();
-      openTransactionDetail(index);
+      openTransactionDetail(tx.id);
     });
 
     // Prevent row click when clicking delete button
@@ -1491,8 +1511,13 @@ function renderTransactionsList() {
 
 let activeDetailTx = null;
 
-function openTransactionDetail(index) {
-  const tx = filteredTransactions[index];
+function openTransactionDetail(txIdOrIndex) {
+  let tx;
+  if (typeof txIdOrIndex === 'string') {
+    tx = filteredTransactions.find(t => t.id === txIdOrIndex);
+  } else {
+    tx = filteredTransactions[txIdOrIndex];
+  }
   if (!tx) return;
   activeDetailTx = tx;
 
@@ -2597,6 +2622,21 @@ if (filterPreset) {
 if (btnApplyFilter) {
   btnApplyFilter.onclick = () => {
     applyDateFilter();
+  };
+}
+
+// Bind service type & payment method filters for invoice history
+const selectFilterServeType = document.getElementById('select-filter-serve-type');
+if (selectFilterServeType) {
+  selectFilterServeType.onchange = () => {
+    renderTransactionsList();
+  };
+}
+
+const selectFilterPayMethod = document.getElementById('select-filter-pay-method');
+if (selectFilterPayMethod) {
+  selectFilterPayMethod.onchange = () => {
+    renderTransactionsList();
   };
 }
 
