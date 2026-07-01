@@ -210,17 +210,25 @@ async function fetchDataPoll() {
     ]);
     
     if (menuRes.ok && tablesRes.ok) {
-      menu = await menuRes.json();
-      tables = await tablesRes.json();
+      const newMenu = await menuRes.json();
+      const newTables = await tablesRes.json();
       
-      if (menuOrderingView.style.display === 'none') {
-        if (activeTab === 'orders') renderOrders();
-        else if (activeTab === 'tables') renderTables();
-        else if (activeTab === 'checkout') renderCheckoutOrders();
-      } else {
-        const currentTable = tables.find(t => t.id === activeTableId);
-        if (currentTable) {
-          updateActiveTableSubtitle(currentTable);
+      const menuChanged = JSON.stringify(newMenu) !== JSON.stringify(menu);
+      const tablesChanged = JSON.stringify(newTables) !== JSON.stringify(tables);
+      
+      if (menuChanged || tablesChanged) {
+        menu = newMenu;
+        tables = newTables;
+        
+        if (menuOrderingView.style.display === 'none') {
+          if (activeTab === 'orders') renderOrders();
+          else if (activeTab === 'tables') renderTables();
+          else if (activeTab === 'checkout') renderCheckoutOrders();
+        } else {
+          const currentTable = tables.find(t => t.id === activeTableId);
+          if (currentTable) {
+            updateActiveTableSubtitle(currentTable);
+          }
         }
       }
     }

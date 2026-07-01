@@ -322,20 +322,37 @@ async function fetchDataPoll() {
         });
       }
       
-      tables = newTables;
-      transactions = newTransactions;
-      menuItems = newMenuItems;
+      const tablesChanged = JSON.stringify(newTables) !== JSON.stringify(tables);
+      const transactionsChanged = JSON.stringify(newTransactions) !== JSON.stringify(transactions);
+      const menuChanged = JSON.stringify(newMenuItems) !== JSON.stringify(menuItems);
       
-      renderTables();
-      applyDateFilter(); // This calls renderTransactionsList and updateAnalytics inside it
+      let needsAnalyticsUpdate = false;
       
-      if (selectedTableId !== null) {
-        const table = tables.find(t => t.id === selectedTableId);
-        renderTableDetails(table);
+      if (tablesChanged) {
+        tables = newTables;
+        renderTables();
+        if (selectedTableId !== null) {
+          const table = tables.find(t => t.id === selectedTableId);
+          renderTableDetails(table);
+        }
+        needsAnalyticsUpdate = true;
       }
       
-      if (currentTab === 'menu-mgmt') {
-        renderMenuMgmtGrid();
+      if (transactionsChanged) {
+        transactions = newTransactions;
+        applyDateFilter(); // This calls renderTransactionsList and updateAnalytics inside it
+        needsAnalyticsUpdate = false; // already called inside applyDateFilter
+      }
+      
+      if (needsAnalyticsUpdate) {
+        updateAnalytics();
+      }
+      
+      if (menuChanged) {
+        menuItems = newMenuItems;
+        if (currentTab === 'menu-mgmt') {
+          renderMenuMgmtGrid();
+        }
       }
     }
   } catch (err) {
@@ -1512,9 +1529,24 @@ function animateCounter(id, endValue, isCurrency = false, decimals = 0) {
   
   let startValue = 0;
   // Parse existing number content as start point
-  const curText = el.textContent.replace(/[^0-9]/g, '');
+  let curText = el.textContent;
+  if (isCurrency) {
+    curText = curText.replace(/[^0-9]/g, ''); // strip thousand separators and " đ"
+  } else {
+    curText = curText.replace(/[^0-9.]/g, ''); // keep decimal dot
+  }
   if (curText) {
     startValue = parseFloat(curText) || 0;
+  }
+  
+  if (startValue === endValue) {
+    // If value has not changed, update text content directly and exit to avoid animation loop
+    if (isCurrency) {
+      el.textContent = formatVND(Math.round(endValue));
+    } else {
+      el.textContent = decimals > 0 ? endValue.toFixed(decimals) : Math.round(endValue);
+    }
+    return;
   }
   
   let startTimestamp = null;
