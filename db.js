@@ -147,6 +147,12 @@ async function setupDatabase() {
     await client.query("UPDATE menu SET category = 'main' WHERE category IN ('noodle', 'bread')");
     await client.query("UPDATE menu SET category = 'side' WHERE category = 'appetizer'");
 
+    // Create database indexes to optimize loading and joining processes
+    await client.query('CREATE INDEX IF NOT EXISTS idx_order_items_table_id ON order_items (table_id)');
+    await client.query('CREATE INDEX IF NOT EXISTS idx_order_items_menu_id ON order_items (menu_id)');
+    await client.query('CREATE INDEX IF NOT EXISTS idx_transactions_timestamp ON transactions (timestamp DESC)');
+    await client.query('CREATE INDEX IF NOT EXISTS idx_transaction_items_tx_id ON transaction_items (transaction_id)');
+
     await client.query('COMMIT');
     console.log('PostgreSQL database schemas created successfully.');
 
