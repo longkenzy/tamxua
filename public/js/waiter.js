@@ -1749,6 +1749,56 @@ function updateCheckoutCalculations(subtotal) {
   document.getElementById('checkout-change-val').textContent = formatVND(change);
 }
 
+const btnDeleteOrderCheckout = document.getElementById('btn-delete-order-checkout');
+if (btnDeleteOrderCheckout) {
+  btnDeleteOrderCheckout.addEventListener('click', async () => {
+    if (!activeCheckoutTableId) return;
+    const table = tables.find(t => t.id === activeCheckoutTableId);
+    const tableName = table ? table.name : `Bàn ${activeCheckoutTableId}`;
+    if (confirm(`Bạn có chắc chắn muốn hủy và xóa toàn bộ món ăn đang gọi của ${tableName} không?`)) {
+      btnDeleteOrderCheckout.disabled = true;
+      try {
+        const response = await fetch('/api/order', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            tableId: activeCheckoutTableId,
+            items: [] // Mảng rỗng sẽ tự động xóa tất cả món ăn của bàn và đổi trạng thái bàn về trống
+          })
+        });
+
+        if (response.status === 401) {
+          window.location.href = '/login.html';
+          return;
+        }
+
+        const result = await response.json();
+        if (result.success) {
+          showSuccessToast(`Đã hủy đơn hàng của ${tableName} thành công!`);
+          closeCheckoutModal();
+          
+          // Tải lại sơ đồ bàn ăn để cập nhật giao diện
+          const tablesRes = await fetch('/api/tables');
+          if (tablesRes.ok) {
+            tables = await tablesRes.json();
+            if (typeof renderTables === 'function') renderTables();
+            if (typeof renderCheckoutOrders === 'function') renderCheckoutOrders();
+          }
+        } else {
+          alert(`Lỗi khi hủy đơn: ${result.error || 'Vui lòng thử lại.'}`);
+        }
+      } catch (err) {
+        console.error("Lỗi khi hủy đơn:", err);
+        alert("Không thể kết nối đến máy chủ. Vui lòng kiểm tra mạng.");
+      } finally {
+        btnDeleteOrderCheckout.disabled = false;
+      }
+    }
+  });
+}
+
 if (btnConfirmCheckout) {
   btnConfirmCheckout.addEventListener('click', async () => {
     if (!activeCheckoutTableId) return;

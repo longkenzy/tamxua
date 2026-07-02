@@ -1248,6 +1248,59 @@ function closeCheckoutModal() {
 btnCancelCheckout.addEventListener('click', closeCheckoutModal);
 btnCloseCheckoutModal.addEventListener('click', closeCheckoutModal);
 
+const btnDeleteOrderCheckout = document.getElementById('btn-delete-order-checkout');
+if (btnDeleteOrderCheckout) {
+  btnDeleteOrderCheckout.addEventListener('click', async () => {
+    if (!selectedTableId) return;
+    const table = tables.find(t => t.id === selectedTableId);
+    const tableName = table ? table.name : `Bàn ${selectedTableId}`;
+    if (confirm(`Bạn có chắc chắn muốn hủy và xóa toàn bộ món ăn đang gọi của ${tableName} không?`)) {
+      btnDeleteOrderCheckout.disabled = true;
+      try {
+        const response = await fetch('/api/order', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            tableId: selectedTableId,
+            items: [] // Mảng rỗng sẽ tự động xóa tất cả món ăn của bàn và đổi trạng thái bàn về trống
+          })
+        });
+
+        if (response.status === 401) {
+          window.location.href = '/login.html';
+          return;
+        }
+
+        const result = await response.json();
+        if (result.success) {
+          showToast(`✅ Đã hủy đơn hàng của ${tableName} thành công!`);
+          closeCheckoutModal();
+          
+          // Tải lại sơ đồ bàn ăn để cập nhật giao diện
+          const tablesRes = await fetch('/api/tables');
+          if (tablesRes.ok) {
+            tables = await tablesRes.json();
+            renderTables();
+            
+            // Bỏ chọn bàn hiện tại để xóa bảng thông tin chi tiết
+            selectedTableId = null;
+            renderTableDetailPanel();
+          }
+        } else {
+          alert(`Lỗi khi hủy đơn: ${result.error || 'Vui lòng thử lại.'}`);
+        }
+      } catch (err) {
+        console.error("Lỗi khi hủy đơn:", err);
+        alert("Không thể kết nối đến máy chủ. Vui lòng kiểm tra mạng.");
+      } finally {
+        btnDeleteOrderCheckout.disabled = false;
+      }
+    }
+  });
+}
+
 btnConfirmCheckoutPay.addEventListener('click', async () => {
   const cash = parseFloat(inputReceivedCash.value) || 0;
   if (!selectedTableId) return;

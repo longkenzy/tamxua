@@ -1883,7 +1883,10 @@
       </div>
 
       <div class="modal-footer" style="background-color: var(--surface-soft); border-top: 1px solid var(--hairline-soft); padding: 16px 24px; justify-content: space-between; align-items: center; width: 100%;">
-        <button class="btn btn-secondary" id="btn-print-checkout" style="border-color: var(--primary); color: var(--primary); height: 40px; padding: 0 20px; border-radius: 8px;"><span style="margin-right: 4px;">🖨️</span> In hóa đơn</button>
+        <div style="display: flex; gap: var(--space-base);">
+          <button class="btn btn-secondary" id="btn-print-checkout" style="border-color: var(--primary); color: var(--primary); height: 40px; padding: 0 20px; border-radius: 8px;"><span style="margin-right: 4px;">🖨️</span> In hóa đơn</button>
+          <button class="btn btn-danger" id="btn-delete-order-checkout" style="background-color: var(--primary-error-text); border-color: var(--primary-error-text); color: white; height: 40px; padding: 0 20px; border-radius: 8px; font-weight: 600;">Hủy đơn hàng</button>
+        </div>
         <div style="display: flex; gap: var(--space-base);">
           <button class="btn btn-secondary" id="btn-cancel-checkout" style="border-color: var(--border-strong); height: 40px; padding: 0 20px; border-radius: 8px;">Quay lại</button>
           <button class="btn btn-primary" id="btn-confirm-checkout-pay" disabled style="height: 40px; padding: 0 24px; font-weight: 600; border-radius: 8px;">Xác nhận thanh toán</button>
