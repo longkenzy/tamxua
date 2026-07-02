@@ -920,11 +920,11 @@ function renderTableDetails(table) {
       `).join('')}
     </div>
 
-    <div style="display: flex; gap: 8px; margin-top: 16px; animation: fadeInUp 0.4s ease-out;">
-      <button class="btn btn-danger" id="btn-delete-order-direct" style="flex: 1; height: 50px; background-color: var(--primary-error-text); border-color: var(--primary-error-text); color: white; font-weight: 700; border-radius: 8px; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); display: flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer; border: none; box-shadow: 0 4px 6px -1px rgba(239, 68, 68, 0.15);">
-        <span style="font-size: 16px;">🗑️</span> Hủy đơn
+    <div style="display: flex; gap: 6px; margin-top: 16px; animation: fadeInUp 0.4s ease-out;">
+      <button class="btn btn-danger" id="btn-delete-order-direct" style="flex: 1; height: 42px; background-color: var(--primary-error-text); border-color: var(--primary-error-text); color: white; font-weight: 700; font-size: 12px; padding: 0 8px; border-radius: 8px; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); display: flex; align-items: center; justify-content: center; gap: 4px; cursor: pointer; border: none; box-shadow: 0 4px 6px -1px rgba(239, 68, 68, 0.15); white-space: nowrap;">
+        <span style="font-size: 13px;">🗑️</span> Hủy đơn
       </button>
-      <button class="btn btn-primary" id="btn-trigger-checkout" style="flex: 2.2; height: 50px; font-weight: 700; border-radius: 8px; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); display: flex; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 4px 6px -1px rgba(0, 136, 255, 0.15);">
+      <button class="btn btn-primary" id="btn-trigger-checkout" style="flex: 1.8; height: 42px; font-weight: 700; font-size: 12px; padding: 0 8px; border-radius: 8px; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); display: flex; align-items: center; justify-content: center; gap: 4px; box-shadow: 0 4px 6px -1px rgba(0, 136, 255, 0.15); white-space: nowrap;">
         🖨️ Thanh toán & In đơn
       </button>
     </div>
