@@ -941,9 +941,9 @@ function renderTableDetails(table) {
       btnDeleteOrderDirect.style.transform = 'translateY(0)';
       btnDeleteOrderDirect.style.boxShadow = '0 4px 6px -1px rgba(239, 68, 68, 0.15)';
     };
-    btnDeleteOrderDirect.addEventListener('click', async () => {
+    btnDeleteOrderDirect.addEventListener('click', () => {
       const tableName = table.name || `Bàn ${table.id}`;
-      if (confirm(`Bạn có chắc chắn muốn hủy và xóa toàn bộ món ăn đang gọi của ${tableName} không?`)) {
+      showConfirmDeleteModal(tableName, async () => {
         btnDeleteOrderDirect.disabled = true;
         try {
           const response = await fetch('/api/order', {
@@ -985,7 +985,7 @@ function renderTableDetails(table) {
         } finally {
           btnDeleteOrderDirect.disabled = false;
         }
-      }
+      });
     });
   }
 
@@ -1001,6 +1001,65 @@ function renderTableDetails(table) {
     };
     btnTriggerCheckout.addEventListener('click', () => openCheckoutModal(table));
   }
+}
+
+// Function to show custom confirmation modal for deleting/canceling table orders
+function showConfirmDeleteModal(tableName, onConfirm) {
+  // Inject modal markup dynamically if not exists
+  let modal = document.getElementById('confirm-delete-order-modal');
+  if (!modal) {
+    const modalHtml = `
+      <div class="modal-backdrop" id="confirm-delete-order-modal" style="display: none; z-index: 3000; align-items: center; justify-content: center; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.5);">
+        <style>
+          @keyframes modalBounceIn {
+            0% { transform: scale(0.85); opacity: 0; }
+            70% { transform: scale(1.04); opacity: 0.9; }
+            100% { transform: scale(1); opacity: 1; }
+          }
+          @keyframes pulseEmoji {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.15); }
+            100% { transform: scale(1); }
+          }
+        </style>
+        <div class="modal-content" style="max-width: 380px; width: 90%; border-radius: 16px; padding: 28px 24px; text-align: center; background: #ffffff; box-shadow: 0 10px 25px rgba(0,0,0,0.2); animation: modalBounceIn 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275); display: block; margin: auto;">
+          <span style="font-size: 52px; display: inline-block; margin-bottom: 16px; animation: pulseEmoji 2s infinite ease-in-out;">⚠️</span>
+          <h3 style="margin: 0 0 10px 0; font-weight: 700; font-size: 19px; color: #1e293b;">Xác nhận hủy đơn</h3>
+          <p id="confirm-delete-body-text" style="color: #64748b; font-size: 14px; margin: 0 0 24px 0; line-height: 1.5; text-align: center;"></p>
+          <div style="display: flex; gap: 12px; justify-content: center; width: 100%;">
+            <button class="btn btn-secondary" id="btn-cancel-delete-modal" style="flex: 1; height: 40px; border-radius: 8px; font-weight: 600; border: 1px solid #cbd5e1; color: #475569; background: #ffffff; cursor: pointer;">Quay lại</button>
+            <button class="btn btn-danger" id="btn-confirm-delete-modal" style="flex: 1.2; height: 40px; border-radius: 8px; font-weight: 700; background-color: #ef4444; border-color: #ef4444; color: white; cursor: pointer; border: none;">Đồng ý hủy</button>
+          </div>
+        </div>
+      </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    modal = document.getElementById('confirm-delete-order-modal');
+  }
+
+  // Set warning message text
+  document.getElementById('confirm-delete-body-text').textContent = `Bạn có chắc chắn muốn hủy và xóa toàn bộ món ăn đang gọi của ${tableName} không? Hành động này không thể hoàn tác.`;
+
+  // Display modal
+  modal.style.display = 'flex';
+
+  // Bind actions
+  const btnCancel = document.getElementById('btn-cancel-delete-modal');
+  const btnConfirm = document.getElementById('btn-confirm-delete-modal');
+
+  const closeModal = () => {
+    modal.style.display = 'none';
+  };
+
+  btnCancel.onclick = closeModal;
+  modal.onclick = (e) => {
+    if (e.target === modal) closeModal();
+  };
+
+  btnConfirm.onclick = () => {
+    closeModal();
+    onConfirm();
+  };
 }
 
 // Delete table function

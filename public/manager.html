@@ -79,9 +79,56 @@
     }
 
     .manager-table-card.active {
-      border-color: var(--ink);
-      border-width: 2px;
-      padding: 15px; /* Offset border width */
+      border: none !important;
+      position: relative;
+      z-index: 1;
+      overflow: hidden;
+      background-color: transparent !important;
+    }
+
+    .manager-table-card.active::before {
+      content: '';
+      position: absolute;
+      width: 300%;
+      aspect-ratio: 1 / 1;
+      top: 50%;
+      left: 50%;
+      background: conic-gradient(
+        from 0deg,
+        #ff0000,
+        #ff7700,
+        #ffff00,
+        #00ff00,
+        #00ffff,
+        #0000ff,
+        #ff00ff,
+        #ff0000
+      );
+      animation: rotateBorderConic 6.5s linear infinite;
+      z-index: -2;
+    }
+
+    .manager-table-card.active::after {
+      content: '';
+      position: absolute;
+      inset: 3px;
+      background-color: var(--canvas);
+      border-radius: 6px;
+      z-index: -1;
+      transition: background-color 0.2s ease;
+    }
+
+    .manager-table-card.active.occupied::after {
+      background-color: var(--surface-soft);
+    }
+
+    @keyframes rotateBorderConic {
+      0% {
+        transform: translate(-50%, -50%) rotate(0deg);
+      }
+      100% {
+        transform: translate(-50%, -50%) rotate(360deg);
+      }
     }
 
     .manager-table-card.occupied {
@@ -706,10 +753,43 @@
     }
 
     .pay-method-card.active {
-      border-color: var(--ink);
+      border: none !important;
+      position: relative;
+      z-index: 1;
+      overflow: hidden;
+      background-color: transparent !important;
+    }
+
+    .pay-method-card.active::before {
+      content: '';
+      position: absolute;
+      width: 300%;
+      aspect-ratio: 1 / 1;
+      top: 50%;
+      left: 50%;
+      background: conic-gradient(
+        from 0deg,
+        #ff0000,
+        #ff7700,
+        #ffff00,
+        #00ff00,
+        #00ffff,
+        #0000ff,
+        #ff00ff,
+        #ff0000
+      );
+      animation: rotateBorderConic 6.5s linear infinite;
+      z-index: -2;
+    }
+
+    .pay-method-card.active::after {
+      content: '';
+      position: absolute;
+      inset: 3px;
       background-color: var(--surface-soft);
-      border-width: 2px;
-      padding: 11px; /* Offset border width */
+      border-radius: calc(var(--rounded-md) - 2px);
+      z-index: -1;
+      transition: background-color 0.2s ease;
     }
 
     .pay-method-icon {

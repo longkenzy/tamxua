@@ -765,7 +765,11 @@ app.post('/api/order', async (req, res) => {
     // Broadcast update
     const updatedTables = await getTablesWithOrders();
     io.emit('tables_updated', updatedTables);
-    io.emit('order_submitted', { tableName: table.name });
+    if (items.length > 0) {
+      io.emit('order_submitted', { tableName: table.name });
+    } else {
+      io.emit('order_cancelled', { tableName: table.name });
+    }
 
     res.json({ success: true });
   } catch (error) {

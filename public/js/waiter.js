@@ -758,14 +758,22 @@ function openCartModal() {
     }
   } else {
     // New quick order from "Tất cả" tab
+    let isTakeawayTab = false;
     if (serviceTypeSelect) {
-      serviceTypeSelect.value = 'table'; // Default choice
+      const activeSidebarItem = document.querySelector('.orders-sidebar .sidebar-item.active');
+      const currentSidebarFilter = activeSidebarItem ? activeSidebarItem.getAttribute('data-sidebar') : 'all';
+      if (currentSidebarFilter === 'takeaway') {
+        serviceTypeSelect.value = 'takeaway';
+        isTakeawayTab = true;
+      } else {
+        serviceTypeSelect.value = 'table'; // Default choice
+      }
       serviceTypeSelect.disabled = false;
     }
     if (tableSelectContainer) {
-      tableSelectContainer.style.display = 'flex';
+      tableSelectContainer.style.display = isTakeawayTab ? 'none' : 'flex';
       if (displayLabel) {
-        if (pickerSelectedTableId) {
+        if (pickerSelectedTableId && !isTakeawayTab) {
           const tbl = tables.find(t => t.id === pickerSelectedTableId);
           displayLabel.textContent = tbl ? tbl.name : 'Chọn bàn';
           displayLabel.style.color = '#0066cc';
