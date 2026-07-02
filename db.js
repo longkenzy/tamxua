@@ -1,4 +1,29 @@
 const { Pool } = require('pg');
+const fs = require('fs');
+const path = require('path');
+
+// Tự động nạp biến môi trường từ file .env cục bộ nếu có
+try {
+  const envPath = path.join(__dirname, '.env');
+  if (fs.existsSync(envPath)) {
+    const envConfig = fs.readFileSync(envPath, 'utf8');
+    envConfig.split(/\r?\n/).forEach(line => {
+      const trimmed = line.trim();
+      if (trimmed && !trimmed.startsWith('#')) {
+        const eqIdx = trimmed.indexOf('=');
+        if (eqIdx > 0) {
+          const key = trimmed.slice(0, eqIdx).trim();
+          const val = trimmed.slice(eqIdx + 1).trim();
+          // Loại bỏ dấu nháy đơn/kép bao quanh nếu có
+          const cleanVal = val.replace(/^["']|["']$/g, '');
+          process.env[key] = cleanVal;
+        }
+      }
+    });
+  }
+} catch (err) {
+  console.warn('Lỗi khi đọc file .env:', err.message);
+}
 
 const connectionString = process.env.DATABASE_URL || 'postgresql://neondb_owner:npg_NbrJR84XSpVs@ep-summer-tree-ao7hrpst-pooler.c-2.ap-southeast-1.aws.neon.tech/neondb?sslmode=require';
 
