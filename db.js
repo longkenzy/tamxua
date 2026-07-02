@@ -25,7 +25,7 @@ try {
   console.warn('Lỗi khi đọc file .env:', err.message);
 }
 
-const connectionString = process.env.DATABASE_URL || 'postgresql://neondb_owner:npg_NbrJR84XSpVs@ep-summer-tree-ao7hrpst-pooler.c-2.ap-southeast-1.aws.neon.tech/neondb?sslmode=require';
+const connectionString = process.env.DATABASE_URL || 'postgresql://neondb_owner:npg_X2jGPN4Autnl@ep-wispy-dew-aoeh1jje-pooler.c-2.ap-southeast-1.aws.neon.tech/neondb?channel_binding=require&sslmode=require';
 
 const pool = new Pool({
   connectionString: connectionString,
