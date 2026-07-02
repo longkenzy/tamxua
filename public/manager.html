@@ -1811,31 +1811,55 @@
     </div>
 
     <!-- VIEW 4.5: Revenue Report View (Báo cáo doanh thu - Hidden by default) -->
-    <div id="report-revenue-dashboard-view" style="display: none; flex-direction: column; width: 100%; box-sizing: border-box;">
+    <style>
+      .report-view-animate {
+        animation: reportViewFadeInUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+      }
+      @keyframes reportViewFadeInUp {
+        0% { opacity: 0; transform: translateY(16px); }
+        100% { opacity: 1; transform: translateY(0); }
+      }
+      .report-chart-tab {
+        border-bottom: 2px solid transparent;
+        padding-bottom: 8px;
+        font-size: 14px;
+        font-weight: 600;
+        color: #64748b;
+        cursor: pointer;
+        transition: all 0.25s ease;
+        user-select: none;
+      }
+      .report-chart-tab:hover {
+        color: #0066cc;
+      }
+      .report-chart-tab.active {
+        color: #0066cc;
+        font-weight: 700;
+        border-bottom-color: #0066cc;
+      }
+    </style>
+    <div id="report-revenue-dashboard-view" class="report-view-animate" style="display: none; flex-direction: column; width: 100%; box-sizing: border-box;">
       <!-- Filters bar -->
       <div class="report-filters-bar" style="display: flex; gap: 16px; align-items: flex-end; background-color: var(--canvas); border-bottom: 1px solid var(--hairline-soft); padding: 16px 24px; flex-wrap: wrap;">
-        <div style="display: flex; flex-direction: column; gap: 4px;">
-          <label style="font-size: 12px; font-weight: 600; color: var(--muted);">Loại báo cáo</label>
-          <select id="report-type" class="text-input" style="height: 38px; width: 180px; padding: 0 12px; border-radius: 6px; font-size: 13px; font-weight: 600; border: 1px solid #cbd5e1; outline: none; background: #ffffff; cursor: pointer;">
+        <div style="width: 200px;">
+          <select id="report-type">
             <option value="overview">Doanh thu tổng quan</option>
           </select>
         </div>
-        <div style="display: flex; flex-direction: column; gap: 4px;">
-          <label style="font-size: 12px; font-weight: 600; color: var(--muted);">Thời gian</label>
-          <select id="report-time-preset" class="text-input" style="height: 38px; width: 180px; padding: 0 12px; border-radius: 6px; font-size: 13px; font-weight: 600; border: 1px solid #cbd5e1; outline: none; background: #ffffff; cursor: pointer;">
+        <div style="width: 200px;">
+          <select id="report-time-preset">
             <option value="today">Hôm nay</option>
             <option value="yesterday" selected>Hôm qua</option>
             <option value="7days">7 ngày qua</option>
             <option value="thismonth">Tháng này</option>
           </select>
         </div>
-        <div style="display: flex; flex-direction: column; gap: 4px;">
-          <label style="font-size: 12px; font-weight: 600; color: var(--muted);">Giờ</label>
-          <select id="report-hour-range" class="text-input" style="height: 38px; width: 180px; padding: 0 12px; border-radius: 6px; font-size: 13px; font-weight: 600; border: 1px solid #cbd5e1; outline: none; background: #ffffff; cursor: pointer;">
+        <div style="width: 200px;">
+          <select id="report-hour-range">
             <option value="full">00:00 - 00:00 (+1)</option>
           </select>
         </div>
-        <button class="btn btn-primary" id="btn-view-report" style="height: 38px; padding: 0 20px; font-size: 13px; font-weight: 700; border-radius: 6px;">
+        <button class="btn btn-primary" id="btn-view-report" style="height: 56px; padding: 0 24px; font-size: 14px; font-weight: 700; border-radius: 8px;">
           Xem báo cáo
         </button>
       </div>
@@ -1906,25 +1930,38 @@
     </div>
 
     <!-- VIEW 4.6: Item Report View (Báo cáo mặt hàng - Hidden by default) -->
-    <div id="report-items-dashboard-view" style="display: none; flex-direction: column; width: 100%; box-sizing: border-box;">
+    <div id="report-items-dashboard-view" class="report-view-animate" style="display: none; flex-direction: column; width: 100%; box-sizing: border-box;">
       <!-- Filters bar -->
       <div class="report-filters-bar" style="display: flex; gap: 16px; align-items: flex-end; background-color: var(--canvas); border-bottom: 1px solid var(--hairline-soft); padding: 16px 24px; flex-wrap: wrap;">
-        <div style="display: flex; flex-direction: column; gap: 4px;">
-          <label style="font-size: 12px; font-weight: 600; color: var(--muted);">Loại báo cáo</label>
-          <select id="report-items-type" class="text-input" style="height: 38px; width: 180px; padding: 0 12px; border-radius: 6px; font-size: 13px; font-weight: 600; border: 1px solid #cbd5e1; outline: none; background: #ffffff; cursor: pointer;">
-            <option value="sales">Báo cáo mặt hàng bán chạy</option>
+        <div style="width: 240px;">
+          <select id="report-items-type">
+            <option value="sales">Danh mục mặt hàng</option>
+            <option value="best-sellers">Mặt hàng bán chạy</option>
+            <option value="selection-groups">Danh mục nhóm lựa chọn</option>
+            <option value="best-combos">Combo bán chạy</option>
+            <option value="cancelled-items">Mặt hàng đã huỷ</option>
+            <option value="cancelled-combos">Combo đã huỷ</option>
           </select>
         </div>
-        <div style="display: flex; flex-direction: column; gap: 4px;">
-          <label style="font-size: 12px; font-weight: 600; color: var(--muted);">Thời gian</label>
-          <select id="report-items-time" class="text-input" style="height: 38px; width: 180px; padding: 0 12px; border-radius: 6px; font-size: 13px; font-weight: 600; border: 1px solid #cbd5e1; outline: none; background: #ffffff; cursor: pointer;">
+        <div style="width: 200px;">
+          <select id="report-items-time">
             <option value="today">Hôm nay</option>
             <option value="yesterday" selected>Hôm qua</option>
             <option value="7days">7 ngày qua</option>
             <option value="thismonth">Tháng này</option>
           </select>
         </div>
-        <button class="btn btn-primary" id="btn-view-items-report" style="height: 38px; padding: 0 20px; font-size: 13px; font-weight: 700; border-radius: 6px;">
+        <div style="width: 200px;">
+          <select id="report-items-hour">
+            <option value="full">00:00 - 00:00 (+1)</option>
+          </select>
+        </div>
+        <div style="width: 200px;">
+          <select id="report-items-compare">
+            <option value="prev">Giai đoạn trước</option>
+          </select>
+        </div>
+        <button class="btn btn-primary" id="btn-view-items-report" style="height: 56px; padding: 0 24px; font-size: 14px; font-weight: 700; border-radius: 8px;">
           Xem báo cáo
         </button>
       </div>
@@ -1932,26 +1969,44 @@
       <!-- Report Header -->
       <div style="display: flex; justify-content: space-between; align-items: center; padding: 20px 24px; border-bottom: 1px solid var(--hairline-soft);">
         <div>
-          <h2 style="font-size: 16px; font-weight: 800; color: #1e293b; text-transform: uppercase; margin: 0;">BÁO CÁO CHI TIẾT MẶT HÀNG BÁN CHẠY</h2>
-          <p style="font-size: 12px; font-style: italic; color: var(--muted); margin: 4px 0 0 0;" id="report-items-view-time-label">Xem lúc: 10:25 SA 02/07/2026</p>
+          <h2 style="font-size: 16px; font-weight: 800; color: #1e293b; text-transform: uppercase; margin: 0; display: flex; align-items: center; gap: 6px;">
+            BÁO CÁO DANH MỤC MẶT HÀNG <span style="font-size: 14px; color: var(--muted); cursor: pointer;" title="Báo cáo phân tích doanh số và số lượng bán ra theo từng nhóm danh mục thực đơn">ℹ️</span>
+          </h2>
+          <p style="font-size: 12px; font-style: italic; color: var(--muted); margin: 4px 0 0 0;" id="report-items-view-time-label">Xem lúc: 10:48 SA 02/07/2026</p>
         </div>
         <button class="btn btn-secondary" id="btn-export-excel-items-report" style="height: 36px; padding: 0 16px; border-color: #10b981; color: #10b981; font-weight: 600; display: flex; align-items: center; gap: 6px; border-radius: 6px; cursor: pointer; background: transparent;">
           <span style="color: #10b981; font-weight: 700;">📥</span> Xuất báo cáo
         </button>
       </div>
 
+      <!-- Chart Panel -->
+      <div style="padding: 24px; background-color: #ffffff;">
+        <div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; box-shadow: var(--shadow-sm);">
+          <div style="display: flex; gap: 24px; border-bottom: 1px solid #e2e8f0; margin-bottom: 16px; padding-bottom: 8px;">
+            <div class="report-chart-tab active" id="btn-item-chart-revenue" style="font-weight: 700; color: #0066cc; cursor: pointer; padding-bottom: 8px; border-bottom: 2px solid #0066cc; transition: all 0.2s;">Tổng tiền hàng</div>
+            <div class="report-chart-tab" id="btn-item-chart-qty" style="font-weight: 600; color: #64748b; cursor: pointer; padding-bottom: 8px; border-bottom: 2px solid transparent; transition: all 0.2s;">Số lượng</div>
+          </div>
+          <div style="height: 280px; position: relative; width: 100%;">
+            <canvas id="report-items-horizontal-chart"></canvas>
+          </div>
+        </div>
+      </div>
+
       <!-- Table Panel -->
       <div style="padding: 24px;">
-        <div style="background: white; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; box-shadow: var(--shadow-sm);">
-          <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 13px;">
+        <div style="background: white; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; box-shadow: var(--shadow-sm); overflow-x: auto;">
+          <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 13px; min-width: 900px;">
             <thead>
               <tr style="background-color: #f8fafc; border-bottom: 1px solid #e2e8f0; color: #475569; font-weight: 700; font-size: 12px; text-transform: uppercase;">
-                <th style="padding: 14px 16px; width: 60px; text-align: center;">STT</th>
-                <th style="padding: 14px 16px;">Mặt hàng</th>
-                <th style="padding: 14px 16px; text-align: center;">Nhóm thực đơn</th>
-                <th style="padding: 14px 16px; text-align: right;">Đơn giá gốc (đ)</th>
-                <th style="padding: 14px 16px; text-align: center;">Số lượng bán</th>
-                <th style="padding: 14px 16px; text-align: right;">Doanh thu bán (đ)</th>
+                <th style="padding: 14px 16px; text-align: left;">Danh mục</th>
+                <th style="padding: 14px 16px; text-align: center;">Đơn vị</th>
+                <th style="padding: 14px 16px; text-align: center;">SL(TL / TG)</th>
+                <th style="padding: 14px 16px; text-align: center;">Tỷ lệ số lượng</th>
+                <th style="padding: 14px 16px; text-align: right;">Tiền hàng</th>
+                <th style="padding: 14px 16px; text-align: center;">Tỷ lệ tiền hàng</th>
+                <th style="padding: 14px 16px; text-align: right;">Tổng giảm giá</th>
+                <th style="padding: 14px 16px; text-align: right;">Tiền sau giảm giá</th>
+                <th style="padding: 14px 16px; text-align: right;">Tổng tiền</th>
               </tr>
             </thead>
             <tbody id="report-items-table-body">
