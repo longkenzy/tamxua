@@ -4494,11 +4494,15 @@ function handleExcelImport(event) {
         if (res.ok && result.success) {
           showToast(`✅ Đã nhập thành công ${result.count} mặt hàng!`);
           
-          // Refresh menu list in UI
+          // Làm mới danh sách món ăn và các nhóm thực đơn ngay lập tức (quan trọng khi chạy trên Vercel không có WebSocket)
           const menuRes = await fetch('/api/menu');
           if (menuRes.ok) {
             menuItems = await menuRes.json();
             renderMenuMgmtGrid();
+          }
+          
+          if (typeof loadMenuGroups === 'function') {
+            loadMenuGroups();
           }
         } else {
           alert(`Lỗi khi nhập Excel: ${result.error || 'Vui lòng thử lại.'}`);

@@ -246,8 +246,9 @@ app.post('/api/menu-import', requireManager, async (req, res) => {
     return res.status(400).json({ error: 'Danh sách mặt hàng không hợp lệ.' });
   }
 
+  const client = await db.pool.connect();
   try {
-    await db.query('BEGIN');
+    await client.query('BEGIN');
 
     for (const item of items) {
       const { name, price, description, category, emoji, imageUrlLink } = item;
@@ -267,7 +268,7 @@ app.post('/api/menu-import', requireManager, async (req, res) => {
       const finalDesc = description ? description.trim() : '';
       const finalImg = imageUrlLink ? imageUrlLink.trim() : null;
 
-      await db.query(`
+      await client.query(`
         INSERT INTO menu (id, name, price, category, emoji, description, image_url)
         VALUES ($1, $2, $3, $4, $5, $6, $7)
       `, [id, name.trim(), cleanPrice, finalCategory, finalEmoji, finalDesc, finalImg]);
@@ -275,41 +276,60 @@ app.post('/api/menu-import', requireManager, async (req, res) => {
       // Tự động tìm hoặc tạo nhóm thực đơn (menu_groups) và liên kết món ăn vào nhóm đó
       if (finalCategory) {
         let groupId;
-        const groupCheck = await db.query(
+        const groupCheck = await client.query(
           'SELECT id FROM menu_groups WHERE TRIM(UPPER(name)) = TRIM(UPPER($1))', 
           [finalCategory]
         );
         if (groupCheck.rows.length > 0) {
           groupId = groupCheck.rows[0].id;
         } else {
-          // Tạo nhóm thực đơn mới nếu chưa có
-          const insertGroupRes = await db.query(
-            'INSERT INTO menu_groups (name) VALUES ($1) RETURNING id',
-            [finalCategory]
-          );
-          groupId = insertGroupRes.rows[0].id;
+          try {
+            // Tạo nhóm thực đơn mới nếu chưa có
+            const insertGroupRes = await client.query(
+              'INSERT INTO menu_groups (name) VALUES ($1) RETURNING id',
+              [finalCategory]
+            );
+            groupId = insertGroupRes.rows[0].id;
+          } catch (grpErr) {
+            // Nếu có lỗi do trùng lặp đồng thời (unique constraint), tìm lại nhóm hiện tại
+            if (grpErr.code === '23505') {
+              const retryCheck = await client.query(
+                'SELECT id FROM menu_groups WHERE TRIM(UPPER(name)) = TRIM(UPPER($1))', 
+                [finalCategory]
+              );
+              if (retryCheck.rows.length > 0) {
+                groupId = retryCheck.rows[0].id;
+              } else {
+                throw grpErr;
+              }
+            } else {
+              throw grpErr;
+            }
+          }
         }
 
         // Liên kết món ăn vào nhóm thực đơn
-        await db.query(
+        await client.query(
           'INSERT INTO menu_group_items (menu_group_id, item_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
           [groupId, id]
         );
       }
     }
 
-    await db.query('COMMIT');
+    await client.query('COMMIT');
 
-    // Broadcast updated menu to all clients
+    // Broadcast updated menu to all clients (can use general query now since connection is outside the transaction loop)
     const menuRes = await db.query('SELECT * FROM menu ORDER BY category, id');
     io.emit('menu_updated', menuRes.rows);
     io.emit('menu_groups_updated');
 
     res.json({ success: true, count: items.length });
   } catch (error) {
-    await db.query('ROLLBACK');
+    await client.query('ROLLBACK');
     console.error('Lỗi nhập thực đơn từ Excel:', error);
     res.status(400).json({ error: error.message || 'Lỗi hệ thống khi nhập Excel.' });
+  } finally {
+    client.release();
   }
 });
 
@@ -470,10 +490,11 @@ app.post('/api/menu-groups', requireManager, async (req, res) => {
     return res.status(400).json({ error: 'Tên thực đơn là bắt buộc.' });
   }
 
+  const client = await db.pool.connect();
   try {
-    await db.query('BEGIN');
+    await client.query('BEGIN');
 
-    const insertGroupRes = await db.query(
+    const insertGroupRes = await client.query(
       'INSERT INTO menu_groups (name) VALUES ($1) RETURNING id',
       [name]
     );
@@ -481,27 +502,29 @@ app.post('/api/menu-groups', requireManager, async (req, res) => {
 
     if (itemIds && Array.isArray(itemIds) && itemIds.length > 0) {
       for (const itemId of itemIds) {
-        await db.query(
+        await client.query(
           'INSERT INTO menu_group_items (menu_group_id, item_id) VALUES ($1, $2)',
           [newGroupId, itemId]
         );
       }
     }
 
-    await db.query('COMMIT');
+    await client.query('COMMIT');
 
     // Broadcast updated groups to all clients
     io.emit('menu_groups_updated');
 
     res.json({ success: true, id: newGroupId });
   } catch (error) {
-    await db.query('ROLLBACK');
+    await client.query('ROLLBACK');
     console.error('Lỗi tạo nhóm thực đơn:', error);
     if (error.code === '23505') {
       res.status(400).json({ error: 'Tên thực đơn đã tồn tại.' });
     } else {
       res.status(500).json({ error: 'Lỗi hệ thống.' });
     }
+  } finally {
+    client.release();
   }
 });
 
@@ -514,42 +537,45 @@ app.put('/api/menu-groups/:id', requireManager, async (req, res) => {
     return res.status(400).json({ error: 'Tên thực đơn là bắt buộc.' });
   }
 
+  const client = await db.pool.connect();
   try {
-    await db.query('BEGIN');
+    await client.query('BEGIN');
 
     // Update name
-    await db.query(
+    await client.query(
       'UPDATE menu_groups SET name = $1 WHERE id = $2',
       [name, parseInt(id)]
     );
 
     // Delete existing links
-    await db.query('DELETE FROM menu_group_items WHERE menu_group_id = $1', [parseInt(id)]);
+    await client.query('DELETE FROM menu_group_items WHERE menu_group_id = $1', [parseInt(id)]);
 
     // Insert new links
     if (itemIds && Array.isArray(itemIds) && itemIds.length > 0) {
       for (const itemId of itemIds) {
-        await db.query(
+        await client.query(
           'INSERT INTO menu_group_items (menu_group_id, item_id) VALUES ($1, $2)',
           [parseInt(id), itemId]
         );
       }
     }
 
-    await db.query('COMMIT');
+    await client.query('COMMIT');
 
     // Broadcast updated groups to all clients
     io.emit('menu_groups_updated');
 
     res.json({ success: true });
   } catch (error) {
-    await db.query('ROLLBACK');
+    await client.query('ROLLBACK');
     console.error('Lỗi cập nhật nhóm thực đơn:', error);
     if (error.code === '23505') {
       res.status(400).json({ error: 'Tên thực đơn đã tồn tại.' });
     } else {
       res.status(500).json({ error: 'Lỗi hệ thống.' });
     }
+  } finally {
+    client.release();
   }
 });
 
