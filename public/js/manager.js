@@ -920,12 +920,87 @@ function renderTableDetails(table) {
       `).join('')}
     </div>
 
-    <button class="btn btn-primary full-width mt-md" id="btn-trigger-checkout" style="margin-top: 12px; height: 50px;">
-      Thanh toán và in hoá đơn
-    </button>
+    <div style="display: flex; gap: 8px; margin-top: 16px; animation: fadeInUp 0.4s ease-out;">
+      <button class="btn btn-danger" id="btn-delete-order-direct" style="flex: 1; height: 50px; background-color: var(--primary-error-text); border-color: var(--primary-error-text); color: white; font-weight: 700; border-radius: 8px; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); display: flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer; border: none; box-shadow: 0 4px 6px -1px rgba(239, 68, 68, 0.15);">
+        <span style="font-size: 16px;">🗑️</span> Hủy đơn
+      </button>
+      <button class="btn btn-primary" id="btn-trigger-checkout" style="flex: 2.2; height: 50px; font-weight: 700; border-radius: 8px; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); display: flex; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 4px 6px -1px rgba(0, 136, 255, 0.15);">
+        🖨️ Thanh toán & In đơn
+      </button>
+    </div>
   `;
 
-  document.getElementById('btn-trigger-checkout').addEventListener('click', () => openCheckoutModal(table));
+  // Thêm hover effect động bằng JS cho nút Hủy đơn để mượt mà hơn
+  const btnDeleteOrderDirect = document.getElementById('btn-delete-order-direct');
+  if (btnDeleteOrderDirect) {
+    btnDeleteOrderDirect.onmouseover = () => {
+      btnDeleteOrderDirect.style.transform = 'translateY(-2px)';
+      btnDeleteOrderDirect.style.boxShadow = '0 6px 12px -2px rgba(239, 68, 68, 0.3)';
+    };
+    btnDeleteOrderDirect.onmouseout = () => {
+      btnDeleteOrderDirect.style.transform = 'translateY(0)';
+      btnDeleteOrderDirect.style.boxShadow = '0 4px 6px -1px rgba(239, 68, 68, 0.15)';
+    };
+    btnDeleteOrderDirect.addEventListener('click', async () => {
+      const tableName = table.name || `Bàn ${table.id}`;
+      if (confirm(`Bạn có chắc chắn muốn hủy và xóa toàn bộ món ăn đang gọi của ${tableName} không?`)) {
+        btnDeleteOrderDirect.disabled = true;
+        try {
+          const response = await fetch('/api/order', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              tableId: table.id,
+              items: [] // Mảng rỗng xóa sạch món
+            })
+          });
+
+          if (response.status === 401) {
+            window.location.href = '/login.html';
+            return;
+          }
+
+          const result = await response.json();
+          if (result.success) {
+            showToast(`✅ Đã hủy đơn hàng của ${tableName} thành công!`);
+            
+            // Tải lại bàn ăn
+            const tablesRes = await fetch('/api/tables');
+            if (tablesRes.ok) {
+              tables = await tablesRes.json();
+              renderTables();
+              
+              // Đặt về trống và render bảng thông tin trống
+              selectedTableId = null;
+              renderTableDetails(null);
+            }
+          } else {
+            alert(`Lỗi khi hủy đơn: ${result.error || 'Vui lòng thử lại.'}`);
+          }
+        } catch (err) {
+          console.error("Lỗi khi hủy đơn:", err);
+          alert("Không thể kết nối đến máy chủ. Vui lòng kiểm tra mạng.");
+        } finally {
+          btnDeleteOrderDirect.disabled = false;
+        }
+      }
+    });
+  }
+
+  const btnTriggerCheckout = document.getElementById('btn-trigger-checkout');
+  if (btnTriggerCheckout) {
+    btnTriggerCheckout.onmouseover = () => {
+      btnTriggerCheckout.style.transform = 'translateY(-2px)';
+      btnTriggerCheckout.style.boxShadow = '0 6px 12px -2px rgba(0, 136, 255, 0.3)';
+    };
+    btnTriggerCheckout.onmouseout = () => {
+      btnTriggerCheckout.style.transform = 'translateY(0)';
+      btnTriggerCheckout.style.boxShadow = '0 4px 6px -1px rgba(0, 136, 255, 0.15)';
+    };
+    btnTriggerCheckout.addEventListener('click', () => openCheckoutModal(table));
+  }
 }
 
 // Delete table function
@@ -1248,58 +1323,6 @@ function closeCheckoutModal() {
 btnCancelCheckout.addEventListener('click', closeCheckoutModal);
 btnCloseCheckoutModal.addEventListener('click', closeCheckoutModal);
 
-const btnDeleteOrderCheckout = document.getElementById('btn-delete-order-checkout');
-if (btnDeleteOrderCheckout) {
-  btnDeleteOrderCheckout.addEventListener('click', async () => {
-    if (!selectedTableId) return;
-    const table = tables.find(t => t.id === selectedTableId);
-    const tableName = table ? table.name : `Bàn ${selectedTableId}`;
-    if (confirm(`Bạn có chắc chắn muốn hủy và xóa toàn bộ món ăn đang gọi của ${tableName} không?`)) {
-      btnDeleteOrderCheckout.disabled = true;
-      try {
-        const response = await fetch('/api/order', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            tableId: selectedTableId,
-            items: [] // Mảng rỗng sẽ tự động xóa tất cả món ăn của bàn và đổi trạng thái bàn về trống
-          })
-        });
-
-        if (response.status === 401) {
-          window.location.href = '/login.html';
-          return;
-        }
-
-        const result = await response.json();
-        if (result.success) {
-          showToast(`✅ Đã hủy đơn hàng của ${tableName} thành công!`);
-          closeCheckoutModal();
-          
-          // Tải lại sơ đồ bàn ăn để cập nhật giao diện
-          const tablesRes = await fetch('/api/tables');
-          if (tablesRes.ok) {
-            tables = await tablesRes.json();
-            renderTables();
-            
-            // Bỏ chọn bàn hiện tại để xóa bảng thông tin chi tiết
-            selectedTableId = null;
-            renderTableDetailPanel();
-          }
-        } else {
-          alert(`Lỗi khi hủy đơn: ${result.error || 'Vui lòng thử lại.'}`);
-        }
-      } catch (err) {
-        console.error("Lỗi khi hủy đơn:", err);
-        alert("Không thể kết nối đến máy chủ. Vui lòng kiểm tra mạng.");
-      } finally {
-        btnDeleteOrderCheckout.disabled = false;
-      }
-    }
-  });
-}
 
 btnConfirmCheckoutPay.addEventListener('click', async () => {
   const cash = parseFloat(inputReceivedCash.value) || 0;
