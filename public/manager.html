@@ -1837,6 +1837,65 @@
         font-weight: 700;
         border-bottom-color: #0066cc;
       }
+      
+      /* Premium Excel export button with rotating gradient border */
+      .premium-excel-btn {
+        position: relative;
+        z-index: 1;
+        overflow: hidden;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        height: 38px;
+        padding: 0 18px;
+        border: none !important;
+        border-radius: 6px;
+        color: #ffffff !important;
+        font-weight: 700;
+        font-size: 13px;
+        cursor: pointer;
+        background-color: transparent !important;
+        transition: transform 0.2s, box-shadow 0.2s;
+        box-shadow: 0 4px 10px rgba(16, 124, 65, 0.15);
+        user-select: none;
+      }
+      .premium-excel-btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 6px 14px rgba(16, 124, 65, 0.25);
+      }
+      .premium-excel-btn::before {
+        content: '';
+        position: absolute;
+        width: 250%;
+        aspect-ratio: 1 / 1;
+        top: 50%;
+        left: 50%;
+        background: conic-gradient(
+          from 0deg,
+          #107c41,
+          #1f9a55,
+          #a7f3d0,
+          #107c41,
+          #1f9a55,
+          #a7f3d0,
+          #107c41
+        );
+        animation: rotateBorderConic 5s linear infinite;
+        z-index: -2;
+      }
+      .premium-excel-btn::after {
+        content: '';
+        position: absolute;
+        inset: 2px;
+        background: linear-gradient(135deg, #1f9a55 0%, #107c41 100%);
+        border-radius: 4px;
+        z-index: -1;
+        transition: background 0.3s;
+      }
+      .premium-excel-btn:hover::after {
+        background: linear-gradient(135deg, #22a95e 0%, #118c4b 100%);
+      }
     </style>
     <div id="report-revenue-dashboard-view" class="report-view-animate" style="display: none; flex-direction: column; width: 100%; box-sizing: border-box;">
       <!-- Filters bar -->
@@ -1870,8 +1929,13 @@
           <h2 style="font-size: 16px; font-weight: 800; color: #1e293b; text-transform: uppercase; margin: 0;">DOANH THU TỔNG QUAN</h2>
           <p style="font-size: 12px; font-style: italic; color: var(--muted); margin: 4px 0 0 0;" id="report-view-time-label">Xem lúc: 10:25 SA 02/07/2026</p>
         </div>
-        <button class="btn btn-secondary" id="btn-export-excel-report" style="height: 36px; padding: 0 16px; border-color: #10b981; color: #10b981; font-weight: 600; display: flex; align-items: center; gap: 6px; border-radius: 6px; cursor: pointer; background: transparent;">
-          <span style="color: #10b981; font-weight: 700;">📥</span> Xuất báo cáo
+        <button class="premium-excel-btn" id="btn-export-excel-report">
+          <svg width="16" height="16" viewBox="0 0 2048 2048" fill="none" xmlns="http://www.w3.org/2000/svg" style="display: inline-block; vertical-align: middle;">
+            <path d="M1376 0l672 384v1280l-672 384V0z" fill="#107C41"/>
+            <path d="M1376 0L0 256v1536l1376 256V0z" fill="#1F9A55"/>
+            <path d="M784 624h192l160 288 160-288h192L1120 928l368 496h-192l-256-384-256 384H592l368-496L784 624z" fill="#FFFFFF"/>
+          </svg>
+          Xuất báo cáo
         </button>
       </div>
 
@@ -1974,8 +2038,13 @@
           </h2>
           <p style="font-size: 12px; font-style: italic; color: var(--muted); margin: 4px 0 0 0;" id="report-items-view-time-label">Xem lúc: 10:48 SA 02/07/2026</p>
         </div>
-        <button class="btn btn-secondary" id="btn-export-excel-items-report" style="height: 36px; padding: 0 16px; border-color: #10b981; color: #10b981; font-weight: 600; display: flex; align-items: center; gap: 6px; border-radius: 6px; cursor: pointer; background: transparent;">
-          <span style="color: #10b981; font-weight: 700;">📥</span> Xuất báo cáo
+        <button class="premium-excel-btn" id="btn-export-excel-items-report">
+          <svg width="16" height="16" viewBox="0 0 2048 2048" fill="none" xmlns="http://www.w3.org/2000/svg" style="display: inline-block; vertical-align: middle;">
+            <path d="M1376 0l672 384v1280l-672 384V0z" fill="#107C41"/>
+            <path d="M1376 0L0 256v1536l1376 256V0z" fill="#1F9A55"/>
+            <path d="M784 624h192l160 288 160-288h192L1120 928l368 496h-192l-256-384-256 384H592l368-496L784 624z" fill="#FFFFFF"/>
+          </svg>
+          Xuất báo cáo
         </button>
       </div>
 

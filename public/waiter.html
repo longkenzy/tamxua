@@ -320,14 +320,13 @@
       font-weight: 700;
     }
 
-    /* Floating Action Button */
+    /* Floating Action Button with rotating gradient RGB border */
     .fab-btn {
       position: absolute;
       bottom: 16px;
       right: 16px;
-      background: linear-gradient(135deg, #00d084, #00bda6);
       color: #ffffff;
-      border: none;
+      border: none !important;
       border-radius: 8px;
       padding: 12px 20px;
       font-size: 15px;
@@ -335,13 +334,57 @@
       display: flex;
       align-items: center;
       gap: 6px;
-      box-shadow: 0 8px 20px rgba(0, 190, 158, 0.35);
+      box-shadow: 0 8px 20px rgba(0, 190, 158, 0.3);
       cursor: pointer;
       z-index: 100;
+      overflow: hidden;
+      background-color: transparent !important;
       transition: transform 0.2s, box-shadow 0.2s;
     }
     .fab-btn:active {
       transform: scale(0.95);
+    }
+    .fab-btn::before {
+      content: '';
+      position: absolute;
+      width: 250%;
+      aspect-ratio: 1 / 1;
+      top: 50%;
+      left: 50%;
+      background: conic-gradient(
+        from 0deg,
+        #ff0000,
+        #ff7700,
+        #ffff00,
+        #00ff00,
+        #00ffff,
+        #0000ff,
+        #ff00ff,
+        #ff0000
+      );
+      animation: rotateBorderConic 6.5s linear infinite;
+      z-index: -2;
+    }
+    .fab-btn::after {
+      content: '';
+      position: absolute;
+      inset: 2px;
+      background: linear-gradient(135deg, #00d084, #00bda6);
+      border-radius: 6px;
+      z-index: -1;
+      transition: background 0.3s;
+    }
+    .fab-btn:hover::after {
+      background: linear-gradient(135deg, #04df8f, #04cdb4);
+    }
+
+    @keyframes rotateBorderConic {
+      0% {
+        transform: translate(-50%, -50%) rotate(0deg);
+      }
+      100% {
+        transform: translate(-50%, -50%) rotate(360deg);
+      }
     }
 
     /* Empty states */
