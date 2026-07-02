@@ -474,6 +474,8 @@ function initAudioOnUserInteraction() {
 // Tab Navigation logic
 const tabs = {
   'reports': { el: document.getElementById('tab-overview'), view: document.getElementById('reports-dashboard-view'), title: 'Tổng quan kinh doanh' },
+  'report-revenue': { el: document.getElementById('subtab-report-revenue'), view: document.getElementById('report-revenue-dashboard-view'), title: 'Báo cáo doanh thu' },
+  'report-items': { el: document.getElementById('subtab-report-items'), view: document.getElementById('report-items-dashboard-view'), title: 'Báo cáo mặt hàng' },
   'tables': { el: document.getElementById('tab-reports'), view: document.getElementById('tables-dashboard-view'), title: 'Sơ đồ bàn ăn' },
   'invoices': { el: document.getElementById('tab-invoices'), view: document.getElementById('invoices-dashboard-view'), title: 'Lịch sử hóa đơn' },
   'menu-mgmt': { el: document.getElementById('subtab-item-list'), view: document.getElementById('menu-mgmt-dashboard-view'), title: 'Quản lý mặt hàng' },
@@ -504,6 +506,8 @@ function switchTab(tabKey) {
       if (key === tabKey) {
         if (key === 'tables' || key === 'staff') {
           tabObj.view.style.display = 'grid';
+        } else if (key === 'report-revenue' || key === 'report-items') {
+          tabObj.view.style.display = 'flex';
         } else {
           tabObj.view.style.display = 'block';
         }
@@ -523,7 +527,7 @@ function switchTab(tabKey) {
     }
   }
 
-  // Manage submenu items expansion & chevron rotation
+  // Manage submenu items expansion & chevron rotation for Items dropdown
   const submenu = document.getElementById('submenu-items');
   const chevron = document.querySelector('#tab-items-toggle .dropdown-chevron-icon');
   const isSubmenuTab = ['menu-mgmt', 'menu-preview'].includes(tabKey);
@@ -536,6 +540,22 @@ function switchTab(tabKey) {
       submenu.style.display = 'none';
       submenu.classList.remove('show');
       chevron.style.transform = 'rotate(0deg)';
+    }
+  }
+
+  // Manage submenu items expansion & chevron rotation for Báo cáo dropdown
+  const reportsSubmenu = document.getElementById('submenu-reports-new');
+  const reportsChevron = document.querySelector('#tab-reports-new-toggle .dropdown-chevron-icon');
+  const isReportsSubmenuTab = ['report-revenue', 'report-items'].includes(tabKey);
+  if (reportsSubmenu && reportsChevron) {
+    if (isReportsSubmenuTab) {
+      reportsSubmenu.style.display = 'flex';
+      reportsSubmenu.classList.add('show');
+      reportsChevron.style.transform = 'rotate(180deg)';
+    } else {
+      reportsSubmenu.style.display = 'none';
+      reportsSubmenu.classList.remove('show');
+      reportsChevron.style.transform = 'rotate(0deg)';
     }
   }
 
@@ -552,6 +572,10 @@ function switchTab(tabKey) {
     renderMenuMgmtGrid();
   } else if (tabKey === 'menu-preview') {
     renderMenuPreview();
+  } else if (tabKey === 'report-revenue') {
+    loadRevenueReport();
+  } else if (tabKey === 'report-items') {
+    loadItemsReport();
   }
 }
 
@@ -580,6 +604,26 @@ if (tabItemsToggle && submenuItems) {
     } else {
       submenuItems.style.display = 'none';
       submenuItems.classList.remove('show');
+      if (chevronIcon) chevronIcon.style.transform = 'rotate(0deg)';
+    }
+  });
+}
+
+// Bind click toggle for Báo cáo dropdown parent
+const tabReportsToggle = document.getElementById('tab-reports-new-toggle');
+const submenuReports = document.getElementById('submenu-reports-new');
+if (tabReportsToggle && submenuReports) {
+  tabReportsToggle.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const isHidden = submenuReports.style.display === 'none' || !submenuReports.classList.contains('show');
+    const chevronIcon = tabReportsToggle.querySelector('.dropdown-chevron-icon');
+    if (isHidden) {
+      submenuReports.style.display = 'flex';
+      submenuReports.classList.add('show');
+      if (chevronIcon) chevronIcon.style.transform = 'rotate(180deg)';
+    } else {
+      submenuReports.style.display = 'none';
+      submenuReports.classList.remove('show');
       if (chevronIcon) chevronIcon.style.transform = 'rotate(0deg)';
     }
   });
@@ -4712,5 +4756,335 @@ function handleExcelImport(event) {
 
 window.deleteMenuGroup = deleteMenuGroup;
 window.editMenuGroup = editMenuGroup;
+
+// Reports Feature Support
+let reportRevenueHourlyChartInstance = null;
+
+function loadRevenueReport() {
+  const timePreset = document.getElementById('report-time-preset').value;
+  const now = new Date();
+  let reportTxs = [];
+  
+  if (timePreset === 'today') {
+    const todayStr = now.toDateString();
+    reportTxs = transactions.filter(tx => new Date(tx.timestamp).toDateString() === todayStr);
+  } else if (timePreset === 'yesterday') {
+    const yesterday = new Date(now);
+    yesterday.setDate(now.getDate() - 1);
+    const yesterdayStr = yesterday.toDateString();
+    reportTxs = transactions.filter(tx => new Date(tx.timestamp).toDateString() === yesterdayStr);
+  } else if (timePreset === '7days') {
+    const limitDate = new Date(now);
+    limitDate.setDate(now.getDate() - 7);
+    reportTxs = transactions.filter(tx => new Date(tx.timestamp).getTime() >= limitDate.getTime());
+  } else if (timePreset === 'thismonth') {
+    const thisMonth = now.getMonth();
+    const thisYear = now.getFullYear();
+    reportTxs = transactions.filter(tx => {
+      const d = new Date(tx.timestamp);
+      return d.getMonth() === thisMonth && d.getFullYear() === thisYear;
+    });
+  }
+
+  // Calculate metrics
+  const totalInvoices = reportTxs.length;
+  const totalDiscount = reportTxs.reduce((sum, tx) => sum + (tx.discountAmount || 0), 0);
+  const totalRevenue = reportTxs.reduce((sum, tx) => sum + (tx.subtotal - (tx.discountAmount || 0)), 0);
+  const totalItemsQty = reportTxs.reduce((sum, tx) => {
+    return sum + (tx.items ? tx.items.reduce((iSum, i) => iSum + (i.quantity || 0), 0) : 0);
+  }, 0);
+
+  const avgItemsPerInvoice = totalInvoices > 0 ? (totalItemsQty / totalInvoices) : 0;
+  const avgRevenuePerInvoice = totalInvoices > 0 ? (totalRevenue / totalInvoices) : 0;
+
+  // Update DOM elements
+  document.getElementById('kpi-total-invoices').textContent = totalInvoices;
+  document.getElementById('kpi-canceled-invoices').textContent = '0';
+  document.getElementById('kpi-total-items-qty').textContent = totalItemsQty;
+  document.getElementById('kpi-avg-items-per-invoice').textContent = avgItemsPerInvoice.toFixed(2);
+  document.getElementById('kpi-avg-revenue-per-invoice').textContent = formatVND(avgRevenuePerInvoice);
+
+  // Set View Time Label
+  const pad = (num) => String(num).padStart(2, '0');
+  let hours = now.getHours();
+  const minutes = pad(now.getMinutes());
+  const ampm = hours >= 12 ? 'CH' : 'SA';
+  hours = hours % 12;
+  hours = hours ? hours : 12;
+  const day = pad(now.getDate());
+  const month = pad(now.getMonth() + 1);
+  const year = now.getFullYear();
+  document.getElementById('report-view-time-label').textContent = `Xem lúc: ${pad(hours)}:${minutes} ${ampm} ${day}/${month}/${year}`;
+
+  // Prepare hourly data
+  const hourlyData = Array(24).fill(0);
+  reportTxs.forEach(tx => {
+    if (tx.timestamp) {
+      const hour = new Date(tx.timestamp).getHours();
+      if (hour >= 0 && hour < 24) {
+        hourlyData[hour] += (tx.subtotal - (tx.discountAmount || 0));
+      }
+    }
+  });
+
+  // Render Bar Chart
+  const canvasEl = document.getElementById('report-revenue-hourly-chart');
+  if (canvasEl) {
+    const ctx = canvasEl.getContext('2d');
+    if (reportRevenueHourlyChartInstance) {
+      reportRevenueHourlyChartInstance.destroy();
+    }
+
+    reportRevenueHourlyChartInstance = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0') + ':00'),
+        datasets: [{
+          label: 'Doanh thu bán hàng (đ)',
+          data: hourlyData,
+          backgroundColor: '#0084ff',
+          borderColor: '#0084ff',
+          borderWidth: 1,
+          borderRadius: 4,
+          barPercentage: 0.6
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            display: false
+          },
+          tooltip: {
+            callbacks: {
+              label: function(context) {
+                return 'Doanh thu: ' + formatVND(context.raw);
+              }
+            }
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: {
+              callback: function(value) {
+                return formatVND(value);
+              },
+              color: '#64748b',
+              font: {
+                size: 11
+              }
+            },
+            grid: {
+              color: '#f1f5f9'
+            }
+          },
+          x: {
+            ticks: {
+              color: '#64748b',
+              font: {
+                size: 11
+              }
+            },
+            grid: {
+              display: false
+            }
+          }
+        }
+      }
+    });
+  }
+
+  // Hook export button
+  const btnExport = document.getElementById('btn-export-excel-report');
+  if (btnExport) {
+    btnExport.onclick = () => {
+      exportRevenueReportToExcel(reportTxs, totalRevenue, totalDiscount, totalInvoices, totalItemsQty);
+    };
+  }
+}
+
+function loadItemsReport() {
+  const timePreset = document.getElementById('report-items-time').value;
+  const now = new Date();
+  let reportTxs = [];
+  
+  if (timePreset === 'today') {
+    const todayStr = now.toDateString();
+    reportTxs = transactions.filter(tx => new Date(tx.timestamp).toDateString() === todayStr);
+  } else if (timePreset === 'yesterday') {
+    const yesterday = new Date(now);
+    yesterday.setDate(now.getDate() - 1);
+    const yesterdayStr = yesterday.toDateString();
+    reportTxs = transactions.filter(tx => new Date(tx.timestamp).toDateString() === yesterdayStr);
+  } else if (timePreset === '7days') {
+    const limitDate = new Date(now);
+    limitDate.setDate(now.getDate() - 7);
+    reportTxs = transactions.filter(tx => new Date(tx.timestamp).getTime() >= limitDate.getTime());
+  } else if (timePreset === 'thismonth') {
+    const thisMonth = now.getMonth();
+    const thisYear = now.getFullYear();
+    reportTxs = transactions.filter(tx => {
+      const d = new Date(tx.timestamp);
+      return d.getMonth() === thisMonth && d.getFullYear() === thisYear;
+    });
+  }
+
+  // Calculate items statistics
+  const itemStats = {};
+  reportTxs.forEach(tx => {
+    if (tx.items) {
+      tx.items.forEach(item => {
+        if (!itemStats[item.name]) {
+          itemStats[item.name] = {
+            name: item.name,
+            emoji: item.emoji,
+            qty: 0,
+            revenue: 0,
+            originalPrice: item.price || 0
+          };
+        }
+        itemStats[item.name].qty += item.quantity;
+        itemStats[item.name].revenue += (item.price || 0) * item.quantity;
+      });
+    }
+  });
+
+  const sortedItems = Object.values(itemStats).sort((a, b) => b.qty - a.qty);
+
+  // Update time label
+  const pad = (num) => String(num).padStart(2, '0');
+  let hours = now.getHours();
+  const minutes = pad(now.getMinutes());
+  const ampm = hours >= 12 ? 'CH' : 'SA';
+  hours = hours % 12;
+  hours = hours ? hours : 12;
+  const day = pad(now.getDate());
+  const month = pad(now.getMonth() + 1);
+  const year = now.getFullYear();
+  document.getElementById('report-items-view-time-label').textContent = `Xem lúc: ${pad(hours)}:${minutes} ${ampm} ${day}/${month}/${year}`;
+
+  // Populate Table Body
+  const tbody = document.getElementById('report-items-table-body');
+  if (tbody) {
+    tbody.innerHTML = '';
+
+    if (sortedItems.length === 0) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="6" style="padding: 24px; text-align: center; color: var(--muted); font-weight: 500;">
+            Không có dữ liệu mặt hàng nào trong thời gian này
+          </td>
+        </tr>
+      `;
+    } else {
+      sortedItems.forEach((item, idx) => {
+        const mItem = menuItems.find(m => m.name === item.name);
+        const menuGroup = mItem ? mItem.menu_group : 'Chưa phân nhóm';
+        const tr = document.createElement('tr');
+        tr.style.borderBottom = '1px solid #f1f5f9';
+        tr.innerHTML = `
+          <td style="padding: 12px 16px; text-align: center; font-weight: 600; color: #64748b;">${idx + 1}</td>
+          <td style="padding: 12px 16px; font-weight: 600; color: #1e293b; display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 18px;">${item.emoji || '🍔'}</span>
+            <span>${item.name}</span>
+          </td>
+          <td style="padding: 12px 16px; text-align: center; color: #475569;">${menuGroup}</td>
+          <td style="padding: 12px 16px; text-align: right; color: #475569;">${formatVND(item.originalPrice)}</td>
+          <td style="padding: 12px 16px; text-align: center; font-weight: 700; color: #0066cc;">${item.qty}</td>
+          <td style="padding: 12px 16px; text-align: right; font-weight: 700; color: #1e293b;">${formatVND(item.revenue)}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+  }
+
+  // Hook export button
+  const btnExport = document.getElementById('btn-export-excel-items-report');
+  if (btnExport) {
+    btnExport.onclick = () => {
+      exportItemsReportToExcel(sortedItems);
+    };
+  }
+}
+
+function exportRevenueReportToExcel(filteredTxs, totalRevenue, totalDiscount, totalInvoices, totalItemsQty) {
+  if (typeof XLSX === 'undefined') {
+    alert('Thư viện XLSX chưa được tải!');
+    return;
+  }
+  const data = [
+    { 'Chỉ số': 'Tổng số hóa đơn', 'Giá trị': totalInvoices },
+    { 'Chỉ số': 'Số hóa đơn hủy', 'Giá trị': 0 },
+    { 'Chỉ số': 'Số lượng mặt hàng đã bán', 'Giá trị': totalItemsQty },
+    { 'Chỉ số': 'Doanh thu thuần (đ)', 'Giá trị': totalRevenue },
+    { 'Chỉ số': 'Tổng giảm giá (đ)', 'Giá trị': totalDiscount },
+    { 'Chỉ số': 'Trung bình mặt hàng/HĐ', 'Giá trị': totalInvoices > 0 ? (totalItemsQty / totalInvoices).toFixed(2) : 0 },
+    { 'Chỉ số': 'Trung bình doanh thu/HĐ (đ)', 'Giá trị': totalInvoices > 0 ? Math.round(totalRevenue / totalInvoices) : 0 },
+    {},
+    { 'Chỉ số': 'CHI TIẾT DOANH THU THEO HÓA ĐƠN' },
+    { 'Chỉ số': 'Mã hóa đơn', 'Giá trị': 'Bàn', 'Chi tiết': 'Tổng tiền (đ)', 'Giảm giá (đ)', 'Thực thu (đ)', 'Phương thức', 'Thời gian' }
+  ];
+  
+  filteredTxs.forEach(tx => {
+    data.push({
+      'Chỉ số': tx.id,
+      'Giá trị': tx.tableName,
+      'Chi tiết': tx.subtotal,
+      'Giảm giá (đ)': tx.discountAmount,
+      'Thực thu (đ)': tx.subtotal - tx.discountAmount,
+      'Phương thức': tx.paymentMethod === 'bank' ? 'Chuyển khoản' : 'Tiền mặt',
+      'Thời gian': tx.timestamp
+    });
+  });
+
+  const worksheet = XLSX.utils.json_to_sheet(data, { skipHeader: true });
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Báo cáo doanh thu");
+  XLSX.writeFile(workbook, `Bao_cao_doanh_thu_${new Date().toISOString().slice(0,10)}.xlsx`);
+}
+
+function exportItemsReportToExcel(itemsList) {
+  if (typeof XLSX === 'undefined') {
+    alert('Thư viện XLSX chưa được tải!');
+    return;
+  }
+  const data = itemsList.map((item, idx) => {
+    const mItem = menuItems.find(m => m.name === item.name);
+    return {
+      'STT': idx + 1,
+      'Mặt hàng': item.name,
+      'Nhóm thực đơn': mItem ? mItem.menu_group : 'Chưa phân nhóm',
+      'Đơn giá gốc (đ)': item.originalPrice,
+      'Số lượng bán': item.qty,
+      'Doanh thu bán (đ)': item.revenue
+    };
+  });
+
+  const worksheet = XLSX.utils.json_to_sheet(data);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Báo cáo mặt hàng");
+  XLSX.writeFile(workbook, `Bao_cao_mat_hang_${new Date().toISOString().slice(0,10)}.xlsx`);
+}
+
+// Hook filter changes
+const reportTimePreset = document.getElementById('report-time-preset');
+if (reportTimePreset) {
+  reportTimePreset.addEventListener('change', loadRevenueReport);
+}
+const btnViewReport = document.getElementById('btn-view-report');
+if (btnViewReport) {
+  btnViewReport.addEventListener('click', loadRevenueReport);
+}
+
+const reportItemsTime = document.getElementById('report-items-time');
+if (reportItemsTime) {
+  reportItemsTime.addEventListener('change', loadItemsReport);
+}
+const btnViewItemsReport = document.getElementById('btn-view-items-report');
+if (btnViewItemsReport) {
+  btnViewItemsReport.addEventListener('click', loadItemsReport);
+}
 
 init();
