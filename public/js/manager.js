@@ -4372,7 +4372,8 @@ function downloadExcelTemplate() {
   // Column names in Vietnamese: tên mặt hàng, giá bán, thực đơn, mô tả, hình ảnh (link)
   const data = [
     { "Tên mặt hàng": "Cơm tấm đặc biệt", "Giá bán": 85000, "Thực đơn": "SƯỜN", "Mô tả": "Sườn, bì, chả và trứng ốp la lòng đào", "Hình ảnh (link)": "https://images.unsplash.com/photo-1541832676-9b763b0239ab?q=80&w=300" },
-    { "Tên mặt hàng": "Trà đá sả chanh", "Giá bán": 15000, "Thực đơn": "CANH VÀ TOPPING", "Mô tả": "Nước uống mát lạnh sảng khoái", "Hình ảnh (link)": "https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?q=80&w=300" }
+    { "Tên mặt hàng": "Trà đá sả chanh", "Giá bán": 15000, "Thực đơn": "CANH VÀ TOPPING", "Mô tả": "Nước uống mát lạnh sảng khoái", "Hình ảnh (link)": "https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?q=80&w=300" },
+    { "Tên mặt hàng": "Món ăn theo thời giá", "Giá bán": "", "Thực đơn": "CƠM NHÀ TẤM XƯA", "Mô tả": "Tự nhập giá khi nhân viên order", "Hình ảnh (link)": "" }
   ];
   
   if (typeof XLSX === 'undefined') {
@@ -4454,10 +4455,14 @@ function handleExcelImport(event) {
           return;
         }
         
-        const price = parseInt(priceVal);
-        if (isNaN(price) || price < 0) {
-          alert(`Dòng số ${i + 2} ("${name}"): Giá bán không hợp lệ (phải là số lớn hơn hoặc bằng 0).`);
-          return;
+        let price = 0;
+        if (priceVal !== undefined && priceVal !== null && String(priceVal).trim() !== "") {
+          const parsedPrice = parseInt(priceVal);
+          if (isNaN(parsedPrice) || parsedPrice < 0) {
+            alert(`Dòng số ${i + 2} ("${name}"): Giá bán không hợp lệ (phải là số lớn hơn hoặc bằng 0).`);
+            return;
+          }
+          price = parsedPrice;
         }
         
         itemsToImport.push({

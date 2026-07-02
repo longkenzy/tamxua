@@ -678,11 +678,13 @@ function renderMenuItems() {
         fontSize = '9.5px';
       }
 
+      const priceText = item.price === 0 ? 'Tự nhập giá' : formatVND(item.price);
+
       card.innerHTML = `
         <div class="sapo-food-card-img">
           ${imgHtml}
         </div>
-        <div class="sapo-food-card-price-bar">${formatVND(item.price)}</div>
+        <div class="sapo-food-card-price-bar">${priceText}</div>
         <div class="sapo-food-card-name-bar" style="font-size: ${fontSize};">${item.name}</div>
       `;
       
@@ -707,7 +709,11 @@ function openCustomModal(item) {
   } else {
     customModalEmoji.innerHTML = `<img src="images/logo.png" style="width:72px; height:72px; object-fit:cover; border-radius:var(--rounded-full);">`;
   }
-  customModalPrice.textContent = formatVND(item.price);
+  if (item.price === 0) {
+    customModalPrice.textContent = 'Giá: Tự nhập khi thêm';
+  } else {
+    customModalPrice.textContent = formatVND(item.price);
+  }
   customModalDesc.textContent = item.description || '';
   
   customItemModal.style.display = 'flex';
@@ -1140,9 +1146,21 @@ btnAddToCartConfirm.addEventListener('click', () => {
   
   const notes = customItemNotes.value.trim();
   
-  // Check if item with same ID and notes already exists in cart
+  let price = activeItem.price;
+  if (price === 0) {
+    const inputPrice = prompt(`Mặt hàng "${activeItem.name}" chưa có giá bán.\nVui lòng nhập giá bán của sản phẩm này (VNĐ):`, "");
+    if (inputPrice === null) return; // Nhân viên bấm Hủy
+    const parsedPrice = parseInt(inputPrice.replace(/[^0-9]/g, ''));
+    if (isNaN(parsedPrice) || parsedPrice < 0) {
+      alert('⚠️ Giá bán nhập vào không hợp lệ!');
+      return;
+    }
+    price = parsedPrice;
+  }
+  
+  // Kiểm tra xem món ăn có cùng ID, ghi chú và giá bán đã tồn tại trong giỏ chưa
   const existingIndex = cart.findIndex(
-    item => item.id === activeItem.id && item.notes === notes
+    item => item.id === activeItem.id && item.notes === notes && item.price === price
   );
   
   if (existingIndex !== -1) {
@@ -1151,7 +1169,7 @@ btnAddToCartConfirm.addEventListener('click', () => {
     cart.push({
       id: activeItem.id,
       name: activeItem.name,
-      price: activeItem.price,
+      price: price,
       emoji: activeItem.emoji || '🍽️',
       quantity: currentQuantity,
       notes: notes
