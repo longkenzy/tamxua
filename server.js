@@ -70,7 +70,7 @@ async function getTablesWithOrders() {
                json_build_object(
                  'id', m.id,
                  'name', m.name,
-                 'price', m.price,
+                 'price', COALESCE(oi.price, m.price, 0),
                  'emoji', m.emoji,
                  'quantity', oi.quantity,
                  'notes', COALESCE(oi.notes, '')
@@ -753,9 +753,9 @@ app.post('/api/order', async (req, res) => {
       for (const item of items) {
         if (item.quantity > 0) {
           await client.query(`
-            INSERT INTO order_items (table_id, menu_id, quantity, notes)
-            VALUES ($1, $2, $3, $4)
-          `, [tableId, item.id, parseInt(item.quantity || 1), item.notes || '']);
+            INSERT INTO order_items (table_id, menu_id, quantity, price, notes)
+            VALUES ($1, $2, $3, $4, $5)
+          `, [tableId, item.id, parseInt(item.quantity || 1), parseInt(item.price || 0), item.notes || '']);
         }
       }
     }
@@ -797,7 +797,8 @@ app.post('/api/checkout', async (req, res) => {
 
     // Get order items join menu
     const itemsRes = await client.query(`
-      SELECT oi.*, m.name, m.price, m.emoji 
+      SELECT oi.id, oi.table_id, oi.menu_id, oi.quantity, oi.notes, 
+             m.name, COALESCE(oi.price, m.price, 0) as price, m.emoji 
       FROM order_items oi
       JOIN menu m ON oi.menu_id = m.id
       WHERE oi.table_id = $1

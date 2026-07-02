@@ -113,6 +113,9 @@ async function setupDatabase() {
         notes TEXT
       )
     `);
+    await client.query(`
+      ALTER TABLE order_items ADD COLUMN IF NOT EXISTS price INT DEFAULT 0
+    `);
 
     // 5. Create transactions table
     await client.query(`
