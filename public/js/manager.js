@@ -4407,6 +4407,24 @@ function handleExcelImport(event) {
     event.target.value = '';
     return;
   }
+
+  // Tự động inject HTML của Modal thanh tiến trình nếu chưa có
+  if (!document.getElementById('import-progress-modal')) {
+    const progressModalHtml = `
+      <div class="modal-backdrop" id="import-progress-modal" style="display: none; z-index: 2000; align-items: center; justify-content: center; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.5);">
+        <div class="modal-content" style="max-width: 400px; width: 90%; border-radius: 16px; padding: 28px 24px; text-align: center; background: #ffffff; box-shadow: 0 10px 25px rgba(0,0,0,0.15); box-sizing: border-box; display: block; margin: auto;">
+          <span style="font-size: 40px; display: block; margin-bottom: 16px;">📥</span>
+          <h3 style="margin: 0 0 8px 0; font-weight: 700; font-size: 18px; color: #1e293b;">Đang nhập thực đơn từ Excel</h3>
+          <p id="import-progress-text" style="color: #64748b; font-size: 14px; margin: 0 0 20px 0;">Đang chuẩn bị...</p>
+          <div style="width: 100%; height: 8px; background-color: #f1f5f9; border-radius: 4px; overflow: hidden; margin-bottom: 12px;">
+            <div id="import-progress-bar" style="width: 0%; height: 100%; background-color: var(--primary); transition: width 0.2s ease-out; border-radius: 4px;"></div>
+          </div>
+          <p id="import-progress-item-name" style="font-size: 13px; font-style: italic; color: #94a3b8; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-height: 18px;"></p>
+        </div>
+      </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', progressModalHtml);
+  }
   
   const reader = new FileReader();
   reader.onload = async (e) => {
@@ -4476,36 +4494,74 @@ function handleExcelImport(event) {
       }
       
       if (confirm(`Bạn có đồng ý nhập ${itemsToImport.length} mặt hàng từ file Excel vào thực đơn không?`)) {
-        // Send to backend
-        const res = await fetch('/api/menu-import', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ items: itemsToImport })
-        });
-        
-        if (res.status === 401) {
-          window.location.href = '/login.html';
-          return;
+        // Lấy các phần tử giao diện hiển thị tiến trình
+        const progressModal = document.getElementById('import-progress-modal');
+        const progressText = document.getElementById('import-progress-text');
+        const progressBar = document.getElementById('import-progress-bar');
+        const progressItemName = document.getElementById('import-progress-item-name');
+
+        if (progressModal) progressModal.style.display = 'flex';
+        if (progressBar) progressBar.style.width = '0%';
+        if (progressText) progressText.textContent = `Chuẩn bị nhập (0/${itemsToImport.length} món)...`;
+
+        let successCount = 0;
+        let errors = [];
+
+        // Gửi tuần tự từng sản phẩm lên server để cập nhật thanh tiến trình mượt mà
+        for (let idx = 0; idx < itemsToImport.length; idx++) {
+          const item = itemsToImport[idx];
+          if (progressItemName) progressItemName.textContent = `Đang tải lên: ${item.name}`;
+
+          try {
+            const res = await fetch('/api/menu-import', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({ items: [item] }) // Gửi mảng chứa 1 món ăn
+            });
+
+            if (res.status === 401) {
+              window.location.href = '/login.html';
+              return;
+            }
+
+            const result = await res.json();
+            if (res.ok && result.success) {
+              successCount++;
+            } else {
+              errors.push(`Dòng ${idx + 2} (${item.name}): ${result.error || 'Lỗi hệ thống.'}`);
+            }
+          } catch (err) {
+            errors.push(`Dòng ${idx + 2} (${item.name}): Lỗi kết nối mạng.`);
+          }
+
+          // Cập nhật thanh tiến trình (%)
+          const percent = Math.round(((idx + 1) / itemsToImport.length) * 100);
+          if (progressBar) progressBar.style.width = `${percent}%`;
+          if (progressText) progressText.textContent = `Đang xử lý: ${percent}% (${idx + 1}/${itemsToImport.length} món)`;
         }
-        
-        const result = await res.json();
-        if (res.ok && result.success) {
-          showToast(`✅ Đã nhập thành công ${result.count} mặt hàng!`);
+
+        // Ẩn modal tiến trình khi hoàn thành
+        if (progressModal) progressModal.style.display = 'none';
+
+        if (successCount > 0) {
+          showToast(`✅ Đã nhập thành công ${successCount}/${itemsToImport.length} mặt hàng!`);
           
-          // Làm mới danh sách món ăn và các nhóm thực đơn ngay lập tức (quan trọng khi chạy trên Vercel không có WebSocket)
+          // Làm mới giao diện tức thì
           const menuRes = await fetch('/api/menu');
           if (menuRes.ok) {
             menuItems = await menuRes.json();
             renderMenuMgmtGrid();
           }
-          
           if (typeof loadMenuGroups === 'function') {
             loadMenuGroups();
           }
-        } else {
-          alert(`Lỗi khi nhập Excel: ${result.error || 'Vui lòng thử lại.'}`);
+        }
+
+        // Hiển thị báo lỗi chi tiết nếu có dòng nào gặp lỗi
+        if (errors.length > 0) {
+          alert(`Một số món gặp lỗi khi nhập:\n\n${errors.slice(0, 10).join('\n')}${errors.length > 10 ? '\n... và ' + (errors.length - 10) + ' lỗi khác.' : ''}`);
         }
       }
     } catch (err) {
