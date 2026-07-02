@@ -271,6 +271,31 @@ app.post('/api/menu-import', requireManager, async (req, res) => {
         INSERT INTO menu (id, name, price, category, emoji, description, image_url)
         VALUES ($1, $2, $3, $4, $5, $6, $7)
       `, [id, name.trim(), cleanPrice, finalCategory, finalEmoji, finalDesc, finalImg]);
+
+      // Tự động tìm hoặc tạo nhóm thực đơn (menu_groups) và liên kết món ăn vào nhóm đó
+      if (finalCategory) {
+        let groupId;
+        const groupCheck = await db.query(
+          'SELECT id FROM menu_groups WHERE TRIM(UPPER(name)) = TRIM(UPPER($1))', 
+          [finalCategory]
+        );
+        if (groupCheck.rows.length > 0) {
+          groupId = groupCheck.rows[0].id;
+        } else {
+          // Tạo nhóm thực đơn mới nếu chưa có
+          const insertGroupRes = await db.query(
+            'INSERT INTO menu_groups (name) VALUES ($1) RETURNING id',
+            [finalCategory]
+          );
+          groupId = insertGroupRes.rows[0].id;
+        }
+
+        // Liên kết món ăn vào nhóm thực đơn
+        await db.query(
+          'INSERT INTO menu_group_items (menu_group_id, item_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+          [groupId, id]
+        );
+      }
     }
 
     await db.query('COMMIT');
@@ -278,6 +303,7 @@ app.post('/api/menu-import', requireManager, async (req, res) => {
     // Broadcast updated menu to all clients
     const menuRes = await db.query('SELECT * FROM menu ORDER BY category, id');
     io.emit('menu_updated', menuRes.rows);
+    io.emit('menu_groups_updated');
 
     res.json({ success: true, count: items.length });
   } catch (error) {
