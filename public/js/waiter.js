@@ -1193,6 +1193,87 @@ btnViewCart.addEventListener('click', openCartModal);
 btnCloseCartModal.addEventListener('click', closeCartModal);
 btnCloseCartModalFoot.addEventListener('click', closeCartModal);
 
+// Helper to remove Vietnamese accents for clean raw thermal printing
+function removeAccents(str) {
+  if (!str) return '';
+  return str
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[đĐ]/g, char => char === 'đ' ? 'd' : 'D');
+}
+
+// Helper to print kitchen/bar slip using docx template
+async function printDocxSlip(printerId, tableName, items) {
+  if (items.length === 0) return;
+  
+  const isConnected = localStorage.getItem(`printer_${printerId}_connected`) === 'true';
+  if (!isConnected) {
+    console.log(`Printer ${printerId} is not connected. Skipping print.`);
+    return;
+  }
+  
+  const type = localStorage.getItem(`printer_${printerId}_type`) || 'wifi';
+  const ip = localStorage.getItem(`printer_${printerId}_ip`) || '';
+  const port = localStorage.getItem(`printer_${printerId}_port`) || '9100';
+  const sharedPath = localStorage.getItem(`printer_${printerId}_shared_path`) || '';
+
+  const orderTime = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+  // Standard width config for centering (K80 width approx. 42 characters)
+  const W = 42;
+  const tableWidth = 39;
+  const leftTablePad = ' '.repeat(Math.max(0, Math.floor((W - tableWidth) / 2)));
+  const borderLine = `${leftTablePad}+-------------------------------+-----+\r\n`;
+
+  // Center helper
+  function centerText(str, width = W) {
+    if (str.length >= width) return str.substring(0, width);
+    const leftPad = Math.floor((width - str.length) / 2);
+    return ' '.repeat(leftPad) + str;
+  }
+
+  // Format exactly matching hoadonbep.docx layout in plain text with accents
+  let text = `\r\n` + 
+             `${centerText('HOÁ ĐƠN BẾP')}\r\n` + 
+             `${centerText(tableName)}\r\n\r\n` + 
+             `${centerText(`Giờ order: ${orderTime}`)}\r\n` + 
+             borderLine + 
+             `${leftTablePad}| Mặt hàng                      | SL  |\r\n` + 
+             borderLine;
+
+  items.forEach(item => {
+    // Keep original Vietnamese accents for name, notes
+    const namePart = item.name.substring(0, 29).padEnd(29, ' ');
+    const qtyPart = String(item.quantity).padStart(3, ' ');
+    text += `${leftTablePad}| ${namePart} | ${qtyPart} |\r\n`;
+    if (item.notes) {
+      const notePart = item.notes.substring(0, 23).padEnd(23, ' ');
+      text += `${leftTablePad}|  * Ghi chú: ${notePart} |\r\n`;
+    }
+  });
+
+  text += borderLine + `\r\n\r\n\r\n\r\n\r\n\r\n`;
+
+  try {
+    const response = await fetch('/api/print-raw', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        printerType: type,
+        ip: ip,
+        port: port,
+        sharedPath: sharedPath,
+        content: text
+      })
+    });
+    if (!response.ok) {
+      console.error(`Failed to print raw slip for ${printerId}`);
+    }
+  } catch (err) {
+    console.error(`Error printing raw slip for ${printerId}:`, err);
+  }
+}
+
 // Submit Order to backend
 btnSubmitOrder.addEventListener('click', async () => {
   if (cart.length === 0) {
@@ -1293,7 +1374,29 @@ btnSubmitOrder.addEventListener('click', async () => {
     const result = await response.json();
     if (result.success) {
       const table = tables.find(t => t.id === targetTableId);
-      showSuccessToast(`Đã gửi Order thành công cho ${table ? table.name : ''}!`);
+      const tableName = table ? table.name : 'Mang đi';
+      
+      // Separate items in the cart
+      const drinkItems = cart.filter(item => {
+        const menuItem = menu.find(m => m.id === item.id);
+        const category = menuItem ? menuItem.category : '';
+        return category && (
+          category.toLowerCase() === 'drink' || 
+          category.toLowerCase().includes('nước') || 
+          category.toLowerCase().includes('uống') || 
+          category.toLowerCase().includes('giải khát') ||
+          category.toLowerCase().includes('sinh tố') ||
+          category.toLowerCase().includes('cà phê') ||
+          category.toLowerCase().includes('trà')
+        );
+      });
+      const kitchenItems = cart.filter(item => !drinkItems.includes(item));
+
+      // Trigger automatic printing for connected printers using docx templates
+      printDocxSlip('kitchen_default', tableName, kitchenItems);
+      printDocxSlip('kitchen_bar', tableName, drinkItems);
+
+      showSuccessToast(`Đã gửi Order thành công cho ${tableName}!`);
       
       closeCartModal();
       
@@ -2149,6 +2252,29 @@ if (btnOrderDetailsSave) {
       
       const result = await res.json();
       if (result.success) {
+        const table = tables.find(t => t.id === activeTableId);
+        const tableName = table ? table.name : 'Bàn';
+
+        // Separate items in the cart
+        const drinkItems = cart.filter(item => {
+          const menuItem = menu.find(m => m.id === item.id);
+          const category = menuItem ? menuItem.category : '';
+          return category && (
+            category.toLowerCase() === 'drink' || 
+            category.toLowerCase().includes('nước') || 
+            category.toLowerCase().includes('uống') || 
+            category.toLowerCase().includes('giải khát') ||
+            category.toLowerCase().includes('sinh tố') ||
+            category.toLowerCase().includes('cà phê') ||
+            category.toLowerCase().includes('trà')
+          );
+        });
+        const kitchenItems = cart.filter(item => !drinkItems.includes(item));
+
+        // Trigger automatic printing for connected printers using docx templates
+        printDocxSlip('kitchen_default', tableName, kitchenItems);
+        printDocxSlip('kitchen_bar', tableName, drinkItems);
+
         showSuccessToast('Đã lưu thay đổi hóa đơn thành công!');
         closeOrderDetailsView();
         
@@ -2179,5 +2305,482 @@ if (btnOrderDetailsCheckout) {
   });
 }
 
+// Sidebar Drawer Elements
+const btnHamburger = document.getElementById('btn-hamburger');
+const sidebarDrawer = document.getElementById('sidebar-drawer');
+const sidebarDrawerBackdrop = document.getElementById('sidebar-drawer-backdrop');
+const drawerUserName = document.getElementById('drawer-user-name');
+const drawerUserAvatar = document.getElementById('drawer-user-avatar');
+const drawerMenuPrinter = document.getElementById('drawer-menu-printer');
+const drawerMenuLogout = document.getElementById('drawer-menu-logout');
+
+// Printer Screen Elements
+const printerMainOverlay = document.getElementById('printer-main-overlay');
+const printerListScreen = document.getElementById('printer-list-screen');
+const printerDetailScreen = document.getElementById('printer-detail-screen');
+
+const btnPrinterListBack = document.getElementById('btn-printer-list-back');
+const btnPrinterDetailBack = document.getElementById('btn-printer-detail-back');
+
+const itemPrinterCashier = document.getElementById('item-printer-cashier');
+const itemPrinterKitchenDefault = document.getElementById('item-printer-kitchen-default');
+const itemPrinterKitchenBar = document.getElementById('item-printer-kitchen-bar');
+
+const statusPrinterCashier = document.getElementById('status-printer-cashier');
+const statusPrinterKitchenDefault = document.getElementById('status-printer-kitchen-default');
+const statusPrinterKitchenBar = document.getElementById('status-printer-kitchen-bar');
+
+const printerDetailTitle = document.getElementById('printer-detail-title');
+const detailPrinterName = document.getElementById('detail-printer-name');
+const detailPrinterIp = document.getElementById('detail-printer-ip');
+const detailPrinterPort = document.getElementById('detail-printer-port');
+const btnPrinterConnect = document.getElementById('btn-printer-connect');
+const btnPrinterTest = document.getElementById('btn-printer-test');
+const btnFindPrinterIp = document.getElementById('btn-find-printer-ip');
+
+const tabWifiLan = document.getElementById('tab-wifi-lan');
+const tabPcShare = document.getElementById('tab-pc-share');
+const groupWifiFields = document.getElementById('group-wifi-fields');
+const groupPcShareFields = document.getElementById('group-pc-share-fields');
+const detailPrinterSharedPath = document.getElementById('detail-printer-shared-path');
+
+const printerScannerModal = document.getElementById('printer-scanner-modal');
+const btnCloseScannerModal = document.getElementById('btn-close-scanner-modal');
+const scannerModalBody = document.getElementById('scanner-modal-body');
+
+// Load employee profile
+async function loadEmployeeProfile() {
+  try {
+    const res = await fetch('/api/me');
+    if (res.ok) {
+      const data = await res.json();
+      if (data.success) {
+        if (drawerUserName) drawerUserName.textContent = data.username;
+        if (drawerUserAvatar && data.username) {
+          // Take the first two letters, convert to uppercase
+          const initials = data.username.slice(0, 2).toUpperCase();
+          drawerUserAvatar.textContent = initials;
+        }
+      }
+    }
+  } catch (err) {
+    console.error('Lỗi khi tải thông tin nhân viên:', err);
+  }
+}
+
+// Sidebar Drawer Control
+function openSidebarDrawer() {
+  if (sidebarDrawer) sidebarDrawer.classList.add('open');
+  if (sidebarDrawerBackdrop) sidebarDrawerBackdrop.classList.add('open');
+}
+
+function closeSidebarDrawer() {
+  if (sidebarDrawer) sidebarDrawer.classList.remove('open');
+  if (sidebarDrawerBackdrop) sidebarDrawerBackdrop.classList.remove('open');
+}
+
+if (btnHamburger) {
+  btnHamburger.addEventListener('click', (e) => {
+    e.stopPropagation();
+    openSidebarDrawer();
+  });
+}
+
+if (sidebarDrawerBackdrop) {
+  sidebarDrawerBackdrop.addEventListener('click', closeSidebarDrawer);
+}
+
+// Printer Screen Toggles & Controls
+let activeConfigPrinterId = '';
+
+// Update connection status label on screen 1 list
+function updatePrinterListStatus() {
+  const printers = ['cashier', 'kitchen_default', 'kitchen_bar'];
+  printers.forEach(pId => {
+    const savedType = localStorage.getItem(`printer_${pId}_type`) || 'wifi';
+    const savedIp = localStorage.getItem(`printer_${pId}_ip`) || '';
+    const savedSharedPath = localStorage.getItem(`printer_${pId}_shared_path`) || '';
+    const isConnected = localStorage.getItem(`printer_${pId}_connected`) === 'true';
+    const statusEl = document.getElementById(`status-printer-${pId.replace('_', '-')}`);
+    
+    if (statusEl) {
+      if (isConnected) {
+        if (savedType === 'shared' && savedSharedPath) {
+          statusEl.textContent = savedSharedPath;
+          statusEl.className = 'printer-item-status ip-info';
+        } else if (savedType === 'wifi' && savedIp) {
+          statusEl.textContent = savedIp;
+          statusEl.className = 'printer-item-status ip-info';
+        } else {
+          statusEl.textContent = 'Chưa kết nối';
+          statusEl.className = 'printer-item-status disconnected';
+        }
+      } else {
+        statusEl.textContent = 'Chưa kết nối';
+        statusEl.className = 'printer-item-status disconnected';
+      }
+    }
+  });
+}
+
+function openPrinterOverlay() {
+  closeSidebarDrawer();
+  updatePrinterListStatus();
+  if (printerMainOverlay) printerMainOverlay.style.display = 'flex';
+  if (printerListScreen) printerListScreen.style.display = 'flex';
+  if (printerDetailScreen) printerDetailScreen.style.display = 'none';
+}
+
+function closePrinterOverlay() {
+  if (printerMainOverlay) printerMainOverlay.style.display = 'none';
+}
+
+function openPrinterDetail(pId) {
+  activeConfigPrinterId = pId;
+  
+  let defaultName = '';
+  
+  if (pId === 'cashier') {
+    defaultName = 'Máy in tại quầy';
+  } else if (pId === 'kitchen_default') {
+    defaultName = 'Bếp mặc định';
+  } else if (pId === 'kitchen_bar') {
+    defaultName = 'Quầy nước';
+  }
+  
+  if (printerDetailTitle) printerDetailTitle.textContent = defaultName;
+  
+  // Load saved printer values
+  const savedName = localStorage.getItem(`printer_${pId}_name`) || defaultName;
+  const savedSize = localStorage.getItem(`printer_${pId}_size`) || 'K80';
+  const savedType = localStorage.getItem(`printer_${pId}_type`) || 'wifi';
+  const savedIp = localStorage.getItem(`printer_${pId}_ip`) || '';
+  const savedPort = localStorage.getItem(`printer_${pId}_port`) || '9100';
+  const savedSharedPath = localStorage.getItem(`printer_${pId}_shared_path`) || '';
+  
+  if (detailPrinterName) detailPrinterName.value = savedName;
+  if (detailPrinterIp) detailPrinterIp.value = savedIp;
+  if (detailPrinterPort) detailPrinterPort.value = savedPort;
+  if (detailPrinterSharedPath) detailPrinterSharedPath.value = savedSharedPath;
+  
+  // Set paper size radio checked
+  const radioK80 = document.querySelector('input[name="printer-paper-size"][value="K80"]');
+  const radioK58 = document.querySelector('input[name="printer-paper-size"][value="K58"]');
+  if (radioK80 && radioK58) {
+    if (savedSize === 'K58') {
+      radioK58.checked = true;
+    } else {
+      radioK80.checked = true;
+    }
+  }
+
+  // Trigger tab layout visibility
+  if (savedType === 'shared') {
+    activePrinterType = 'shared';
+    if (tabPcShare) {
+      tabPcShare.classList.add('active');
+    }
+    if (tabWifiLan) {
+      tabWifiLan.classList.remove('active');
+    }
+    if (groupWifiFields) groupWifiFields.style.display = 'none';
+    if (groupPcShareFields) groupPcShareFields.style.display = 'flex';
+  } else {
+    activePrinterType = 'wifi';
+    if (tabWifiLan) {
+      tabWifiLan.classList.add('active');
+    }
+    if (tabPcShare) {
+      tabPcShare.classList.remove('active');
+    }
+    if (groupWifiFields) groupWifiFields.style.display = 'flex';
+    if (groupPcShareFields) groupPcShareFields.style.display = 'none';
+  }
+  
+  if (printerListScreen) printerListScreen.style.display = 'none';
+  if (printerDetailScreen) printerDetailScreen.style.display = 'flex';
+}
+
+function backToPrinterList() {
+  updatePrinterListStatus();
+  if (printerDetailScreen) printerDetailScreen.style.display = 'none';
+  if (printerListScreen) printerListScreen.style.display = 'flex';
+}
+
+if (drawerMenuPrinter) {
+  drawerMenuPrinter.addEventListener('click', openPrinterOverlay);
+}
+
+if (btnPrinterListBack) {
+  btnPrinterListBack.addEventListener('click', closePrinterOverlay);
+}
+
+if (btnPrinterDetailBack) {
+  btnPrinterDetailBack.addEventListener('click', backToPrinterList);
+}
+
+if (itemPrinterCashier) {
+  itemPrinterCashier.addEventListener('click', () => openPrinterDetail('cashier'));
+}
+
+if (itemPrinterKitchenDefault) {
+  itemPrinterKitchenDefault.addEventListener('click', () => openPrinterDetail('kitchen_default'));
+}
+
+if (itemPrinterKitchenBar) {
+  itemPrinterKitchenBar.addEventListener('click', () => openPrinterDetail('kitchen_bar'));
+}
+
+// Printer Screen Toggles & Controls
+let activePrinterType = 'wifi'; // 'wifi' | 'shared'
+
+if (tabWifiLan) {
+  tabWifiLan.addEventListener('click', () => {
+    activePrinterType = 'wifi';
+    tabWifiLan.classList.add('active');
+    if (tabPcShare) tabPcShare.classList.remove('active');
+    if (groupWifiFields) groupWifiFields.style.display = 'flex';
+    if (groupPcShareFields) groupPcShareFields.style.display = 'none';
+  });
+}
+
+if (tabPcShare) {
+  tabPcShare.addEventListener('click', () => {
+    activePrinterType = 'shared';
+    tabPcShare.classList.add('active');
+    if (tabWifiLan) tabWifiLan.classList.remove('active');
+    if (groupWifiFields) groupWifiFields.style.display = 'none';
+    if (groupPcShareFields) groupPcShareFields.style.display = 'flex';
+  });
+}
+
+// Scanner Modal Control
+function openScannerModal() {
+  if (printerScannerModal) printerScannerModal.style.display = 'flex';
+  if (scannerModalBody) {
+    scannerModalBody.innerHTML = `
+      <div style="text-align: center; color: #64748b; font-size: 13px; padding: 16px 0;" id="scanner-loading-text">
+        <span style="display: inline-block; width: 18px; height: 18px; border: 2px solid #cbd5e1; border-top-color: #0088ff; border-radius: 50%; animation: spin 0.8s linear infinite; margin-right: 8px; vertical-align: middle; box-sizing: border-box;"></span>
+        Đang quét mạng nội bộ...
+      </div>
+    `;
+  }
+  
+  fetch('/api/scan-printers')
+    .then(res => {
+      if (res.status === 401) {
+        window.location.href = '/login.html';
+        return null;
+      }
+      if (!res.ok) {
+        throw new Error(`HTTP error status ${res.status}`);
+      }
+      return res.json();
+    })
+    .then(data => {
+      if (!data) return;
+      if (scannerModalBody) {
+        scannerModalBody.innerHTML = ''; // clear loading spinner
+        
+        if (data.success && data.printers && data.printers.length > 0) {
+          data.printers.forEach(pr => {
+            const prItem = document.createElement('div');
+            prItem.className = 'scanner-printer-item';
+            prItem.innerHTML = `
+              <svg viewBox="0 0 24 24" width="20" height="20" stroke="#0088ff" stroke-width="2" fill="none" style="flex-shrink:0;">
+                <polyline points="6 9 6 2 18 2 18 9"></polyline>
+                <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+                <rect x="6" y="14" width="12" height="8"></rect>
+              </svg>
+              <div style="display: flex; flex-direction: column; gap: 2px; text-align: left;">
+                <span style="font-size: 13px; font-weight: 700; color: #1e293b;">${pr.name}</span>
+                <span style="font-size: 11px; color: #64748b;">IP: ${pr.ip}:${pr.port}</span>
+              </div>
+            `;
+            prItem.addEventListener('click', () => {
+              if (detailPrinterIp) detailPrinterIp.value = pr.ip;
+              if (detailPrinterPort) detailPrinterPort.value = pr.port;
+              closeScannerModal();
+              showSuccessToast(`Đã chọn máy in tại ${pr.ip}`);
+            });
+            scannerModalBody.appendChild(prItem);
+          });
+        } else {
+          scannerModalBody.innerHTML = `
+            <div style="text-align: center; color: #64748b; font-size: 13px; padding: 24px 0;">
+              Không tìm thấy máy in nào hoạt động trong mạng nội bộ.
+            </div>
+          `;
+        }
+      }
+    })
+    .catch(err => {
+      console.error(err);
+      if (scannerModalBody) {
+        scannerModalBody.innerHTML = `
+          <div style="text-align: center; color: #ef4444; font-size: 13px; padding: 24px 0;">
+            Lỗi kết nối máy chủ quét mạng.
+          </div>
+        `;
+      }
+    });
+}
+
+function closeScannerModal() {
+  if (printerScannerModal) printerScannerModal.style.display = 'none';
+}
+
+if (btnFindPrinterIp) {
+  btnFindPrinterIp.addEventListener('click', openScannerModal);
+}
+
+if (btnCloseScannerModal) {
+  btnCloseScannerModal.addEventListener('click', closeScannerModal);
+}
+
+if (printerScannerModal) {
+  printerScannerModal.addEventListener('click', (e) => {
+    if (e.target === printerScannerModal) {
+      closeScannerModal();
+    }
+  });
+}
+
+// Save/Connect Printer action
+if (btnPrinterConnect) {
+  btnPrinterConnect.addEventListener('click', () => {
+    const pId = activeConfigPrinterId;
+    if (!pId) return;
+    
+    const nameVal = detailPrinterName ? detailPrinterName.value.trim() : '';
+    const ipVal = detailPrinterIp ? detailPrinterIp.value.trim() : '';
+    const portVal = detailPrinterPort ? detailPrinterPort.value.trim() : '9100';
+    const sharedPathVal = detailPrinterSharedPath ? detailPrinterSharedPath.value.trim() : '';
+    
+    const paperRadio = document.querySelector('input[name="printer-paper-size"]:checked');
+    const sizeVal = paperRadio ? paperRadio.value : 'K80';
+    
+    if (!nameVal) {
+      alert('Vui lòng nhập tên máy in.');
+      return;
+    }
+    
+    if (activePrinterType === 'wifi') {
+      if (!ipVal) {
+        alert('Vui lòng nhập địa chỉ IP máy in.');
+        return;
+      }
+    } else {
+      if (!sharedPathVal) {
+        alert('Vui lòng nhập đường dẫn máy in chia sẻ (Shared Path).');
+        return;
+      }
+    }
+    
+    btnPrinterConnect.disabled = true;
+    btnPrinterConnect.textContent = 'Đang kết nối...';
+    
+    // Simulate test connection in 1.2s
+    setTimeout(() => {
+      // Save configuration to localStorage
+      localStorage.setItem(`printer_${pId}_name`, nameVal);
+      localStorage.setItem(`printer_${pId}_type`, activePrinterType);
+      localStorage.setItem(`printer_${pId}_ip`, ipVal);
+      localStorage.setItem(`printer_${pId}_port`, portVal);
+      localStorage.setItem(`printer_${pId}_shared_path`, sharedPathVal);
+      localStorage.setItem(`printer_${pId}_size`, sizeVal);
+      localStorage.setItem(`printer_${pId}_connected`, 'true');
+      
+      const targetStr = activePrinterType === 'wifi' ? ipVal : sharedPathVal;
+      showSuccessToast(`⚡ Kết nối thành công đến máy in tại ${targetStr}!`);
+      btnPrinterConnect.disabled = false;
+      btnPrinterConnect.textContent = 'Kết nối';
+      
+      // Return to printer list
+      backToPrinterList();
+    }, 1200);
+  });
+}
+
+// Test Print action
+if (btnPrinterTest) {
+  btnPrinterTest.addEventListener('click', () => {
+    const ipVal = detailPrinterIp ? detailPrinterIp.value.trim() : '';
+    const portVal = detailPrinterPort ? detailPrinterPort.value.trim() : '9100';
+    const sharedPathVal = detailPrinterSharedPath ? detailPrinterSharedPath.value.trim() : '';
+    
+    if (activePrinterType === 'wifi') {
+      if (!ipVal) {
+        alert('Vui lòng nhập địa chỉ IP máy in để in thử.');
+        return;
+      }
+    } else {
+      if (!sharedPathVal) {
+        alert('Vui lòng nhập đường dẫn máy in chia sẻ (Shared Path) để in thử.');
+        return;
+      }
+    }
+    
+    btnPrinterTest.disabled = true;
+    btnPrinterTest.textContent = 'Đang in...';
+    
+    // Construct raw test print text
+    const textData = `--------------------------------\n` + 
+                     `        IN THU MAY IN           \n` +
+                     `       Nha hang: TAM XUA        \n` +
+                     `--------------------------------\n` +
+                     `Loai may in: ${activePrinterType === 'wifi' ? 'Wifi / LAN' : 'PC Shared'}\n` +
+                     `Dia chi    : ${activePrinterType === 'wifi' ? ipVal : sharedPathVal}\n` +
+                     `Thoi gian  : ${new Date().toLocaleString()}\n` +
+                     `Trang thai : Ket noi OK\n` +
+                     `--------------------------------\n\n\n\n`;
+                     
+    fetch('/api/print-raw', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        printerType: activePrinterType,
+        ip: ipVal,
+        port: portVal,
+        sharedPath: sharedPathVal,
+        content: textData
+      })
+    })
+    .then(res => {
+      if (!res.ok) {
+        return res.json().then(data => { throw new Error(data.error || 'Server error'); });
+      }
+      return res.json();
+    })
+    .then(data => {
+      showSuccessToast('⚡ Đã gửi lệnh in thử thành công!');
+    })
+    .catch(err => {
+      console.error(err);
+      alert(`Lỗi in thử: ${err.message}`);
+    })
+    .finally(() => {
+      btnPrinterTest.disabled = false;
+      btnPrinterTest.textContent = 'In thử';
+    });
+  });
+}
+
+if (drawerMenuLogout) {
+  drawerMenuLogout.addEventListener('click', async () => {
+    try {
+      await fetch('/api/logout', { method: 'POST' });
+      window.location.href = '/login.html';
+    } catch (err) {
+      console.error('Logout error:', err);
+    }
+  });
+}
+
 // App initialization
+loadEmployeeProfile();
 init();
+
+

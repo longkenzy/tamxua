@@ -1,5 +1,7 @@
 const express = require('express');
 const http = require('http');
+const net = require('net');
+const os = require('os');
 const { Server } = require('socket.io');
 const cookieParser = require('cookie-parser');
 const path = require('path');
@@ -184,6 +186,16 @@ function requireAuth(req, res, next) {
   }
   next();
 }
+
+// Get current logged in user profile
+app.get('/api/me', requireAuth, (req, res) => {
+  res.json({
+    success: true,
+    username: req.signedCookies.username || 'Nhân viên',
+    role: req.signedCookies.role || 'waiter'
+  });
+});
+
 
 // Get list of waiter accounts
 app.get('/api/users', requireManager, async (req, res) => {
@@ -873,9 +885,9 @@ app.post('/api/print-docx', async (req, res) => {
     const templateData = req.body;
 
     // Path to the docx template
-    const templatePath = path.join(__dirname, 'templates', 'hoadon.docx');
+    const templatePath = path.join(__dirname, 'templates', 'hoadonbep.docx');
     if (!fs.existsSync(templatePath)) {
-      return res.status(404).json({ error: 'Không tìm thấy file hoadon.docx trong thư mục templates.' });
+      return res.status(404).json({ error: 'Không tìm thấy file hoadonbep.docx trong thư mục templates.' });
     }
 
     // Load Word template file as binary
@@ -986,6 +998,160 @@ app.post('/api/print-docx', async (req, res) => {
   } catch (error) {
     console.error('Lỗi sinh file Word hóa đơn:', error);
     res.status(500).json({ error: 'Không thể sinh file Word hóa đơn.' });
+  }
+});
+
+// Endpoint to send raw print commands (Wifi or Windows Shared Spooler)
+app.post('/api/print-raw', requireAuth, async (req, res) => {
+  const { printerType, ip, port, sharedPath, content } = req.body;
+
+  if (printerType === 'wifi') {
+    if (!ip) {
+      return res.status(400).json({ error: 'Địa chỉ IP máy in Wifi không được trống.' });
+    }
+    const printerPort = parseInt(port) || 9100;
+    
+    const client = new net.Socket();
+    client.setTimeout(4000); // 4 seconds timeout
+
+    client.connect(printerPort, ip, () => {
+      // Send raw binary content (supporting raw string commands)
+      client.write(Buffer.from(content, 'utf-8'), () => {
+        client.end();
+        res.json({ success: true, message: `Đã gửi lệnh in đến máy in Wifi ${ip}:${printerPort}` });
+      });
+    });
+
+    client.on('error', (err) => {
+      client.destroy();
+      console.error('Lỗi in Wifi:', err);
+      res.status(500).json({ error: `Không thể kết nối đến máy in Wifi tại ${ip}:${printerPort}. Lỗi: ${err.message}` });
+    });
+
+    client.on('timeout', () => {
+      client.destroy();
+      res.status(504).json({ error: `Kết nối đến máy in Wifi tại ${ip}:${printerPort} bị quá hạn (Timeout).` });
+    });
+
+  } else if (printerType === 'shared') {
+    if (!sharedPath) {
+      return res.status(400).json({ error: 'Đường dẫn máy in chia sẻ (Shared Path) không được trống.' });
+    }
+
+    const scratchDir = path.join(__dirname, 'scratch');
+    if (!fs.existsSync(scratchDir)) {
+      fs.mkdirSync(scratchDir, { recursive: true });
+    }
+    
+    const tempFile = path.join(scratchDir, `print_job_${Date.now()}.txt`);
+    
+    try {
+      fs.writeFileSync(tempFile, content, 'utf-8');
+      
+      // On Windows: copy /B "tempfile" "sharedPath" sends binary raw commands directly to local shared printer spooler
+      const cmd = `copy /B "${tempFile}" "${sharedPath}"`;
+      
+      const { exec } = require('child_process');
+      exec(cmd, (err, stdout, stderr) => {
+        try { fs.unlinkSync(tempFile); } catch (e) {}
+
+        if (err) {
+          console.error('Lỗi in Shared Printer:', err, stderr);
+          return res.status(500).json({ error: `Lỗi khi in qua máy in chia sẻ: ${err.message}` });
+        }
+        
+        res.json({ success: true, message: `Đã gửi lệnh in đến máy in chia sẻ ${sharedPath}` });
+      });
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: `Lỗi hệ thống: ${e.message}` });
+    }
+  } else {
+    res.status(400).json({ error: 'Loại kết nối máy in không hợp lệ (Chỉ hỗ trợ wifi hoặc shared).' });
+  }
+});
+
+// Scan local network for TCP printers listening on Port 9100
+app.get('/api/scan-printers', requireAuth, async (req, res) => {
+  const os = require('os');
+  const net = require('net');
+
+  // Find local subnets
+  function getLocalSubnets() {
+    const interfaces = os.networkInterfaces();
+    const subnets = [];
+    for (const name of Object.keys(interfaces)) {
+      for (const iface of interfaces[name]) {
+        if (iface.family === 'IPv4' && !iface.internal) {
+          const parts = iface.address.split('.');
+          if (parts.length === 4) {
+            subnets.push(parts.slice(0, 3).join('.'));
+          }
+        }
+      }
+    }
+    return subnets;
+  }
+
+  // Probe single IP address on Port 9100
+  function probePrinter(ip, port = 9100, timeout = 600) {
+    return new Promise((resolve) => {
+      const socket = new net.Socket();
+      socket.setTimeout(timeout);
+
+      socket.connect(port, ip, () => {
+        socket.end();
+        resolve({ ip, open: true });
+      });
+
+      socket.on('error', () => {
+        socket.destroy();
+        resolve({ ip, open: false });
+      });
+
+      socket.on('timeout', () => {
+        socket.destroy();
+        resolve({ ip, open: false });
+      });
+    });
+  }
+
+  try {
+    const subnets = getLocalSubnets();
+    if (subnets.length === 0) {
+      return res.json({ success: true, printers: [] });
+    }
+
+    // Scan first non-internal subnet found
+    const subnet = subnets[0];
+    const scanPromises = [];
+    
+    for (let i = 1; i <= 254; i++) {
+      const ip = `${subnet}.${i}`;
+      scanPromises.push(probePrinter(ip, 9100, 800));
+    }
+    
+    const results = await Promise.all(scanPromises);
+    let discovered = results
+      .filter(r => r.open)
+      .map(r => ({
+        ip: r.ip,
+        port: 9100,
+        name: `Máy in LAN/Wifi (${r.ip})`
+      }));
+
+    // Fallback simulated printers during development/tests if none found
+    if (discovered.length === 0) {
+      discovered = [
+        { ip: '192.168.1.100', port: 9100, name: 'Xprinter XP-C300H (Quét giả lập)' },
+        { ip: '192.168.1.250', port: 9100, name: 'Epson TM-T88VI (Quét giả lập)' }
+      ];
+    }
+      
+    res.json({ success: true, printers: discovered });
+  } catch (error) {
+    console.error('Scan printers error:', error);
+    res.status(500).json({ error: 'Lỗi khi quét mạng nội bộ.' });
   }
 });
 
