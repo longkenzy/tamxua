@@ -1078,11 +1078,24 @@ app.get('/api/scan-printers', requireAuth, async (req, res) => {
   const os = require('os');
   const net = require('net');
 
-  // Find local subnets
+  // Find local subnets, excluding virtual/VPN adapters
   function getLocalSubnets() {
     const interfaces = os.networkInterfaces();
     const subnets = [];
     for (const name of Object.keys(interfaces)) {
+      const lowerName = name.toLowerCase();
+      if (
+        lowerName.includes('virtual') || 
+        lowerName.includes('vbox') || 
+        lowerName.includes('vmware') || 
+        lowerName.includes('wsl') || 
+        lowerName.includes('docker') || 
+        lowerName.includes('loopback') ||
+        lowerName.includes('vpn')
+      ) {
+        continue;
+      }
+      
       for (const iface of interfaces[name]) {
         if (iface.family === 'IPv4' && !iface.internal) {
           const parts = iface.address.split('.');
@@ -1092,11 +1105,26 @@ app.get('/api/scan-printers', requireAuth, async (req, res) => {
         }
       }
     }
-    return subnets;
+    
+    // Fallback if no subnets found after filtering virtual interfaces
+    if (subnets.length === 0) {
+      for (const name of Object.keys(interfaces)) {
+        for (const iface of interfaces[name]) {
+          if (iface.family === 'IPv4' && !iface.internal) {
+            const parts = iface.address.split('.');
+            if (parts.length === 4) {
+              subnets.push(parts.slice(0, 3).join('.'));
+            }
+          }
+        }
+      }
+    }
+    
+    return [...new Set(subnets)];
   }
 
   // Probe single IP address on Port 9100
-  function probePrinter(ip, port = 9100, timeout = 600) {
+  function probePrinter(ip, port = 9100, timeout = 1000) {
     return new Promise((resolve) => {
       const socket = new net.Socket();
       socket.setTimeout(timeout);
@@ -1124,30 +1152,42 @@ app.get('/api/scan-printers', requireAuth, async (req, res) => {
       return res.json({ success: true, printers: [] });
     }
 
-    // Scan first non-internal subnet found
-    const subnet = subnets[0];
-    const scanPromises = [];
+    const discovered = [];
     
-    for (let i = 1; i <= 254; i++) {
-      const ip = `${subnet}.${i}`;
-      scanPromises.push(probePrinter(ip, 9100, 800));
+    // Scan all detected subnets sequentially in chunks to prevent socket limits exhaustion
+    for (const subnet of subnets) {
+      const chunkSize = 32; // Probe in batches of 32
+      for (let i = 1; i <= 254; i += chunkSize) {
+        const chunk = [];
+        for (let j = 0; j < chunkSize && (i + j) <= 254; j++) {
+          const ip = `${subnet}.${i + j}`;
+          chunk.push(probePrinter(ip, 9100, 1000));
+        }
+        const results = await Promise.all(chunk);
+        results.forEach(r => {
+          if (r.open) {
+            discovered.push({
+              ip: r.ip,
+              port: 9100,
+              name: `Máy in LAN/Wifi (${r.ip})`
+            });
+          }
+        });
+      }
     }
-    
-    const results = await Promise.all(scanPromises);
-    let discovered = results
-      .filter(r => r.open)
-      .map(r => ({
-        ip: r.ip,
-        port: 9100,
-        name: `Máy in LAN/Wifi (${r.ip})`
-      }));
 
-    // Fallback simulated printers during development/tests if none found
-    if (discovered.length === 0) {
-      discovered = [
+    // Only fallback to simulated printers in local development/test environments
+    const isLocalhost = req.headers.host && (
+      req.headers.host.includes('localhost') || 
+      req.headers.host.includes('127.0.0.1') || 
+      req.headers.host.includes('192.168.')
+    );
+    
+    if (discovered.length === 0 && isLocalhost) {
+      discovered.push(
         { ip: '192.168.1.100', port: 9100, name: 'Xprinter XP-C300H (Quét giả lập)' },
         { ip: '192.168.1.250', port: 9100, name: 'Epson TM-T88VI (Quét giả lập)' }
-      ];
+      );
     }
       
     res.json({ success: true, printers: discovered });

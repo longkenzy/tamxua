@@ -2949,8 +2949,11 @@ function openScannerModal() {
           });
         } else {
           scannerModalBody.innerHTML = `
-            <div style="text-align: center; color: #64748b; font-size: 13px; padding: 24px 0;">
-              Không tìm thấy máy in nào hoạt động trong mạng nội bộ.
+            <div style="text-align: center; color: #64748b; font-size: 13.5px; padding: 24px 12px; line-height: 1.6;">
+              <div style="font-weight: 700; margin-bottom: 8px;">Không tìm thấy máy in nào.</div>
+              <div style="font-size: 12px; color: #64748b;">
+                Nếu bạn đang chạy ứng dụng trực tuyến (Cloud) hoặc máy in khác dải mạng, vui lòng <strong>tự nhập địa chỉ IP thủ công</strong> (ví dụ: 192.168.1.100) và nhấn kết nối.
+              </div>
             </div>
           `;
         }
