@@ -1084,6 +1084,49 @@ app.post('/api/print-raw', requireAuth, async (req, res) => {
   }
 });
 
+// Create a print job (for Vercel polling fallback)
+app.post('/api/print-jobs', requireAuth, async (req, res) => {
+  const { printerId, type, payload } = req.body;
+  try {
+    const result = await db.query(
+      'INSERT INTO print_jobs (printer_id, type, payload) VALUES ($1, $2, $3) RETURNING *',
+      [printerId, type, JSON.stringify(payload)]
+    );
+    res.status(201).json({ success: true, job: result.rows[0] });
+  } catch (error) {
+    console.error('Error creating print job:', error);
+    res.status(500).json({ error: 'Lỗi khi tạo lệnh in.' });
+  }
+});
+
+// Fetch pending print jobs
+app.get('/api/print-jobs/pending', requireAuth, async (req, res) => {
+  try {
+    const result = await db.query(
+      "SELECT * FROM print_jobs WHERE status = 'pending' ORDER BY created_at ASC"
+    );
+    res.json({ success: true, jobs: result.rows });
+  } catch (error) {
+    console.error('Error fetching pending print jobs:', error);
+    res.status(500).json({ error: 'Lỗi khi lấy danh sách lệnh in.' });
+  }
+});
+
+// Complete a print job
+app.post('/api/print-jobs/:id/complete', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  try {
+    await db.query(
+      "UPDATE print_jobs SET status = 'completed' WHERE id = $1",
+      [id]
+    );
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error completing print job:', error);
+    res.status(500).json({ error: 'Lỗi khi cập nhật trạng thái lệnh in.' });
+  }
+});
+
 // Scan local network for TCP printers listening on Port 9100
 app.get('/api/scan-printers', requireAuth, async (req, res) => {
   const os = require('os');

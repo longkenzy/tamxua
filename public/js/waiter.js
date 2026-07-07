@@ -257,6 +257,33 @@ async function fetchDataPoll() {
         }
       }
     }
+
+    // Print Queue Polling for Cashier / Desktop Client
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    if (!isMobile) {
+      const printJobsRes = await fetch('/api/print-jobs/pending');
+      if (printJobsRes.ok) {
+        const data = await printJobsRes.json();
+        if (data.success && data.jobs && data.jobs.length > 0) {
+          for (const job of data.jobs) {
+            try {
+              const payload = JSON.parse(job.payload);
+              if (job.type === 'kitchen') {
+                await printDocxSlip(payload.printerId, payload.tableName, payload.items, payload.title);
+              } else if (job.type === 'receipt') {
+                await printReceipt(payload.tableObj, payload.orderItems, payload.discountAmount, payload.receivedAmount, payload.transactionId, payload.timestamp, payload.payMethod);
+              } else if (job.type === 'test') {
+                printTestIframe(payload.printerType, payload.targetStr);
+              }
+              // Mark job as completed
+              await fetch(`/api/print-jobs/${job.id}/complete`, { method: 'POST' });
+            } catch (err) {
+              console.error('Error processing print job:', err);
+            }
+          }
+        }
+      }
+    }
   } catch (err) {
     console.error('Polling error:', err);
   }
@@ -1356,7 +1383,28 @@ async function printDocxSlip(printerId, tableName, items, title = 'HOÁ ĐƠN B�
         showSuccessToast(`📤 Đã gửi lệnh in ${title} cho ${tableName} tới quầy thu ngân.`);
       }
     } else {
-      console.warn('Socket không kết nối. Không thể chuyển lệnh in.');
+      // Fallback: Enqueue print job in the database for polling cashier to print
+      try {
+        const response = await fetch('/api/print-jobs', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            printerId: printerId,
+            type: 'kitchen',
+            payload: { printerId, tableName, items, title }
+          })
+        });
+        if (response.ok) {
+          if (typeof showSuccessToast === 'function') {
+            showSuccessToast(`📤 Đã gửi lệnh in ${title} cho ${tableName} tới hàng đợi in.`);
+          }
+        } else {
+          throw new Error('Server error');
+        }
+      } catch (err) {
+        console.error('Failed to queue print job:', err);
+        alert('Không thể chuyển lệnh in (Socket offline và hàng đợi in lỗi).');
+      }
     }
     return;
   }
@@ -1502,7 +1550,28 @@ async function printReceipt(tableObj, orderItems, discountAmount, receivedAmount
         showSuccessToast(`📤 Đã gửi yêu cầu in hóa đơn ${tableObj.name} tới quầy thu ngân.`);
       }
     } else {
-      console.warn('Socket không kết nối. Không thể chuyển lệnh in.');
+      // Fallback: Enqueue print job in the database
+      try {
+        const response = await fetch('/api/print-jobs', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            printerId: 'receipt',
+            type: 'receipt',
+            payload: { tableObj, orderItems, discountAmount, receivedAmount, transactionId, timestamp, payMethod }
+          })
+        });
+        if (response.ok) {
+          if (typeof showSuccessToast === 'function') {
+            showSuccessToast(`📤 Đã gửi yêu cầu in hóa đơn ${tableObj.name} tới hàng đợi in.`);
+          }
+        } else {
+          throw new Error('Server error');
+        }
+      } catch (err) {
+        console.error('Failed to queue print job:', err);
+        alert('Không thể chuyển lệnh in (Socket offline và hàng đợi in lỗi).');
+      }
     }
     return;
   }
@@ -3259,7 +3328,26 @@ if (btnPrinterTest) {
           });
           showSuccessToast('📤 Đã gửi yêu cầu in thử tới quầy thu ngân.');
         } else {
-          alert('Không thể gửi yêu cầu in thử vì socket chưa kết nối.');
+          // Fallback: Enqueue print job in database
+          try {
+            const response = await fetch('/api/print-jobs', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                printerId: 'test',
+                type: 'test',
+                payload: { printerType: activePrinterType, targetStr: targetStr }
+              })
+            });
+            if (response.ok) {
+              showSuccessToast('📤 Đã gửi yêu cầu in thử tới hàng đợi in.');
+            } else {
+              throw new Error('Server error');
+            }
+          } catch (err) {
+            console.error('Failed to queue print job:', err);
+            alert('Không thể gửi yêu cầu in thử (Socket offline và hàng đợi in lỗi).');
+          }
         }
       } else {
         printTestIframe(activePrinterType, targetStr);

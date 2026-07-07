@@ -391,6 +391,33 @@ async function fetchDataPoll() {
         }
       }
     }
+
+    // Print Queue Polling for Cashier / Desktop Client
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    if (!isMobile) {
+      const printJobsRes = await fetch('/api/print-jobs/pending');
+      if (printJobsRes.ok) {
+        const data = await printJobsRes.json();
+        if (data.success && data.jobs && data.jobs.length > 0) {
+          for (const job of data.jobs) {
+            try {
+              const payload = JSON.parse(job.payload);
+              if (job.type === 'kitchen') {
+                await printDocxSlip(payload.printerId, payload.tableName, payload.items, payload.title);
+              } else if (job.type === 'receipt') {
+                await printReceipt(payload.tableObj, payload.orderItems, payload.discountAmount, payload.receivedAmount, payload.transactionId, payload.timestamp, payload.payMethod);
+              } else if (job.type === 'test') {
+                printTestIframe(payload.printerType, payload.targetStr);
+              }
+              // Mark job as completed
+              await fetch(`/api/print-jobs/${job.id}/complete`, { method: 'POST' });
+            } catch (err) {
+              console.error('Error processing print job:', err);
+            }
+          }
+        }
+      }
+    }
   } catch (err) {
     console.error('Polling error:', err);
   }

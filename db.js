@@ -179,7 +179,18 @@ async function setupDatabase() {
     await client.query('CREATE INDEX IF NOT EXISTS idx_order_items_table_id ON order_items (table_id)');
     await client.query('CREATE INDEX IF NOT EXISTS idx_order_items_menu_id ON order_items (menu_id)');
     await client.query('CREATE INDEX IF NOT EXISTS idx_transactions_timestamp ON transactions (timestamp DESC)');
-    await client.query('CREATE INDEX IF NOT EXISTS idx_transaction_items_tx_id ON transaction_items (transaction_id)');
+    // 9. Create print_jobs table for Cloud/Vercel print queuing fallback
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS print_jobs (
+        id SERIAL PRIMARY KEY,
+        printer_id VARCHAR(50),
+        type VARCHAR(50) NOT NULL,
+        payload TEXT NOT NULL,
+        status VARCHAR(20) DEFAULT 'pending',
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    await client.query('CREATE INDEX IF NOT EXISTS idx_print_jobs_status ON print_jobs (status)');
 
     await client.query('COMMIT');
     console.log('PostgreSQL database schemas created successfully.');
