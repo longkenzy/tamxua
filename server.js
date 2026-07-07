@@ -1007,6 +1007,17 @@ app.post('/api/print-docx', async (req, res) => {
 app.post('/api/print-raw', requireAuth, async (req, res) => {
   const { printerType, ip, port, sharedPath, content } = req.body;
 
+  // Cloud/Vercel environments cannot reach private local network IPs (e.g. 192.168.x.x)
+  const isCloud = process.env.VERCEL || process.env.NODE_ENV === 'production' || (req.headers.host && !req.headers.host.includes('localhost') && !req.headers.host.includes('127.0.0.1') && !req.headers.host.includes('192.168.'));
+  if (isCloud && printerType === 'wifi') {
+    const isPrivateIP = ip && (ip.startsWith('192.168.') || ip.startsWith('10.') || ip.startsWith('172.'));
+    if (isPrivateIP) {
+      return res.status(400).json({ 
+        error: `Kết nối đến máy in Wifi tại ${ip}:${port || 9100} bị quá hạn (Timeout). Máy chủ Cloud (Vercel) không thể kết nối trực tiếp đến IP mạng nội bộ Wifi của bạn. Bạn vẫn có thể lưu cài đặt này và in hóa đơn bình thường qua hộp thoại in của máy tính thu ngân.`
+      });
+    }
+  }
+
   if (printerType === 'wifi') {
     if (!ip) {
       return res.status(400).json({ error: 'Địa chỉ IP máy in Wifi không được trống.' });
@@ -1243,6 +1254,10 @@ io.on('connection', async (socket) => {
 
   socket.on('request_print_receipt', (data) => {
     socket.broadcast.emit('print_receipt', data);
+  });
+
+  socket.on('request_print_test', (data) => {
+    socket.broadcast.emit('print_test', data);
   });
 });
 

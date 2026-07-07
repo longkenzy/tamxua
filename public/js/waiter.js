@@ -186,6 +186,13 @@ function initConnection() {
           printReceipt(data.tableObj, data.orderItems, data.discountAmount, data.receivedAmount, data.transactionId, data.timestamp, data.payMethod);
         }
       });
+
+      socket.on('print_test', (data) => {
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        if (!isMobile) {
+          printTestIframe(data.printerType, data.targetStr);
+        }
+      });
       
       socket.on('connect_error', () => {
         console.warn('WebSocket connection failed. Switching to Polling.');
@@ -1279,6 +1286,57 @@ function isDrinkItem(item, menuList) {
   }
   
   return false;
+}
+
+// Helper to print test page in browser print dialog via hidden iframe
+function printTestIframe(printerType, targetStr) {
+  let iframe = document.getElementById('print-test-iframe');
+  if (iframe) iframe.remove();
+  
+  iframe = document.createElement('iframe');
+  iframe.id = 'print-test-iframe';
+  iframe.style.position = 'fixed';
+  iframe.style.right = '0';
+  iframe.style.bottom = '0';
+  iframe.style.width = '0';
+  iframe.style.height = '0';
+  iframe.style.border = '0';
+  document.body.appendChild(iframe);
+  
+  const doc = iframe.contentWindow.document;
+  doc.open();
+  doc.write(`
+    <html>
+      <head>
+        <title>IN THỬ MÁY IN</title>
+        <style>
+          body { font-family: 'Arial', sans-serif; padding: 10px; margin: 0; text-align: center; font-size: 14px; }
+          .line { border-bottom: 1px dashed #000; margin: 8px 0; }
+          .title { font-size: 18px; font-weight: bold; }
+          .info { text-align: left; font-size: 12px; margin: 10px 0; line-height: 1.5; }
+        </style>
+      </head>
+      <body>
+        <div class="title">IN THỬ MÁY IN</div>
+        <div>Nhà hàng: TẤM XƯA</div>
+        <div class="line"></div>
+        <div class="info">
+          <div>Loại máy in: \${printerType === 'wifi' ? 'Wifi / LAN' : 'PC Shared'}</div>
+          <div>Địa chỉ: \${targetStr}</div>
+          <div>Thời gian: \${new Date().toLocaleString('vi-VN')}</div>
+          <div>Trạng thái: Kết nối OK (Giả lập Cloud)</div>
+        </div>
+        <div class="line"></div>
+        <div style="font-size: 11px; color: #555; margin-top: 15px;">Mẫu in thử thành công</div>
+      </body>
+    </html>
+  `);
+  doc.close();
+  
+  iframe.contentWindow.focus();
+  setTimeout(() => {
+    iframe.contentWindow.print();
+  }, 300);
 }
 
 // Helper to print kitchen/bar slip using docx template
@@ -3188,6 +3246,27 @@ if (btnPrinterTest) {
       }
     }
     
+    const targetStr = activePrinterType === 'wifi' ? ipVal : sharedPathVal;
+    const isCloud = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1' && !window.location.hostname.startsWith('192.168.');
+
+    if (isCloud) {
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      if (isMobile) {
+        if (socket && socket.connected) {
+          socket.emit('request_print_test', {
+            printerType: activePrinterType,
+            targetStr: targetStr
+          });
+          showSuccessToast('📤 Đã gửi yêu cầu in thử tới quầy thu ngân.');
+        } else {
+          alert('Không thể gửi yêu cầu in thử vì socket chưa kết nối.');
+        }
+      } else {
+        printTestIframe(activePrinterType, targetStr);
+      }
+      return;
+    }
+
     btnPrinterTest.disabled = true;
     btnPrinterTest.textContent = 'Đang in...';
     
@@ -3197,7 +3276,7 @@ if (btnPrinterTest) {
                      `       Nha hang: TAM XUA        \n` +
                      `--------------------------------\n` +
                      `Loai may in: ${activePrinterType === 'wifi' ? 'Wifi / LAN' : 'PC Shared'}\n` +
-                     `Dia chi    : ${activePrinterType === 'wifi' ? ipVal : sharedPathVal}\n` +
+                     `Dia chi    : ${targetStr}\n` +
                      `Thoi gian  : ${new Date().toLocaleString()}\n` +
                      `Trang thai : Ket noi OK\n` +
                      `--------------------------------\n\n\n\n`;
