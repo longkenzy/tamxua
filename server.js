@@ -882,12 +882,13 @@ app.post('/api/checkout', async (req, res) => {
 // Generate and print Word docx invoice
 app.post('/api/print-docx', async (req, res) => {
   try {
-    const templateData = req.body;
+    const { template, ...templateData } = req.body;
+    const templateName = template === 'hoadonbep.docx' ? 'hoadonbep.docx' : 'hoadon.docx';
 
     // Path to the docx template
-    const templatePath = path.join(__dirname, 'templates', 'hoadonbep.docx');
+    const templatePath = path.join(__dirname, 'templates', templateName);
     if (!fs.existsSync(templatePath)) {
-      return res.status(404).json({ error: 'Không tìm thấy file hoadonbep.docx trong thư mục templates.' });
+      return res.status(404).json({ error: `Không tìm thấy file ${templateName} trong thư mục templates.` });
     }
 
     // Load Word template file as binary
@@ -917,9 +918,10 @@ app.post('/api/print-docx', async (req, res) => {
       <html>
         <head>
           <meta charset="utf-8">
+          <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
           <style>
             body {
-              font-family: 'Courier New', Courier, monospace;
+              font-family: 'Roboto', Arial, sans-serif;
               font-size: 13px;
               width: 80mm;
               margin: 0 auto;
@@ -949,7 +951,7 @@ app.post('/api/print-docx', async (req, res) => {
               border: 1px solid #000;
             }
             th, td {
-              padding: 0px 1px;
+              padding: 4px 6px;
               font-size: 12px;
               vertical-align: middle;
             }

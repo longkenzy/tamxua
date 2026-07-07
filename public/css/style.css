@@ -28,11 +28,11 @@
   
   /* Rounding Options (HP scale mapped to original variables) */
   --rounded-none: 0px;
-  --rounded-xs: 2px;
-  --rounded-sm: 4px;   /* Mapped to buttons (HP: 4px) */
-  --rounded-md: 8px;  /* Mapped to cards/modals (HP: 8px) */
-  --rounded-lg: 8px;  /* Mapped to cards/modals */
-  --rounded-xl: 8px;  /* Mapped to cards/modals */
+  --rounded-xs: 6px;
+  --rounded-sm: 6px;   /* Mapped to buttons (HP: 4px) */
+  --rounded-md: 6px;  /* Mapped to cards/modals (HP: 8px) */
+  --rounded-lg: 6px;  /* Mapped to cards/modals */
+  --rounded-xl: 6px;  /* Mapped to cards/modals */
   --rounded-full: 9999px;
   
   /* Spacing Grid (HP spacing) */
@@ -1139,7 +1139,7 @@ a {
   margin: 6px auto;
   justify-content: center;
   align-items: center;
-  border-radius: 10px;
+  border-radius: 6px;
 }
 
 .sidebar.collapsed .sidebar-link-content {
@@ -1498,7 +1498,7 @@ a {
   position: relative;
   background-color: #ffffff;
   border: 1px solid #d1d5db;
-  border-radius: 4px;
+  border-radius: 6px;
   padding: 6px 12px;
   display: flex;
   align-items: center;
@@ -1540,7 +1540,7 @@ a {
   background-color: #0088ff;
   color: #ffffff;
   border: none;
-  border-radius: 4px;
+  border-radius: 6px;
   padding: 8px 16px;
   font-weight: 600;
   font-size: 14px;
@@ -1589,7 +1589,7 @@ a {
 /* Primary metrics block */
 .overview-metrics-card {
   background-color: #ffffff;
-  border-radius: 8px;
+  border-radius: 6px;
   padding: 24px;
   display: flex;
   justify-content: space-between;
@@ -1672,7 +1672,7 @@ a {
 
 .sec-metric-card {
   background-color: #ffffff;
-  border-radius: 8px;
+  border-radius: 6px;
   padding: 20px;
   display: flex;
   flex-direction: column;
@@ -1708,7 +1708,7 @@ a {
 /* Chart Panel */
 .overview-chart-panel {
   background-color: #ffffff;
-  border-radius: 8px;
+  border-radius: 6px;
   padding: 24px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
   margin-bottom: 24px;
@@ -1753,7 +1753,7 @@ a {
   width: 16px;
   height: 16px;
   background-color: #0088ff;
-  border-radius: 2px;
+  border-radius: 6px;
   display: inline-block;
 }
 
@@ -1792,7 +1792,7 @@ a {
 .sapo-dropdown-trigger {
   background-color: #ffffff;
   border: 1px solid #d1d5db;
-  border-radius: 4px;
+  border-radius: 6px;
   padding: 8px 16px;
   display: flex;
   align-items: center;
@@ -1818,7 +1818,7 @@ a {
   left: 0;
   background-color: #ffffff;
   border: 1px solid #e5e7eb;
-  border-radius: 4px;
+  border-radius: 6px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   width: 220px;
   padding: 4px 0;
@@ -1879,7 +1879,7 @@ a {
   color: #4b5563;
   cursor: pointer;
   padding: 4px 8px;
-  border-radius: 4px;
+  border-radius: 6px;
   transition: background-color 0.15s;
 }
 
@@ -1934,7 +1934,7 @@ a {
   font-size: 13px;
   color: #374151;
   cursor: pointer;
-  border-radius: 4px;
+  border-radius: 6px;
   transition: background-color 0.15s;
   user-select: none;
   font-weight: 500;
@@ -1957,7 +1957,7 @@ a {
   background-color: var(--primary) !important;
   color: var(--on-primary) !important;
   font-weight: bold;
-  border-radius: 4px;
+  border-radius: 6px;
 }
 
 .calendar-day-cell.in-range {
@@ -1990,7 +1990,7 @@ a {
   font-size: 13px;
   font-weight: 600;
   padding: 6px 16px;
-  border-radius: 4px;
+  border-radius: 6px;
   cursor: pointer;
   transition: all 0.15s;
 }
@@ -2096,7 +2096,7 @@ a {
 .legend-color-block {
   width: 16px;
   height: 16px;
-  border-radius: 2px;
+  border-radius: 6px;
   display: inline-block;
 }
 

@@ -1202,8 +1202,73 @@ function removeAccents(str) {
     .replace(/[đĐ]/g, char => char === 'đ' ? 'd' : 'D');
 }
 
+// Helper to calculate difference between old order and new cart
+function getOrderDifference(oldOrder, newCart) {
+  const diffItems = [];
+  
+  newCart.forEach(newItem => {
+    const oldItem = (oldOrder || []).find(o => o.name === newItem.name);
+    const oldQty = oldItem ? oldItem.quantity : 0;
+    const diffQty = newItem.quantity - oldQty;
+    
+    if (diffQty > 0) {
+      diffItems.push({
+        ...newItem,
+        quantity: diffQty
+      });
+    }
+  });
+  
+  return diffItems;
+}
+
+// Helper to check if an item is a drink
+function isDrinkItem(item, menuList) {
+  const menuItem = (menuList || []).find(m => m.id === item.id);
+  const category = menuItem ? menuItem.category : '';
+  
+  if (category) {
+    const catLower = category.toLowerCase();
+    if (
+      catLower === 'drink' || 
+      catLower.includes('nước') || 
+      catLower.includes('uống') || 
+      catLower.includes('giải khát') ||
+      catLower.includes('sinh tố') ||
+      catLower.includes('cà phê') ||
+      catLower.includes('cafe') ||
+      catLower.includes('coffee') ||
+      catLower.includes('trà')
+    ) {
+      return true;
+    }
+  }
+  
+  if (item.name) {
+    const nameLower = item.name.toLowerCase();
+    if (
+      nameLower.includes('nước') ||
+      nameLower.includes('trà') ||
+      nameLower.includes('cà phê') ||
+      nameLower.includes('cafe') ||
+      nameLower.includes('coffee') ||
+      nameLower.includes('sinh tố') ||
+      nameLower.includes('juice') ||
+      nameLower.includes('sữa') ||
+      nameLower.includes('coca') ||
+      nameLower.includes('pepsi') ||
+      nameLower.includes('sting') ||
+      nameLower.includes('bia')
+    ) {
+      return true;
+    }
+  }
+  
+  return false;
+}
+
 // Helper to print kitchen/bar slip using docx template
-async function printDocxSlip(printerId, tableName, items) {
+async function printDocxSlip(printerId, tableName, items, title = 'HOÁ ĐƠN BẾP') {
   if (items.length === 0) return;
   
   const isConnected = localStorage.getItem(`printer_${printerId}_connected`) === 'true';
@@ -1211,66 +1276,231 @@ async function printDocxSlip(printerId, tableName, items) {
     console.log(`Printer ${printerId} is not connected. Skipping print.`);
     return;
   }
+
+  const orderTimeStr = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) + ' • ' + new Date().toLocaleDateString('vi-VN');
   
-  const type = localStorage.getItem(`printer_${printerId}_type`) || 'wifi';
-  const ip = localStorage.getItem(`printer_${printerId}_ip`) || '';
-  const port = localStorage.getItem(`printer_${printerId}_port`) || '9100';
-  const sharedPath = localStorage.getItem(`printer_${printerId}_shared_path`) || '';
-
-  const orderTime = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-
-  // Standard width config for centering (K80 width approx. 42 characters)
-  const W = 42;
-  const tableWidth = 39;
-  const leftTablePad = ' '.repeat(Math.max(0, Math.floor((W - tableWidth) / 2)));
-  const borderLine = `${leftTablePad}+-------------------------------+-----+\r\n`;
-
-  // Center helper
-  function centerText(str, width = W) {
-    if (str.length >= width) return str.substring(0, width);
-    const leftPad = Math.floor((width - str.length) / 2);
-    return ' '.repeat(leftPad) + str;
-  }
-
-  // Format exactly matching hoadonbep.docx layout in plain text with accents
-  let text = `\r\n` + 
-             `${centerText('HOÁ ĐƠN BẾP')}\r\n` + 
-             `${centerText(tableName)}\r\n\r\n` + 
-             `${centerText(`Giờ order: ${orderTime}`)}\r\n` + 
-             borderLine + 
-             `${leftTablePad}| Mặt hàng                      | SL  |\r\n` + 
-             borderLine;
-
-  items.forEach(item => {
-    // Keep original Vietnamese accents for name, notes
-    const namePart = item.name.substring(0, 29).padEnd(29, ' ');
-    const qtyPart = String(item.quantity).padStart(3, ' ');
-    text += `${leftTablePad}| ${namePart} | ${qtyPart} |\r\n`;
-    if (item.notes) {
-      const notePart = item.notes.substring(0, 23).padEnd(23, ' ');
-      text += `${leftTablePad}|  * Ghi chú: ${notePart} |\r\n`;
-    }
-  });
-
-  text += borderLine + `\r\n\r\n\r\n\r\n\r\n\r\n`;
+  const templateData = {
+    template: 'hoadonbep.docx',
+    table_name: tableName,
+    order_time: orderTimeStr,
+    items: items.map(item => ({
+      name: item.name,
+      quantity: item.quantity,
+      notes: item.notes || ''
+    }))
+  };
 
   try {
-    const response = await fetch('/api/print-raw', {
+    const response = await fetch('/api/print-docx', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        printerType: type,
-        ip: ip,
-        port: port,
-        sharedPath: sharedPath,
-        content: text
-      })
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(templateData)
     });
+    
     if (!response.ok) {
-      console.error(`Failed to print raw slip for ${printerId}`);
+      throw new Error('Lỗi phản hồi từ server');
     }
-  } catch (err) {
-    console.error(`Error printing raw slip for ${printerId}:`, err);
+    
+    const htmlContent = await response.text();
+    
+    // Print by writing the styled HTML content to a hidden iframe
+    let iframe = document.getElementById(`print-iframe-${printerId}`);
+    if (iframe) {
+      iframe.remove();
+    }
+    
+    iframe = document.createElement('iframe');
+    iframe.id = `print-iframe-${printerId}`;
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    
+    document.body.appendChild(iframe);
+    
+    const doc = iframe.contentWindow.document;
+    doc.open();
+    doc.write(htmlContent);
+    doc.close();
+
+    // Dynamically adjust header styles and font alignments
+    const paragraphs = doc.getElementsByTagName('p');
+    for (let p of paragraphs) {
+      let txt = p.textContent.trim();
+      p.style.fontFamily = 'Arial, sans-serif';
+      
+      // Replace title text if customized
+      if (title && (txt.toUpperCase().includes('HOÁ ĐƠN BẾP') || txt.toUpperCase().includes('HÓA ĐƠN BẾP'))) {
+        p.textContent = title;
+        txt = title;
+      }
+      
+      // Left-align Order and Checkout times
+      if (txt.includes('Giờ vào') || txt.includes('Giờ ra') || txt.includes('Giờ order')) {
+        p.style.textAlign = 'left';
+        p.style.fontSize = '12px';
+      }
+      
+      // Increase size for TẤM XƯA
+      if (txt.toUpperCase().includes('TẤM XƯA')) {
+        p.style.fontSize = '22px';
+        p.style.fontWeight = 'bold';
+        p.style.letterSpacing = '1px';
+      }
+      
+      // Increase size for HOÁ ĐƠN BẾP
+      if (txt.toUpperCase().includes('HOÁ ĐƠN BẾP') || txt.toUpperCase().includes('HÓA ĐƠN BẾP') || txt.toUpperCase().includes('PHIẾU THÊM MÓN')) {
+        p.style.fontSize = '20px';
+        p.style.fontWeight = 'bold';
+        p.style.marginTop = '15px';
+      }
+      
+      // Increase size for Table Name (e.g. Bàn 7)
+      if (txt.startsWith('Bàn') || (txt.includes('Bàn') && txt.length < 15)) {
+        p.style.fontSize = '16px';
+        p.style.fontWeight = 'bold';
+        p.style.marginBottom = '10px';
+      }
+    }
+    
+    iframe.contentWindow.focus();
+    setTimeout(() => {
+      iframe.contentWindow.print();
+      if (typeof showSuccessToast === 'function') {
+        showSuccessToast(`✅ Đã mở hộp thoại in ${title} cho ${tableName}!`);
+      }
+    }, 300);
+    
+  } catch (error) {
+    console.error('Lỗi xuất hóa đơn bếp:', error);
+  }
+}
+
+// Helper to format isoString into readable time
+function formatTime(isoString) {
+  if (!isoString) return '';
+  const date = new Date(isoString);
+  const pad = (n) => String(n).padStart(2, '0');
+  const hh = pad(date.getHours());
+  const mm = pad(date.getMinutes());
+  const ss = pad(date.getSeconds());
+  const DD = pad(date.getDate());
+  const MM = pad(date.getMonth() + 1);
+  const YYYY = date.getFullYear();
+  return `${hh}:${mm}:${ss} - ${DD}/${MM}/${YYYY}`;
+}
+
+// Global Print Receipt Function
+async function printReceipt(tableObj, orderItems, discountAmount, receivedAmount, transactionId = null, timestamp = null, payMethod = 'cash') {
+  const subtotal = orderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  const finalTotal = Math.max(0, subtotal - discountAmount);
+  const changeAmount = receivedAmount ? (receivedAmount - finalTotal) : 0;
+
+  // Format date/times
+  const orderTimeStr = tableObj.updatedAt 
+    ? formatTime(tableObj.updatedAt).replace(' - ', ' • ') 
+    : (timestamp ? formatTime(timestamp).replace(' - ', ' • ') : formatTime(new Date().toISOString()).replace(' - ', ' • '));
+
+  const checkoutTimeStr = timestamp 
+    ? formatTime(timestamp).replace(' - ', ' • ') 
+    : formatTime(new Date().toISOString()).replace(' - ', ' • ');
+
+  const payMethodLabel = payMethod === 'bank' ? 'Chuyển khoản' : 'Tiền mặt';
+
+  const templateData = {
+    table_name: tableObj.name,
+    order_time: orderTimeStr,
+    checkout_time: checkoutTimeStr,
+    subtotal: formatVND(subtotal),
+    discount: discountAmount > 0 ? `-${formatVND(discountAmount)}` : '0đ',
+    final_total: formatVND(finalTotal),
+    received_amount: formatVND(receivedAmount || finalTotal),
+    change_amount: formatVND(Math.max(0, changeAmount)),
+    payment_method: payMethodLabel,
+    items: orderItems.map(item => ({
+      emoji: item.emoji || '🍽️',
+      name: item.name,
+      price: formatVND(item.price),
+      quantity: item.quantity,
+      total: formatVND(item.price * item.quantity)
+    }))
+  };
+
+  if (typeof showSuccessToast === 'function') {
+    showSuccessToast('🔄 Đang gửi dữ liệu in hóa đơn...');
+  }
+  
+  try {
+    const response = await fetch('/api/print-docx', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(templateData)
+    });
+    
+    if (!response.ok) {
+      throw new Error('Lỗi phản hồi từ server');
+    }
+    
+    const htmlContent = await response.text();
+    
+    // Print by writing the styled HTML content to a hidden iframe
+    let iframe = document.getElementById('print-receipt-iframe');
+    if (iframe) {
+      iframe.remove();
+    }
+    
+    iframe = document.createElement('iframe');
+    iframe.id = 'print-receipt-iframe';
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    
+    document.body.appendChild(iframe);
+    
+    const doc = iframe.contentWindow.document;
+    doc.open();
+    doc.write(htmlContent);
+    doc.close();
+
+    // Dynamically adjust header text alignments and font sizes based on text content
+    const paragraphs = doc.getElementsByTagName('p');
+    for (let p of paragraphs) {
+      const txt = p.textContent.trim();
+      p.style.fontFamily = 'Arial, sans-serif';
+      
+      // Left-align Order and Checkout times
+      if (txt.includes('Giờ vào') || txt.includes('Giờ ra')) {
+        p.style.textAlign = 'left';
+        p.style.fontSize = '12px';
+      }
+      
+      // Increase size for TẤM XƯA
+      if (txt.toUpperCase().includes('TẤM XƯA')) {
+        p.style.fontSize = '22px';
+        p.style.fontWeight = 'bold';
+        p.style.letterSpacing = '1px';
+      }
+    }
+    
+    iframe.contentWindow.focus();
+    setTimeout(() => {
+      iframe.contentWindow.print();
+      if (typeof showSuccessToast === 'function') {
+        showSuccessToast(`✅ Đã in hóa đơn thành công cho ${tableObj.name}!`);
+      }
+    }, 300);
+    
+  } catch (error) {
+    console.error('Lỗi xuất hóa đơn:', error);
   }
 }
 
@@ -1354,6 +1584,10 @@ btnSubmitOrder.addEventListener('click', async () => {
   btnSubmitOrder.disabled = true;
   btnSubmitOrder.textContent = 'Đang gửi...';
   
+  const tableBeforeSave = tables.find(t => t.id === targetTableId);
+  const oldOrder = tableBeforeSave ? JSON.parse(JSON.stringify(tableBeforeSave.order || [])) : [];
+  const tableName = tableBeforeSave ? tableBeforeSave.name : 'Mang đi';
+  
   try {
     const response = await fetch('/api/order', {
       method: 'POST',
@@ -1373,28 +1607,19 @@ btnSubmitOrder.addEventListener('click', async () => {
     
     const result = await response.json();
     if (result.success) {
-      const table = tables.find(t => t.id === targetTableId);
-      const tableName = table ? table.name : 'Mang đi';
+      const diffItems = getOrderDifference(oldOrder, cart);
       
-      // Separate items in the cart
-      const drinkItems = cart.filter(item => {
-        const menuItem = menu.find(m => m.id === item.id);
-        const category = menuItem ? menuItem.category : '';
-        return category && (
-          category.toLowerCase() === 'drink' || 
-          category.toLowerCase().includes('nước') || 
-          category.toLowerCase().includes('uống') || 
-          category.toLowerCase().includes('giải khát') ||
-          category.toLowerCase().includes('sinh tố') ||
-          category.toLowerCase().includes('cà phê') ||
-          category.toLowerCase().includes('trà')
-        );
-      });
-      const kitchenItems = cart.filter(item => !drinkItems.includes(item));
+      if (diffItems.length > 0) {
+        const title = (oldOrder && oldOrder.length > 0) ? 'PHIẾU THÊM MÓN' : 'HOÁ ĐƠN BẾP';
+        
+        // Separate items in the cart
+        const drinkItems = diffItems.filter(item => isDrinkItem(item, menu));
+        const kitchenItems = diffItems.filter(item => !drinkItems.includes(item));
 
-      // Trigger automatic printing for connected printers using docx templates
-      printDocxSlip('kitchen_default', tableName, kitchenItems);
-      printDocxSlip('kitchen_bar', tableName, drinkItems);
+        // Trigger automatic printing for connected printers using docx templates
+        printDocxSlip('kitchen_default', tableName, kitchenItems, title);
+        printDocxSlip('kitchen_bar', tableName, drinkItems, title);
+      }
 
       showSuccessToast(`Đã gửi Order thành công cho ${tableName}!`);
       
@@ -1913,6 +2138,13 @@ if (btnConfirmCheckout) {
         showSuccessToast(`✅ Thanh toán thành công cho ${table.name}!`);
         closeCheckoutModal();
         
+        // Print receipt if cashier printer is connected
+        const isCashierConnected = localStorage.getItem('printer_cashier_connected') === 'true';
+        if (isCashierConnected) {
+          const txId = result.transaction ? result.transaction.id : null;
+          printReceipt(table, table.order, discountAmount, receivedAmount, txId, new Date().toISOString(), paymentMethod);
+        }
+        
         // Refresh tables data
         const tablesRes = await fetch('/api/tables');
         if (tablesRes.ok) {
@@ -2069,8 +2301,91 @@ function renderOrderDetailsItems() {
     updateOrderDetailsSummary();
     return;
   }
+
+  // Find original order items
+  const table = tables.find(t => t.id === activeTableId);
+  const oldItems = table ? (table.order || []) : [];
+
+  const oldItemsToRender = [];
+  const newItemsToRender = [];
   
-  cart.forEach((item, index) => {
+  cart.forEach((item, originalIndex) => {
+    const oldItem = oldItems.find(o => o.name === item.name);
+    const oldQty = oldItem ? oldItem.quantity : 0;
+    
+    if (oldQty === 0) {
+      newItemsToRender.push({
+        item: item,
+        originalIndex: originalIndex,
+        displayQty: item.quantity,
+        isNew: true
+      });
+    } else {
+      oldItemsToRender.push({
+        item: item,
+        originalIndex: originalIndex,
+        displayQty: Math.min(item.quantity, oldQty),
+        isNew: false
+      });
+      
+      if (item.quantity > oldQty) {
+        newItemsToRender.push({
+          item: item,
+          originalIndex: originalIndex,
+          displayQty: item.quantity - oldQty,
+          isNew: true
+        });
+      }
+    }
+  });
+
+  // Inject styles if not present
+  if (!document.getElementById('rgb-flow-style')) {
+    const style = document.createElement('style');
+    style.id = 'rgb-flow-style';
+    style.innerHTML = `
+      @keyframes rgbFlow {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+      }
+      .rgb-divider-container {
+        margin: 24px 0;
+        text-align: center;
+        position: relative;
+      }
+      .rgb-divider-line {
+        height: 3px;
+        background: linear-gradient(90deg, #ff007f, #7f00ff, #00f0ff, #ff007f);
+        background-size: 300% 100%;
+        animation: rgbFlow 2s linear infinite;
+        border-radius: 9999px;
+      }
+      .rgb-divider-text {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: #f8fafc;
+        padding: 2px 12px;
+        font-size: 10px;
+        font-weight: 700;
+        color: #7f00ff;
+        border-radius: 9999px;
+        border: 1px solid #e2e8f0;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+    `;
+    document.head.appendChild(style);
+  }
+
+  // Render function helper
+  function renderItemRow(renderObj) {
+    const item = renderObj.item;
+    const index = renderObj.originalIndex;
+    const qty = renderObj.displayQty;
+    
     const itemRow = document.createElement('div');
     itemRow.style.cssText = 'border-bottom: 1px dashed #cbd5e1; padding-bottom: 12px; display: flex; flex-direction: column; gap: 8px;';
     
@@ -2082,12 +2397,21 @@ function renderOrderDetailsItems() {
       detailHtml = `<div style="font-size: 12px; color: #64748b; margin-top: 2px;">Ghi chú: ${item.notes}</div>`;
     }
     
+    // Add badge for added items
+    let badgeHtml = '';
+    if (renderObj.isNew) {
+      badgeHtml = `<span style="font-size: 10px; font-weight: 700; color: #ffffff; background: linear-gradient(45deg, #ff007f, #7f00ff); padding: 1px 6px; border-radius: 4px; margin-left: 6px; text-transform: uppercase;">Mới</span>`;
+    }
+    
     topRow.innerHTML = `
       <div style="flex: 1; padding-right: 12px;">
-        <div style="font-size: 14px; font-weight: 600; color: #1e293b;">${item.emoji || '🍽️'} ${item.name}</div>
+        <div style="font-size: 14px; font-weight: 600; color: #1e293b; display: flex; align-items: center;">
+          <span>${item.emoji || '🍽️'} ${item.name}</span>
+          ${badgeHtml}
+        </div>
         ${detailHtml}
       </div>
-      <div style="font-size: 14px; font-weight: 700; color: #0f172a; text-align: right;">${formatVND(item.price * item.quantity)}</div>
+      <div style="font-size: 14px; font-weight: 700; color: #0f172a; text-align: right;">${formatVND(item.price * qty)}</div>
     `;
     
     const bottomRow = document.createElement('div');
@@ -2098,7 +2422,7 @@ function renderOrderDetailsItems() {
     qtySelector.style.cssText = 'display: flex; align-items: center; gap: 16px; border: 1.5px solid #cbd5e1; border-radius: 9999px; padding: 2px 12px; background-color: #ffffff;';
     qtySelector.innerHTML = `
       <button style="border: none; background: transparent; font-size: 18px; font-weight: 700; color: #0088ff; padding: 0 4px; cursor: pointer; user-select: none;">−</button>
-      <span style="font-size: 14px; font-weight: 700; color: #1e293b; min-width: 16px; text-align: center;">${item.quantity}</span>
+      <span style="font-size: 14px; font-weight: 700; color: #1e293b; min-width: 16px; text-align: center;">${qty}</span>
       <button style="border: none; background: transparent; font-size: 18px; font-weight: 700; color: #0088ff; padding: 0 4px; cursor: pointer; user-select: none;">+</button>
     `;
     
@@ -2124,7 +2448,24 @@ function renderOrderDetailsItems() {
     itemRow.appendChild(topRow);
     itemRow.appendChild(bottomRow);
     orderDetailsItemsList.appendChild(itemRow);
-  });
+  }
+
+  // 1. Render old items
+  oldItemsToRender.forEach(renderObj => renderItemRow(renderObj));
+
+  // 2. Render RGB Divider if both lists are present
+  if (oldItemsToRender.length > 0 && newItemsToRender.length > 0) {
+    const dividerContainer = document.createElement('div');
+    dividerContainer.className = 'rgb-divider-container';
+    dividerContainer.innerHTML = `
+      <div class="rgb-divider-line"></div>
+      <div class="rgb-divider-text">Món gọi thêm</div>
+    `;
+    orderDetailsItemsList.appendChild(dividerContainer);
+  }
+
+  // 3. Render new items
+  newItemsToRender.forEach(renderObj => renderItemRow(renderObj));
   
   updateOrderDetailsSummary();
 }
@@ -2235,6 +2576,10 @@ if (btnOrderDetailsSave) {
     btnOrderDetailsSave.disabled = true;
     btnOrderDetailsSave.textContent = 'Đang lưu...';
     
+    const tableBeforeSave = tables.find(t => t.id === activeTableId);
+    const oldOrder = tableBeforeSave ? JSON.parse(JSON.stringify(tableBeforeSave.order || [])) : [];
+    const tableName = tableBeforeSave ? tableBeforeSave.name : 'Bàn';
+    
     try {
       const res = await fetch('/api/order', {
         method: 'POST',
@@ -2252,28 +2597,19 @@ if (btnOrderDetailsSave) {
       
       const result = await res.json();
       if (result.success) {
-        const table = tables.find(t => t.id === activeTableId);
-        const tableName = table ? table.name : 'Bàn';
+        const diffItems = getOrderDifference(oldOrder, cart);
+        
+        if (diffItems.length > 0) {
+          const title = (oldOrder && oldOrder.length > 0) ? 'PHIẾU THÊM MÓN' : 'HOÁ ĐƠN BẾP';
+          
+          // Separate items in the cart
+          const drinkItems = diffItems.filter(item => isDrinkItem(item, menu));
+          const kitchenItems = diffItems.filter(item => !drinkItems.includes(item));
 
-        // Separate items in the cart
-        const drinkItems = cart.filter(item => {
-          const menuItem = menu.find(m => m.id === item.id);
-          const category = menuItem ? menuItem.category : '';
-          return category && (
-            category.toLowerCase() === 'drink' || 
-            category.toLowerCase().includes('nước') || 
-            category.toLowerCase().includes('uống') || 
-            category.toLowerCase().includes('giải khát') ||
-            category.toLowerCase().includes('sinh tố') ||
-            category.toLowerCase().includes('cà phê') ||
-            category.toLowerCase().includes('trà')
-          );
-        });
-        const kitchenItems = cart.filter(item => !drinkItems.includes(item));
-
-        // Trigger automatic printing for connected printers using docx templates
-        printDocxSlip('kitchen_default', tableName, kitchenItems);
-        printDocxSlip('kitchen_bar', tableName, drinkItems);
+          // Trigger automatic printing for connected printers using docx templates
+          printDocxSlip('kitchen_default', tableName, kitchenItems, title);
+          printDocxSlip('kitchen_bar', tableName, drinkItems, title);
+        }
 
         showSuccessToast('Đã lưu thay đổi hóa đơn thành công!');
         closeOrderDetailsView();
@@ -2335,6 +2671,7 @@ const detailPrinterName = document.getElementById('detail-printer-name');
 const detailPrinterIp = document.getElementById('detail-printer-ip');
 const detailPrinterPort = document.getElementById('detail-printer-port');
 const btnPrinterConnect = document.getElementById('btn-printer-connect');
+const btnPrinterDisconnect = document.getElementById('btn-printer-disconnect');
 const btnPrinterTest = document.getElementById('btn-printer-test');
 const btnFindPrinterIp = document.getElementById('btn-find-printer-ip');
 
@@ -2495,6 +2832,11 @@ function openPrinterDetail(pId) {
     }
     if (groupWifiFields) groupWifiFields.style.display = 'flex';
     if (groupPcShareFields) groupPcShareFields.style.display = 'none';
+  }
+  
+  const isConnected = localStorage.getItem(`printer_${pId}_connected`) === 'true';
+  if (btnPrinterDisconnect) {
+    btnPrinterDisconnect.style.display = isConnected ? 'flex' : 'none';
   }
   
   if (printerListScreen) printerListScreen.style.display = 'none';
@@ -2699,6 +3041,20 @@ if (btnPrinterConnect) {
       // Return to printer list
       backToPrinterList();
     }, 1200);
+  });
+}
+
+// Disconnect Printer action
+if (btnPrinterDisconnect) {
+  btnPrinterDisconnect.addEventListener('click', () => {
+    const pId = activeConfigPrinterId;
+    if (!pId) return;
+    
+    localStorage.setItem(`printer_${pId}_connected`, 'false');
+    showSuccessToast('⚡ Đã ngắt kết nối máy in thành công!');
+    
+    // Return to printer list
+    backToPrinterList();
   });
 }
 

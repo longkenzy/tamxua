@@ -173,6 +173,9 @@ async function init() {
     // Initialize custom selects
     initCustomSelects();
 
+    // Initialize manager order modal
+    initManagerOrderModal();
+
     // Initialize sidebar collapse state
     initSidebarCollapse();
 
@@ -571,7 +574,7 @@ function switchTab(tabKey) {
   } else if (tabKey === 'menu-mgmt') {
     renderMenuMgmtGrid();
   } else if (tabKey === 'menu-preview') {
-    renderMenuPreview();
+    loadMenuGroups();
   } else if (tabKey === 'report-revenue') {
     loadRevenueReport();
   } else if (tabKey === 'report-items') {
@@ -916,20 +919,43 @@ setInterval(() => {
 }, 15000);
 
 // Render Table Details Panel (Right Section)
+// Render Table Details Panel (Right Section)
 function renderTableDetails(table) {
   tableDetailsPanel.innerHTML = '';
   
-  if (!table || table.status === 'empty' || table.order.length === 0) {
+  if (!table) {
     tableDetailsPanel.innerHTML = `
       <div class="no-table-selected" style="display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; height: 100%;">
         <div class="no-table-icon">🪑</div>
-        <div class="bold" style="font-size: 16px; margin-bottom: 8px;">${table ? table.name : 'Chưa chọn bàn nào'}</div>
+        <div class="bold" style="font-size: 16px; margin-bottom: 8px;">Chưa chọn bàn nào</div>
         <p style="font-size:14px; line-height: 1.4; margin-bottom: 20px; max-width: 280px; margin-left: auto; margin-right: auto;">
-          ${table ? 'Bàn này đang trống. Hãy đợi phục vụ gửi order hoặc ghi món ăn.' : 'Chọn một bàn ăn ở bản đồ bên trái để xem chi tiết các món ăn đã gọi và xử lý thanh toán.'}
+          Chọn một bàn ăn ở bản đồ bên trái để xem chi tiết các món ăn đã gọi và xử lý thanh toán.
         </p>
       </div>
     `;
+    return;
+  }
+
+  if (table.status === 'empty' || table.order.length === 0) {
+    tableDetailsPanel.innerHTML = `
+      <div class="no-table-selected" style="display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; height: 100%;">
+        <div class="no-table-icon">🪑</div>
+        <div class="bold" style="font-size: 16px; margin-bottom: 8px;">${table.name}</div>
+        <p style="font-size:14px; line-height: 1.4; margin-bottom: 20px; max-width: 280px; margin-left: auto; margin-right: auto;">
+          Bàn này đang trống. Bạn có muốn tạo đơn gọi món mới cho bàn này không?
+        </p>
+        <button class="btn btn-primary" id="btn-create-order-direct" style="height: 42px; font-weight: 700; font-size: 13px; padding: 0 24px; border-radius: 8px; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); display: flex; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 4px 6px -1px rgba(0, 136, 255, 0.15); cursor: pointer; border: none; background-color: var(--primary);">
+          ✨ Tạo đơn gọi món
+        </button>
+      </div>
+    `;
     
+    const btnCreateOrderDirect = document.getElementById('btn-create-order-direct');
+    if (btnCreateOrderDirect) {
+      btnCreateOrderDirect.addEventListener('click', () => {
+        openManagerOrderModal(table);
+      });
+    }
     return;
   }
 
@@ -967,6 +993,9 @@ function renderTableDetails(table) {
     <div style="display: flex; gap: 6px; margin-top: 16px; animation: fadeInUp 0.4s ease-out;">
       <button class="btn btn-danger" id="btn-delete-order-direct" style="flex: 1; height: 42px; background-color: var(--primary-error-text); border-color: var(--primary-error-text); color: white; font-weight: 700; font-size: 12px; padding: 0 8px; border-radius: 8px; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); display: flex; align-items: center; justify-content: center; gap: 4px; cursor: pointer; border: none; box-shadow: 0 4px 6px -1px rgba(239, 68, 68, 0.15); white-space: nowrap;">
         <span style="font-size: 13px;">🗑️</span> Hủy đơn
+      </button>
+      <button class="btn btn-secondary" id="btn-add-more-dishes" style="flex: 1.2; height: 42px; border-color: var(--primary); color: var(--primary); background-color: #ffffff; font-weight: 700; font-size: 12px; padding: 0 8px; border-radius: 8px; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); display: flex; align-items: center; justify-content: center; gap: 4px; cursor: pointer; border: 1px solid var(--primary); box-shadow: 0 4px 6px -1px rgba(0, 136, 255, 0.05); white-space: nowrap;">
+        <span style="font-size: 13px;">➕</span> Thêm món
       </button>
       <button class="btn btn-primary" id="btn-trigger-checkout" style="flex: 1.8; height: 42px; font-weight: 700; font-size: 12px; padding: 0 8px; border-radius: 8px; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); display: flex; align-items: center; justify-content: center; gap: 4px; box-shadow: 0 4px 6px -1px rgba(0, 136, 255, 0.15); white-space: nowrap;">
         🖨️ Thanh toán & In đơn
@@ -1033,6 +1062,22 @@ function renderTableDetails(table) {
     });
   }
 
+  // Thêm hover effect và click cho Thêm món
+  const btnAddMoreDishes = document.getElementById('btn-add-more-dishes');
+  if (btnAddMoreDishes) {
+    btnAddMoreDishes.onmouseover = () => {
+      btnAddMoreDishes.style.transform = 'translateY(-2px)';
+      btnAddMoreDishes.style.boxShadow = '0 6px 12px -2px rgba(0, 136, 255, 0.15)';
+    };
+    btnAddMoreDishes.onmouseout = () => {
+      btnAddMoreDishes.style.transform = 'translateY(0)';
+      btnAddMoreDishes.style.boxShadow = '0 4px 6px -1px rgba(0, 136, 255, 0.05)';
+    };
+    btnAddMoreDishes.addEventListener('click', () => {
+      openManagerOrderModal(table);
+    });
+  }
+
   const btnTriggerCheckout = document.getElementById('btn-trigger-checkout');
   if (btnTriggerCheckout) {
     btnTriggerCheckout.onmouseover = () => {
@@ -1045,6 +1090,464 @@ function renderTableDetails(table) {
     };
     btnTriggerCheckout.addEventListener('click', () => openCheckoutModal(table));
   }
+}
+
+// State for manager order modal
+let managerCart = [];
+let managerOrderTableId = null;
+let isScrollingFromClickOrder = false;
+let scrollOrderTimeout = null;
+
+function openManagerOrderModal(table) {
+  managerOrderTableId = table.id;
+  
+  const modal = document.getElementById('manager-order-modal');
+  if (!modal) return;
+  
+  const title = document.getElementById('manager-order-modal-title');
+  if (table.order && table.order.length > 0) {
+    title.textContent = `Thêm món - ${table.name}`;
+    managerCart = JSON.parse(JSON.stringify(table.order));
+  } else {
+    title.textContent = `Tạo đơn - ${table.name}`;
+    managerCart = [];
+  }
+  
+  // Clear search input
+  document.getElementById('manager-order-search').value = '';
+  isScrollingFromClickOrder = false;
+  
+  // Show modal
+  modal.style.display = 'flex';
+  
+  // Reset scroll container of the menu to top
+  const container = document.getElementById('manager-order-menu-container');
+  if (container) {
+    container.scrollTop = 0;
+  }
+  
+  // Render lists
+  renderManagerOrderMenu();
+  renderManagerOrderSelected();
+}
+
+function renderManagerOrderMenu() {
+  const container = document.getElementById('manager-order-menu-container');
+  const sidebar = document.getElementById('manager-order-category-sidebar');
+  if (!container || !sidebar) return;
+  
+  container.innerHTML = '';
+  sidebar.innerHTML = '';
+  
+  const searchVal = document.getElementById('manager-order-search').value.trim().toLowerCase();
+  
+  // Group unique categories in order of appearance
+  const uniqueCategories = [...new Set(menuItems.map(item => item.category))].filter(Boolean);
+  const groups = [];
+
+  uniqueCategories.forEach(cat => {
+    const items = menuItems.filter(item => {
+      if (item.category !== cat) return false;
+      if (!searchVal) return true;
+      return item.name.toLowerCase().includes(searchVal) || (item.description && item.description.toLowerCase().includes(searchVal));
+    });
+    if (items.length > 0) {
+      groups.push({ category: cat, items });
+    }
+  });
+  
+  if (groups.length === 0) {
+    container.innerHTML = `<div style="text-align: center; color: var(--muted); padding: 60px 10px; font-size: 14px; grid-column: 1/-1;">Không tìm thấy món ăn nào.</div>`;
+    return;
+  }
+  
+  // Render Sidebar Tabs
+  groups.forEach((g, idx) => {
+    const tab = document.createElement('div');
+    tab.className = `manager-category-tab ${idx === 0 ? 'active' : ''}`;
+    tab.style.cssText = 'padding: 14px 16px; font-size: 13px; font-weight: 600; color: #475569; border-left: 3px solid transparent; cursor: pointer; transition: all 0.2s ease; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid rgba(0,0,0,0.02);';
+    if (idx === 0) {
+      tab.style.color = 'var(--primary)';
+      tab.style.borderLeftColor = 'var(--primary)';
+      tab.style.backgroundColor = 'rgba(2, 74, 216, 0.05)';
+    }
+    
+    let emoji = '🍽️';
+    let displayLabel = g.category;
+    if (g.category === 'main') { emoji = '🍛'; displayLabel = 'Món chính'; }
+    else if (g.category === 'side') { emoji = '🥗'; displayLabel = 'Món thêm'; }
+    else if (g.category === 'drink') { emoji = '🥤'; displayLabel = 'Nước uống'; }
+    else if (g.category === 'COMBO') { emoji = '🍱'; displayLabel = 'Combo'; }
+    else if (g.category === 'SƯỜN') { emoji = '🍛'; displayLabel = 'Cơm sườn'; }
+    else if (g.category === 'BA RỌI') { emoji = '🍛'; displayLabel = 'Cơm ba rọi'; }
+    else if (g.category === 'SƯỜN CỌNG') { emoji = '🍖'; displayLabel = 'Sườn cọng'; }
+    else if (g.category === 'CANH VÀ TOPPING') { emoji = '🍲'; displayLabel = 'Canh & Topping'; }
+    else if (g.category === 'CƠM NHÀ TẤM XƯA') { emoji = '🍚'; displayLabel = 'Cơm thêm'; }
+
+    tab.innerHTML = `<span style="font-size: 16px; line-height: 1;">${emoji}</span> <span style="line-height: 1.2;">${displayLabel}</span>`;
+    tab.setAttribute('data-category', g.category);
+    
+    // Hover effects
+    tab.onmouseenter = () => {
+      if (!tab.classList.contains('active')) {
+        tab.style.backgroundColor = 'rgba(0, 0, 0, 0.02)';
+        tab.style.color = 'var(--ink)';
+      }
+    };
+    tab.onmouseleave = () => {
+      if (!tab.classList.contains('active')) {
+        tab.style.backgroundColor = 'transparent';
+        tab.style.color = '#475569';
+      }
+    };
+
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('#manager-order-category-sidebar .manager-category-tab').forEach(t => {
+        t.classList.remove('active');
+        t.style.color = '#475569';
+        t.style.borderLeftColor = 'transparent';
+        t.style.backgroundColor = 'transparent';
+      });
+      tab.classList.add('active');
+      tab.style.color = 'var(--primary)';
+      tab.style.borderLeftColor = 'var(--primary)';
+      tab.style.backgroundColor = 'rgba(2, 74, 216, 0.05)';
+      
+      const targetHeader = document.getElementById(`manager-order-sec-${g.category}`);
+      if (targetHeader) {
+        isScrollingFromClickOrder = true;
+        const offsetTop = targetHeader.offsetTop - container.offsetTop;
+        container.scrollTo({ top: offsetTop - 10, behavior: 'smooth' });
+        
+        if (scrollOrderTimeout) clearTimeout(scrollOrderTimeout);
+        scrollOrderTimeout = setTimeout(() => {
+          isScrollingFromClickOrder = false;
+        }, 800);
+      }
+    });
+    
+    sidebar.appendChild(tab);
+  });
+  
+  // Render Category Sections
+  groups.forEach(g => {
+    const section = document.createElement('div');
+    section.style.marginBottom = '28px';
+    
+    let emoji = '🍽️';
+    let displayLabel = g.category;
+    if (g.category === 'main') { emoji = '🍛'; displayLabel = 'Món chính'; }
+    else if (g.category === 'side') { emoji = '🥗'; displayLabel = 'Món thêm'; }
+    else if (g.category === 'drink') { emoji = '🥤'; displayLabel = 'Nước uống'; }
+    else if (g.category === 'COMBO') { emoji = '🍱'; displayLabel = 'Combo'; }
+    else if (g.category === 'SƯỜN') { emoji = '🍛'; displayLabel = 'Cơm sườn'; }
+    else if (g.category === 'BA RỌI') { emoji = '🍛'; displayLabel = 'Cơm ba rọi'; }
+    else if (g.category === 'SƯỜN CỌNG') { emoji = '🍖'; displayLabel = 'Sườn cọng'; }
+    else if (g.category === 'CANH VÀ TOPPING') { emoji = '🍲'; displayLabel = 'Canh & Topping'; }
+    else if (g.category === 'CƠM NHÀ TẤM XƯA') { emoji = '🍚'; displayLabel = 'Cơm thêm'; }
+
+    // Sticky Category Header
+    const header = document.createElement('h3');
+    header.id = `manager-order-sec-${g.category}`;
+    header.className = 'manager-order-sec-header';
+    header.setAttribute('data-category', g.category);
+    header.style.cssText = 'position: sticky; top: -20px; background: #fafafa; z-index: 10; padding: 10px 0; margin: 0 0 12px 0; font-size: 14px; font-weight: 700; color: var(--ink); text-transform: uppercase; border-bottom: 2px solid var(--hairline-soft); letter-spacing: 0.5px; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 6px -6px rgba(0,0,0,0.05);';
+    header.innerHTML = `<span style="font-size: 18px; line-height: 1;">${emoji}</span> <span>${displayLabel}</span>`;
+    
+    section.appendChild(header);
+    
+    // Grid wrapper
+    const grid = document.createElement('div');
+    grid.style.cssText = 'display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px;';
+    
+    g.items.forEach(item => {
+      const card = document.createElement('div');
+      card.style.cssText = 'border: 1px solid var(--hairline-soft); border-radius: 10px; padding: 12px 10px; text-align: center; background: #ffffff; display: flex; flex-direction: column; justify-content: space-between; cursor: pointer; transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1); box-shadow: 0 2px 5px rgba(0,0,0,0.01); height: 100%; box-sizing: border-box;';
+      
+      card.onmouseover = () => {
+        card.style.borderColor = 'var(--primary)';
+        card.style.transform = 'translateY(-3px)';
+        card.style.boxShadow = '0 6px 16px rgba(2, 74, 216, 0.08)';
+      };
+      card.onmouseout = () => {
+        card.style.borderColor = 'var(--hairline-soft)';
+        card.style.transform = 'translateY(0)';
+        card.style.boxShadow = '0 2px 5px rgba(0,0,0,0.01)';
+      };
+      
+      let visualHtml = '';
+      if (item.image_url) {
+        visualHtml = `<img src="${item.image_url}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 8px; margin: 0 auto 8px auto; display: block; box-shadow: 0 2px 4px rgba(0,0,0,0.05);" onerror="this.onerror=null; this.src='images/logo.png'">`;
+      } else {
+        visualHtml = `<div style="font-size: 34px; height: 50px; display: flex; align-items: center; justify-content: center; margin-bottom: 8px; line-height: 1;">${item.emoji || '🍽️'}</div>`;
+      }
+      
+      card.innerHTML = `
+        <div>
+          ${visualHtml}
+          <div style="font-size: 12px; font-weight: 600; color: var(--ink); line-height: 1.35; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; min-height: 32px;">${item.name}</div>
+        </div>
+        <div style="font-size: 13px; font-weight: 700; color: var(--primary); margin-top: 8px;">${formatVND(item.price)}</div>
+      `;
+      
+      card.addEventListener('click', () => {
+        card.style.transform = 'scale(0.95)';
+        setTimeout(() => {
+          card.style.transform = 'translateY(-3px)';
+        }, 100);
+        addMenuItemToManagerCart(item);
+      });
+      
+      grid.appendChild(card);
+    });
+    
+    section.appendChild(grid);
+    container.appendChild(section);
+  });
+}
+
+function addMenuItemToManagerCart(item) {
+  const existing = managerCart.find(i => i.id === item.id);
+  if (existing) {
+    existing.quantity++;
+  } else {
+    managerCart.push({
+      id: item.id,
+      name: item.name,
+      price: item.price,
+      emoji: item.emoji || '🍽️',
+      image_url: item.image_url,
+      quantity: 1,
+      notes: ''
+    });
+  }
+  renderManagerOrderSelected();
+}
+
+function renderManagerOrderSelected() {
+  const list = document.getElementById('manager-order-selected-list');
+  if (!list) return;
+  list.innerHTML = '';
+  
+  if (managerCart.length === 0) {
+    list.innerHTML = `<div style="text-align: center; color: var(--muted); padding: 60px 20px; font-size: 13px;">Chưa chọn món nào.</div>`;
+    document.getElementById('manager-order-summary-qty').textContent = '0 món';
+    document.getElementById('manager-order-summary-total').textContent = '0đ';
+    return;
+  }
+  
+  let totalQty = 0;
+  let totalPrice = 0;
+  
+  managerCart.forEach((item, index) => {
+    const subtotal = item.price * item.quantity;
+    totalQty += item.quantity;
+    totalPrice += subtotal;
+    
+    const row = document.createElement('div');
+    row.style.cssText = 'display: flex; flex-direction: column; gap: 6px; padding: 10px; border: 1px solid var(--hairline-soft); border-radius: 8px; background-color: var(--surface-soft);';
+    
+    let visualHtml = '';
+    if (item.image_url) {
+      visualHtml = `<img src="${item.image_url}" style="width: 32px; height: 32px; object-fit: cover; border-radius: 4px;" onerror="this.onerror=null; this.src='images/logo.png'">`;
+    } else {
+      visualHtml = `<span style="font-size: 20px; width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center;">${item.emoji || '🍽️'}</span>`;
+    }
+    
+    row.innerHTML = `
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <div style="display: flex; align-items: center; gap: 8px; max-width: 65%;">
+          ${visualHtml}
+          <div style="display: flex; flex-direction: column; overflow: hidden;">
+            <span style="font-size: 13px; font-weight: 600; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${item.name}">${item.name}</span>
+            <span style="font-size: 11px; color: var(--muted); font-weight: 500;">${formatVND(item.price)}</span>
+          </div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <!-- Stepper -->
+          <div style="display: flex; align-items: center; border: 1px solid var(--border-strong); border-radius: 6px; background: #ffffff; height: 28px; overflow: hidden;">
+            <button class="btn-minus" style="width: 24px; height: 100%; border: none; background: none; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px;">-</button>
+            <span class="qty-display" style="width: 28px; text-align: center; font-size: 12px; font-weight: 600;">${item.quantity}</span>
+            <button class="btn-plus" style="width: 24px; height: 100%; border: none; background: none; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px;">+</button>
+          </div>
+          <!-- Delete -->
+          <button class="btn-delete" style="border: none; background: none; color: var(--primary-error-text); cursor: pointer; font-size: 14px; padding: 4px; display: flex; align-items: center; justify-content: center;">🗑️</button>
+        </div>
+      </div>
+      <!-- Notes field -->
+      <div style="display: flex; align-items: center; gap: 6px;">
+        <span style="font-size: 11px; color: var(--muted); font-weight: 500; flex-shrink: 0;">Ghi chú:</span>
+        <input type="text" class="notes-input" placeholder="Ví dụ: Không hành, ít cay..." value="${item.notes || ''}" style="flex: 1; height: 24px; border: 1px solid var(--hairline); border-radius: 4px; padding: 0 6px; font-size: 11.5px; outline: none; background-color: #ffffff;">
+      </div>
+    `;
+    
+    // Bind stepper actions
+    row.querySelector('.btn-minus').addEventListener('click', () => {
+      if (item.quantity > 1) {
+        item.quantity--;
+      } else {
+        managerCart.splice(index, 1);
+      }
+      renderManagerOrderSelected();
+    });
+    row.querySelector('.btn-plus').addEventListener('click', () => {
+      item.quantity++;
+      renderManagerOrderSelected();
+    });
+    row.querySelector('.btn-delete').addEventListener('click', () => {
+      managerCart.splice(index, 1);
+      renderManagerOrderSelected();
+    });
+    
+    // Bind notes input action
+    const notesInput = row.querySelector('.notes-input');
+    notesInput.addEventListener('input', (e) => {
+      item.notes = e.target.value;
+    });
+    
+    list.appendChild(row);
+  });
+  
+  document.getElementById('manager-order-summary-qty').textContent = `${totalQty} món`;
+  document.getElementById('manager-order-summary-total').textContent = formatVND(totalPrice);
+}
+
+function initManagerOrderModal() {
+  const modal = document.getElementById('manager-order-modal');
+  const btnClose = document.getElementById('btn-close-manager-order-modal');
+  const btnCancel = document.getElementById('btn-cancel-manager-order-modal');
+  const btnSubmit = document.getElementById('btn-submit-manager-order');
+  const searchInput = document.getElementById('manager-order-search');
+  const container = document.getElementById('manager-order-menu-container');
+  
+  if (!modal) return;
+  
+  const closeModal = () => {
+    modal.style.display = 'none';
+  };
+  
+  btnClose.onclick = closeModal;
+  btnCancel.onclick = closeModal;
+  modal.onclick = (e) => {
+    if (e.target === modal) closeModal();
+  };
+  
+  if (searchInput) {
+    searchInput.oninput = () => {
+      renderManagerOrderMenu();
+    };
+  }
+  
+  // Set up scroll spy on the menu container
+  if (container) {
+    container.addEventListener('scroll', () => {
+      if (isScrollingFromClickOrder) return;
+      
+      const headers = container.querySelectorAll('.manager-order-sec-header');
+      let activeCategory = null;
+      
+      for (let i = 0; i < headers.length; i++) {
+        const header = headers[i];
+        const rect = header.getBoundingClientRect();
+        const containerRect = container.getBoundingClientRect();
+        
+        // If the header top reaches near the top of container viewport
+        if (rect.top - containerRect.top <= 40) {
+          activeCategory = header.getAttribute('data-category');
+        }
+      }
+      
+      if (activeCategory) {
+        document.querySelectorAll('#manager-order-category-sidebar .manager-category-tab').forEach(t => {
+          if (t.getAttribute('data-category') === activeCategory) {
+            t.classList.add('active');
+            t.style.color = 'var(--primary)';
+            t.style.borderLeftColor = 'var(--primary)';
+            t.style.backgroundColor = 'rgba(2, 74, 216, 0.05)';
+          } else {
+            t.classList.remove('active');
+            t.style.color = '#475569';
+            t.style.borderLeftColor = 'transparent';
+            t.style.backgroundColor = 'transparent';
+          }
+        });
+      }
+    });
+  }
+  
+  btnSubmit.onclick = async () => {
+    if (managerCart.length === 0) {
+      alert('Vui lòng chọn ít nhất một món ăn!');
+      return;
+    }
+    
+    btnSubmit.disabled = true;
+    btnSubmit.textContent = 'Đang gửi...';
+    
+    const tableBeforeSave = tables.find(t => t.id === managerOrderTableId);
+    const oldOrder = tableBeforeSave ? JSON.parse(JSON.stringify(tableBeforeSave.order || [])) : [];
+    const tableName = tableBeforeSave ? tableBeforeSave.name : 'Bàn';
+    
+    try {
+      const response = await fetch('/api/order', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          tableId: managerOrderTableId,
+          items: managerCart
+        })
+      });
+      
+      if (response.status === 401) {
+        window.location.href = '/login.html';
+        return;
+      }
+      
+      const result = await response.json();
+      if (result.success) {
+        showToast(`✅ Đã cập nhật đơn hàng thành công!`);
+        
+        const diffItems = getOrderDifference(oldOrder, managerCart);
+        
+        if (diffItems.length > 0) {
+          const title = (oldOrder && oldOrder.length > 0) ? 'PHIẾU THÊM MÓN' : 'HOÁ ĐƠN BẾP';
+          
+          // Separate items in the cart
+          const drinkItems = diffItems.filter(item => isDrinkItem(item, menuItems));
+          const kitchenItems = diffItems.filter(item => !drinkItems.includes(item));
+
+          // Trigger automatic printing for connected printers
+          printDocxSlip('kitchen_default', tableName, kitchenItems, title);
+          printDocxSlip('kitchen_bar', tableName, drinkItems, title);
+        }
+
+        closeModal();
+        
+        // Refresh tables list
+        const tablesRes = await fetch('/api/tables');
+        if (tablesRes.ok) {
+          tables = await tablesRes.json();
+          renderTables();
+          
+          // Refresh details panel if this table is still selected
+          if (selectedTableId === managerOrderTableId) {
+            const updatedTable = tables.find(t => t.id === managerOrderTableId);
+            renderTableDetails(updatedTable);
+          }
+        }
+      } else {
+        alert(`Lỗi: ${result.error || 'Vui lòng thử lại.'}`);
+      }
+    } catch (err) {
+      console.error('Lỗi khi lưu đơn:', err);
+      alert('Không thể kết nối đến máy chủ.');
+    } finally {
+      btnSubmit.disabled = false;
+      btnSubmit.textContent = 'Lưu & Gửi Bếp';
+    }
+  };
 }
 
 // Function to show custom confirmation modal for deleting/canceling table orders
@@ -1135,6 +1638,182 @@ async function deleteTable(table) {
       console.error('Lỗi khi xóa bàn:', err);
       showToast('❌ Không thể kết nối tới server.');
     }
+  }
+}
+
+// Helper to calculate difference between old order and new cart
+function getOrderDifference(oldOrder, newCart) {
+  const diffItems = [];
+  
+  newCart.forEach(newItem => {
+    const oldItem = (oldOrder || []).find(o => o.name === newItem.name);
+    const oldQty = oldItem ? oldItem.quantity : 0;
+    const diffQty = newItem.quantity - oldQty;
+    
+    if (diffQty > 0) {
+      diffItems.push({
+        ...newItem,
+        quantity: diffQty
+      });
+    }
+  });
+  
+  return diffItems;
+}
+
+// Helper to check if an item is a drink
+function isDrinkItem(item, menuList) {
+  const menuItem = (menuList || []).find(m => m.id === item.id);
+  const category = menuItem ? menuItem.category : '';
+  
+  if (category) {
+    const catLower = category.toLowerCase();
+    if (
+      catLower === 'drink' || 
+      catLower.includes('nước') || 
+      catLower.includes('uống') || 
+      catLower.includes('giải khát') ||
+      catLower.includes('sinh tố') ||
+      catLower.includes('cà phê') ||
+      catLower.includes('cafe') ||
+      catLower.includes('coffee') ||
+      catLower.includes('trà')
+    ) {
+      return true;
+    }
+  }
+  
+  if (item.name) {
+    const nameLower = item.name.toLowerCase();
+    if (
+      nameLower.includes('nước') ||
+      nameLower.includes('trà') ||
+      nameLower.includes('cà phê') ||
+      nameLower.includes('cafe') ||
+      nameLower.includes('coffee') ||
+      nameLower.includes('sinh tố') ||
+      nameLower.includes('juice') ||
+      nameLower.includes('sữa') ||
+      nameLower.includes('coca') ||
+      nameLower.includes('pepsi') ||
+      nameLower.includes('sting') ||
+      nameLower.includes('bia')
+    ) {
+      return true;
+    }
+  }
+  
+  return false;
+}
+
+// Helper to print kitchen/bar slip using docx template
+async function printDocxSlip(printerId, tableName, items, title = 'HOÁ ĐƠN BẾP') {
+  if (items.length === 0) return;
+  
+  const isConnected = localStorage.getItem(`printer_${printerId}_connected`) === 'true';
+  if (!isConnected) {
+    console.log(`Printer ${printerId} is not connected. Skipping print.`);
+    return;
+  }
+
+  const orderTimeStr = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) + ' • ' + new Date().toLocaleDateString('vi-VN');
+  
+  const templateData = {
+    template: 'hoadonbep.docx',
+    table_name: tableName,
+    order_time: orderTimeStr,
+    items: items.map(item => ({
+      name: item.name,
+      quantity: item.quantity,
+      notes: item.notes || ''
+    }))
+  };
+
+  try {
+    const response = await fetch('/api/print-docx', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(templateData)
+    });
+    
+    if (!response.ok) {
+      throw new Error('Lỗi phản hồi từ server');
+    }
+    
+    const htmlContent = await response.text();
+    
+    // Print by writing the styled HTML content to a hidden iframe
+    let iframe = document.getElementById(`print-iframe-${printerId}`);
+    if (iframe) {
+      iframe.remove();
+    }
+    
+    iframe = document.createElement('iframe');
+    iframe.id = `print-iframe-${printerId}`;
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    
+    document.body.appendChild(iframe);
+    
+    const doc = iframe.contentWindow.document;
+    doc.open();
+    doc.write(htmlContent);
+    doc.close();
+
+    // Dynamically adjust header styles and font alignments
+    const paragraphs = doc.getElementsByTagName('p');
+    for (let p of paragraphs) {
+      let txt = p.textContent.trim();
+      p.style.fontFamily = 'Arial, sans-serif';
+      
+      // Replace title text if customized
+      if (title && (txt.toUpperCase().includes('HOÁ ĐƠN BẾP') || txt.toUpperCase().includes('HÓA ĐƠN BẾP'))) {
+        p.textContent = title;
+        txt = title;
+      }
+      
+      // Left-align Order and Checkout times
+      if (txt.includes('Giờ vào') || txt.includes('Giờ ra') || txt.includes('Giờ order')) {
+        p.style.textAlign = 'left';
+        p.style.fontSize = '12px';
+      }
+      
+      // Increase size for TẤM XƯA
+      if (txt.toUpperCase().includes('TẤM XƯA')) {
+        p.style.fontSize = '22px';
+        p.style.fontWeight = 'bold';
+        p.style.letterSpacing = '1px';
+      }
+      
+      // Increase size for HOÁ ĐƠN BẾP
+      if (txt.toUpperCase().includes('HOÁ ĐƠN BẾP') || txt.toUpperCase().includes('HÓA ĐƠN BẾP') || txt.toUpperCase().includes('PHIẾU THÊM MÓN')) {
+        p.style.fontSize = '20px';
+        p.style.fontWeight = 'bold';
+        p.style.marginTop = '15px';
+      }
+      
+      // Increase size for Table Name (e.g. Bàn 7)
+      if (txt.startsWith('Bàn') || (txt.includes('Bàn') && txt.length < 15)) {
+        p.style.fontSize = '16px';
+        p.style.fontWeight = 'bold';
+        p.style.marginBottom = '10px';
+      }
+    }
+    
+    iframe.contentWindow.focus();
+    setTimeout(() => {
+      iframe.contentWindow.print();
+      showToast(`✅ Đã mở hộp thoại in ${title} cho ${tableName}!`);
+    }, 300);
+    
+  } catch (error) {
+    console.error('Lỗi xuất hóa đơn bếp:', error);
   }
 }
 
