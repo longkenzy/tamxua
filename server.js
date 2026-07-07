@@ -1123,45 +1123,73 @@ app.get('/api/scan-printers', requireAuth, async (req, res) => {
     return [...new Set(subnets)];
   }
 
-  // Probe single IP address on Port 9100
-  function probePrinter(ip, port = 9100, timeout = 1000) {
+  // Probe single IP address on Port 9100 with a strict connection timeout
+  function probePrinter(ip, port = 9100, timeout = 600) {
     return new Promise((resolve) => {
       const socket = new net.Socket();
-      socket.setTimeout(timeout);
+      let resolved = false;
+
+      const connTimeout = setTimeout(() => {
+        if (!resolved) {
+          resolved = true;
+          socket.destroy();
+          resolve({ ip, open: false });
+        }
+      }, timeout);
 
       socket.connect(port, ip, () => {
-        socket.end();
-        resolve({ ip, open: true });
+        if (!resolved) {
+          resolved = true;
+          clearTimeout(connTimeout);
+          socket.end();
+          resolve({ ip, open: true });
+        }
       });
 
-      socket.on('error', () => {
-        socket.destroy();
-        resolve({ ip, open: false });
-      });
+      const handleFail = () => {
+        if (!resolved) {
+          resolved = true;
+          clearTimeout(connTimeout);
+          socket.destroy();
+          resolve({ ip, open: false });
+        }
+      };
 
-      socket.on('timeout', () => {
-        socket.destroy();
-        resolve({ ip, open: false });
-      });
+      socket.on('error', handleFail);
+      socket.on('timeout', handleFail);
     });
   }
 
   try {
-    const subnets = getLocalSubnets();
+    let subnets = [];
+    const querySubnet = req.query.subnet;
+    if (querySubnet && /^\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(querySubnet)) {
+      subnets.push(querySubnet);
+    } else {
+      subnets = getLocalSubnets();
+      // Fallback: If no subnets detected or we want to cover common subnets, add them
+      const defaultSubnets = ['192.168.1', '192.168.0'];
+      for (const def of defaultSubnets) {
+        if (!subnets.includes(def)) {
+          subnets.push(def);
+        }
+      }
+    }
+
     if (subnets.length === 0) {
       return res.json({ success: true, printers: [] });
     }
 
     const discovered = [];
     
-    // Scan all detected subnets sequentially in chunks to prevent socket limits exhaustion
+    // Scan detected subnets sequentially in chunks to prevent socket limits exhaustion
     for (const subnet of subnets) {
       const chunkSize = 32; // Probe in batches of 32
       for (let i = 1; i <= 254; i += chunkSize) {
         const chunk = [];
         for (let j = 0; j < chunkSize && (i + j) <= 254; j++) {
           const ip = `${subnet}.${i + j}`;
-          chunk.push(probePrinter(ip, 9100, 1000));
+          chunk.push(probePrinter(ip, 9100, 600));
         }
         const results = await Promise.all(chunk);
         results.forEach(r => {

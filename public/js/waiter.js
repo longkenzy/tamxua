@@ -2949,8 +2949,60 @@ if (tabPcShare) {
   });
 }
 
+// Helper to detect client's local subnet using hostname and WebRTC fallback
+async function detectLocalSubnet() {
+  // 1. Try to extract from window.location.hostname (if it is a local IP)
+  const hostname = window.location.hostname;
+  const ipPattern = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
+  if (ipPattern.test(hostname)) {
+    const parts = hostname.split('.');
+    if (parts[0] === '192' || parts[0] === '10' || (parts[0] === '172' && parseInt(parts[1]) >= 16 && parseInt(parts[1]) <= 31)) {
+      return parts.slice(0, 3).join('.');
+    }
+  }
+
+  // 2. Try to use WebRTC to discover candidate local IP
+  try {
+    const localIp = await new Promise((resolve) => {
+      const rtc = new RTCPeerConnection({ iceServers: [] });
+      rtc.createDataChannel('');
+      rtc.createOffer()
+        .then(offer => rtc.setLocalDescription(offer))
+        .catch(() => resolve(null));
+      
+      rtc.onicecandidate = (event) => {
+        if (event && event.candidate && event.candidate.candidate) {
+          const candidate = event.candidate.candidate;
+          const ipRegex = /([0-9]{1,3}(\.[0-9]{1,3}){3})/;
+          const match = candidate.match(ipRegex);
+          if (match) {
+            resolve(match[1]);
+            rtc.close();
+          }
+        }
+      };
+      // Timeout after 800ms
+      setTimeout(() => {
+        resolve(null);
+        rtc.close();
+      }, 800);
+    });
+
+    if (localIp) {
+      const parts = localIp.split('.');
+      if (parts.length === 4) {
+        return parts.slice(0, 3).join('.');
+      }
+    }
+  } catch (e) {
+    console.warn('WebRTC local IP discovery failed/blocked:', e);
+  }
+
+  return null;
+}
+
 // Scanner Modal Control
-function openScannerModal() {
+async function openScannerModal() {
   if (printerScannerModal) printerScannerModal.style.display = 'flex';
   if (scannerModalBody) {
     scannerModalBody.innerHTML = `
@@ -2961,7 +3013,10 @@ function openScannerModal() {
     `;
   }
   
-  fetch('/api/scan-printers')
+  const subnet = await detectLocalSubnet();
+  const scanUrl = subnet ? `/api/scan-printers?subnet=${subnet}` : '/api/scan-printers';
+  
+  fetch(scanUrl)
     .then(res => {
       if (res.status === 401) {
         window.location.href = '/login.html';
