@@ -3298,7 +3298,7 @@ if (btnPrinterDisconnect) {
 
 // Test Print action
 if (btnPrinterTest) {
-  btnPrinterTest.addEventListener('click', () => {
+  btnPrinterTest.addEventListener('click', async () => {
     const ipVal = detailPrinterIp ? detailPrinterIp.value.trim() : '';
     const portVal = detailPrinterPort ? detailPrinterPort.value.trim() : '9100';
     const sharedPathVal = detailPrinterSharedPath ? detailPrinterSharedPath.value.trim() : '';
