@@ -173,6 +173,20 @@ function initConnection() {
         }
       });
       
+      socket.on('print_kitchen_slip', (data) => {
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        if (!isMobile) {
+          printDocxSlip(data.printerId, data.tableName, data.items, data.title);
+        }
+      });
+
+      socket.on('print_receipt', (data) => {
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        if (!isMobile) {
+          printReceipt(data.tableObj, data.orderItems, data.discountAmount, data.receivedAmount, data.transactionId, data.timestamp, data.payMethod);
+        }
+      });
+      
       socket.on('connect_error', () => {
         console.warn('WebSocket connection failed. Switching to Polling.');
         activatePolling();
@@ -1271,6 +1285,24 @@ function isDrinkItem(item, menuList) {
 async function printDocxSlip(printerId, tableName, items, title = 'HOÁ ĐƠN BẾP') {
   if (items.length === 0) return;
   
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  if (isMobile) {
+    if (socket && socket.connected) {
+      socket.emit('request_print_kitchen_slip', {
+        printerId: printerId,
+        tableName: tableName,
+        items: items,
+        title: title
+      });
+      if (typeof showSuccessToast === 'function') {
+        showSuccessToast(`📤 Đã gửi lệnh in ${title} cho ${tableName} tới quầy thu ngân.`);
+      }
+    } else {
+      console.warn('Socket không kết nối. Không thể chuyển lệnh in.');
+    }
+    return;
+  }
+  
   const isConnected = localStorage.getItem(`printer_${printerId}_connected`) === 'true';
   if (!isConnected) {
     console.log(`Printer ${printerId} is not connected. Skipping print.`);
@@ -1396,6 +1428,27 @@ function formatTime(isoString) {
 
 // Global Print Receipt Function
 async function printReceipt(tableObj, orderItems, discountAmount, receivedAmount, transactionId = null, timestamp = null, payMethod = 'cash') {
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  if (isMobile) {
+    if (socket && socket.connected) {
+      socket.emit('request_print_receipt', {
+        tableObj: tableObj,
+        orderItems: orderItems,
+        discountAmount: discountAmount,
+        receivedAmount: receivedAmount,
+        transactionId: transactionId,
+        timestamp: timestamp,
+        payMethod: payMethod
+      });
+      if (typeof showSuccessToast === 'function') {
+        showSuccessToast(`📤 Đã gửi yêu cầu in hóa đơn ${tableObj.name} tới quầy thu ngân.`);
+      }
+    } else {
+      console.warn('Socket không kết nối. Không thể chuyển lệnh in.');
+    }
+    return;
+  }
+
   const subtotal = orderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   const finalTotal = Math.max(0, subtotal - discountAmount);
   const changeAmount = receivedAmount ? (receivedAmount - finalTotal) : 0;

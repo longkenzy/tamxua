@@ -1207,6 +1207,15 @@ io.on('connection', async (socket) => {
   } catch (err) {
     console.error('Socket init error:', err);
   }
+
+  // Handle printer routing requests from mobile phone clients to desktop cashier client
+  socket.on('request_print_kitchen_slip', (data) => {
+    socket.broadcast.emit('print_kitchen_slip', data);
+  });
+
+  socket.on('request_print_receipt', (data) => {
+    socket.broadcast.emit('print_receipt', data);
+  });
 });
 
 // Start Server with Database Setup (Only run setupDatabase and server.listen if not on Vercel)
