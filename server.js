@@ -1699,38 +1699,27 @@ app.post('/api/system/check-update', async (req, res) => {
       return res.json({ hasUpdate: false, error: 'Thư mục ứng dụng không phải là một kho chứa Git (Git repository).' });
     }
 
-    // 2. Fetch du lieu moi tu Git
-    await execPromise('git fetch');
+    // 2. Fetch du lieu tu origin main
+    await execPromise('git fetch origin main');
 
-    // 3. Lay ten nhanh hien tai
-    const branchRes = await execPromise('git rev-parse --abbrev-ref HEAD');
-    const branch = branchRes.stdout.trim();
-
-    // 4. Lay commit hash local va remote tracking branch
+    // 3. Lay commit hash local va remote origin/main
     const localCommitRes = await execPromise('git rev-parse HEAD');
     const localCommit = localCommitRes.stdout.trim();
 
-    let remoteCommit = '';
-    try {
-      const remoteCommitRes = await execPromise('git rev-parse @{u}');
-      remoteCommit = remoteCommitRes.stdout.trim();
-    } catch (uErr) {
-      // Fallback neu khong co tracking branch
-      const originCommitRes = await execPromise(`git rev-parse origin/${branch}`);
-      remoteCommit = originCommitRes.stdout.trim();
-    }
+    const remoteCommitRes = await execPromise('git rev-parse origin/main');
+    const remoteCommit = remoteCommitRes.stdout.trim();
 
     if (localCommit === remoteCommit) {
-      return res.json({ hasUpdate: false, branch, localCommit });
+      return res.json({ hasUpdate: false, branch: 'main', localCommit });
     }
 
-    // 5. Lay danh sach commit moi
-    const logRes = await execPromise(`git log HEAD..${remoteCommit} --oneline`);
+    // 4. Lay danh sach commit moi
+    const logRes = await execPromise(`git log HEAD..origin/main --oneline`);
     const commits = logRes.stdout.trim().split('\n').filter(c => c);
 
     return res.json({
       hasUpdate: true,
-      branch,
+      branch: 'main',
       localCommit,
       remoteCommit,
       commits
@@ -1755,9 +1744,9 @@ app.get('/api/system/apply-update', (req, res) => {
   };
 
   sendProgress('START', 10, 'Bắt đầu quá trình cập nhật...');
-  sendProgress('GIT_PULL_START', 20, 'Đang kéo mã nguồn mới nhất từ Git (git pull)...');
+  sendProgress('GIT_PULL_START', 20, 'Đang kéo mã nguồn mới nhất từ Git (git pull origin main)...');
   
-  exec('git pull', async (pullErr, stdout, stderr) => {
+  exec('git pull origin main', async (pullErr, stdout, stderr) => {
     if (pullErr) {
       sendProgress('ERROR', 0, `Lỗi khi chạy git pull: ${pullErr.message}\n${stderr}`);
       return res.end();
