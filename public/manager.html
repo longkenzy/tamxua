@@ -6,7 +6,7 @@
   <title>Quản lý - Tấm Xưa</title>
   <link rel="icon" type="image/png" href="images/logo.png">
   <link rel="apple-touch-icon" href="images/logo.png">
-  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/style.css?v=1.0.1">
   <style>
     /* Manager specific styling */
     .manager-container {
@@ -1112,6 +1112,365 @@
       color: var(--primary);
       font-weight: 600;
     }
+
+    /* ========================================== */
+    /* PREMIUM PRINTER REDESIGN SYSTEM CLASSES     */
+    /* ========================================== */
+
+    .printer-grid-layout {
+      display: grid;
+      grid-template-columns: 0.95fr 1.05fr 1fr;
+      gap: var(--space-lg);
+      align-items: start;
+    }
+    
+    @media (max-width: 1200px) {
+      .printer-grid-layout {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .conn-type-card:hover {
+      border-color: var(--border-strong) !important;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+    }
+    .conn-type-card.active {
+      border-color: var(--primary) !important;
+      background-color: rgba(2, 74, 216, 0.03) !important;
+      box-shadow: 0 4px 10px rgba(2, 74, 216, 0.04);
+    }
+
+    .printer-role-card {
+      border: 1.5px solid var(--hairline);
+      border-radius: 12px;
+      padding: var(--space-md);
+      background-color: var(--canvas);
+      cursor: pointer;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      position: relative;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+      overflow: hidden;
+    }
+    
+    .printer-role-card::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 4px;
+      background-color: transparent;
+      transition: background-color 0.25s ease;
+    }
+
+    .printer-role-card:hover {
+      box-shadow: var(--shadow);
+      border-color: var(--border-strong);
+      transform: translateY(-2px);
+    }
+
+    .printer-role-card.active {
+      border-color: var(--primary) !important;
+      background-color: rgba(2, 74, 216, 0.02);
+      box-shadow: 0 4px 12px rgba(2, 74, 216, 0.06);
+    }
+    
+    .printer-role-card.active::before {
+      background-color: var(--primary);
+    }
+
+    /* Pulse Badge Animation */
+    .pulse-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      font-size: 11px;
+      font-weight: 700;
+      border-radius: var(--rounded-full);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      transition: all 0.3s ease;
+    }
+    
+    .pulse-badge.active {
+      background-color: rgba(34, 197, 94, 0.12);
+      color: #16a34a;
+      border: 1px solid rgba(34, 197, 94, 0.25);
+    }
+    
+    .pulse-badge.active .pulse-dot {
+      width: 8px;
+      height: 8px;
+      background-color: #22c55e;
+      border-radius: 50%;
+      box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
+      animation: breathing-pulse-green 1.8s infinite cubic-bezier(0.66, 0, 0, 1);
+    }
+    
+    .pulse-badge.inactive {
+      background-color: var(--surface-soft);
+      color: var(--muted);
+      border: 1px solid var(--hairline);
+    }
+    
+    .pulse-badge.inactive .pulse-dot {
+      width: 8px;
+      height: 8px;
+      background-color: #94a3b8;
+      border-radius: 50%;
+    }
+    
+    @keyframes breathing-pulse-green {
+      0% {
+        transform: scale(0.92);
+        box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.8);
+      }
+      70% {
+        transform: scale(1.08);
+        box-shadow: 0 0 0 8px rgba(34, 197, 94, 0);
+      }
+      100% {
+        transform: scale(0.92);
+        box-shadow: 0 0 0 0 rgba(34, 197, 94, 0);
+      }
+    }
+
+    /* Switch Custom Toggle */
+    .switch-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    
+    .switch-container {
+      position: relative;
+      display: inline-block;
+      width: 48px;
+      height: 26px;
+    }
+    
+    .switch-container input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    
+    .switch-slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #cbd5e1;
+      transition: .3s cubic-bezier(0.16, 1, 0.3, 1);
+      border-radius: 34px;
+    }
+    
+    .switch-slider:before {
+      position: absolute;
+      content: "";
+      height: 18px;
+      width: 18px;
+      left: 4px;
+      bottom: 4px;
+      background-color: white;
+      transition: .3s cubic-bezier(0.16, 1, 0.3, 1);
+      border-radius: 50%;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+    }
+    
+    input:checked + .switch-slider {
+      background-color: var(--primary);
+    }
+    
+    input:checked + .switch-slider:before {
+      transform: translateX(22px);
+    }
+
+    /* Input with SVG icon integration */
+    .iconic-input-container {
+      position: relative;
+      display: flex;
+      align-items: center;
+      width: 100%;
+    }
+    
+    .iconic-input-container .input-icon {
+      position: absolute;
+      left: 12px;
+      width: 18px;
+      height: 18px;
+      color: var(--muted);
+      pointer-events: none;
+      transition: color 0.2s;
+    }
+    
+    .iconic-input-container .text-input {
+      padding-left: 40px !important;
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    }
+    
+    .iconic-input-container .text-input:focus + .input-icon {
+      color: var(--primary);
+    }
+
+    /* Live Receipt Printer Simulator CSS */
+    .printer-device-wrapper {
+      background: var(--surface-soft);
+      border: 1px solid var(--hairline);
+      border-radius: 16px;
+      padding: var(--space-lg);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      box-shadow: inset 0 2px 8px rgba(0,0,0,0.02);
+      min-height: 480px;
+    }
+    
+    .receipt-printer-device {
+      width: 180px;
+      height: 100px;
+      background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+      border-radius: 12px 12px 6px 6px;
+      box-shadow: 0 10px 25px rgba(15, 23, 42, 0.3);
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      padding: 10px;
+      z-index: 10;
+      border-bottom: 5px solid #020617;
+      transition: all 0.2s ease;
+    }
+    
+    .receipt-printer-device.printing {
+      animation: shake-printer-body 0.15s infinite;
+    }
+    
+    .printer-paper-slit {
+      height: 5px;
+      background: #020617;
+      border-radius: 3px;
+      margin-bottom: 2px;
+      box-shadow: inset 0 1px 2px rgba(255,255,255,0.1);
+    }
+    
+    .printer-feed-indicator {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #10b981;
+      position: absolute;
+      right: 15px;
+      top: 15px;
+      box-shadow: 0 0 6px rgba(16, 185, 129, 0.6);
+      transition: background 0.3s;
+    }
+    
+    .printer-feed-indicator.offline {
+      background: #ef4444;
+      box-shadow: 0 0 6px rgba(239, 68, 68, 0.6);
+    }
+    
+    .printer-brand-logo {
+      font-size: 9px;
+      color: #475569;
+      font-family: inherit;
+      font-weight: 800;
+      letter-spacing: 1px;
+      position: absolute;
+      left: 15px;
+      top: 15px;
+    }
+    
+    .receipt-paper-envelope {
+      width: 100%;
+      height: 310px;
+      overflow: hidden;
+      position: relative;
+      background: #e2e8f0;
+      border-radius: 0 0 16px 16px;
+      display: flex;
+      justify-content: center;
+      z-index: 5;
+      margin-top: -6px;
+      padding-top: 6px;
+      box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.05);
+    }
+    
+    .thermal-paper-slip {
+      width: 160px;
+      background: #fafaf5; /* Ivory thermal receipt paper */
+      box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+      padding: 18px 12px;
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 11px;
+      color: #0f172a;
+      transform: translateY(-105%);
+      transition: transform 0.8s cubic-bezier(0.25, 1, 0.5, 1);
+      position: relative;
+      border-left: 1px solid rgba(0,0,0,0.02);
+      border-right: 1px solid rgba(0,0,0,0.02);
+    }
+    
+    .thermal-paper-slip.feed-paper {
+      transform: translateY(0);
+    }
+    
+    /* Zigzag bottom cut edge for receipt */
+    .thermal-paper-slip::after {
+      content: "";
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 6px;
+      background: linear-gradient(135deg, transparent 33.33%, #fafaf5 33.33%, #fafaf5 66.66%, transparent 66.66%),
+                  linear-gradient(45deg, transparent 33.33%, #fafaf5 33.33%, #fafaf5 66.66%, transparent 66.66%);
+      background-size: 6px 12px;
+      transform: translateY(3px);
+    }
+    
+    @keyframes shake-printer-body {
+      0%, 100% { transform: translate(0, 0) rotate(0deg); }
+      15% { transform: translate(-1px, 1px) rotate(-0.5deg); }
+      30% { transform: translate(1px, -1px) rotate(0.5deg); }
+      45% { transform: translate(-1.5px, 0px) rotate(-1deg); }
+      60% { transform: translate(1.5px, 1px) rotate(0.5deg); }
+      75% { transform: translate(-1px, -1px) rotate(-0.5deg); }
+      90% { transform: translate(1px, 0deg) rotate(0.5deg); }
+    }
+    
+    /* Custom Driver Selection Cards */
+    .modal-driver-tile {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: var(--space-sm) var(--space-md);
+      border: 1.5px solid var(--hairline);
+      border-radius: 10px;
+      background-color: var(--canvas);
+      cursor: pointer;
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    
+    .modal-driver-tile:hover {
+      border-color: var(--primary);
+      box-shadow: var(--shadow);
+      transform: translateY(-1px);
+    }
+    
+    .modal-driver-tile.selected {
+      background-color: rgba(2, 74, 216, 0.03);
+      border-color: var(--primary);
+    }
   </style>
 </head>
 <body>
@@ -1201,6 +1560,18 @@
           </div>
           <span class="sidebar-link-chevron">❯</span>
         </div>
+
+        <div id="tab-printers" class="sidebar-link">
+          <div class="sidebar-link-content">
+            <svg class="sidebar-link-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="6 9 6 2 18 2 18 9"></polyline>
+              <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+              <rect x="6" y="14" width="12" height="8"></rect>
+            </svg>
+            <span>Máy in</span>
+          </div>
+          <span class="sidebar-link-chevron">❯</span>
+        </div>
       </nav>
       
       <!-- Sidebar Footer (Logout button) -->
@@ -1217,12 +1588,10 @@
           <span class="topbar-title" id="active-tab-title">Tổng quan</span>
         </div>
         <div class="topbar-actions">
-          <!-- Notification -->
-          <div class="topbar-notif">
-            <span style="font-size: 20px;">🔔</span>
-            <span class="notif-badge">3</span>
-          </div>
-          
+          <!-- Update Button -->
+          <button id="btn-check-update" class="btn" style="margin-right: 16px; display: flex; align-items: center; gap: 8px; padding: 0 16px; height: 38px; font-size: 13px; font-weight: 600; border-radius: 8px; border: 1.5px solid var(--hairline-strong); background-color: var(--canvas); color: var(--ink); cursor: pointer; transition: all 0.2s;">
+            <span>🔄 Cập nhật</span>
+          </button>
           <!-- Profile -->
           <div class="topbar-profile">
             <img class="profile-avatar" src="images/logo.png" alt="Logo" style="object-fit: cover;">
@@ -1232,7 +1601,6 @@
                 <span id="connection-dot" class="status-dot" style="width: 6px; height: 6px; display: inline-block;"></span>
               </span>
             </div>
-            <span style="font-size: 10px; color: var(--muted); margin-left: 4px;">▼</span>
           </div>
         </div>
       </header>
@@ -1810,6 +2178,159 @@
       </div>
     </div>
 
+    <!-- VIEW 3.5: Printer Management Dashboard (Hidden by default) -->
+    <div id="printers-dashboard-view" class="reports-view printer-grid-layout" style="display: none;">
+      <!-- Left side: Printer list -->
+      <div class="left-section">
+        <div class="dashboard-header-block" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 8px;">
+          <div>
+            <h1 class="section-title-v2" style="margin:0;">Vai trò máy in</h1>
+            <p style="margin: 4px 0 0 0; color: var(--muted); font-size: 13px;">Nhóm máy in theo mục đích sử dụng</p>
+          </div>
+        </div>
+        
+        <div class="history-list" id="printers-list-container">
+          <!-- Card: Bep Chinh -->
+          <div class="printer-role-card active" onclick="selectPrinter('kitchen_default')" id="printer-card-kitchen_default">
+            <div style="display: flex; align-items: center;">
+              <svg class="sidebar-link-svg" style="width: 26px; height: 26px; color: var(--primary); margin-right: 12px; flex-shrink: 0;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 2A9 9 0 0 0 3 11v1h18v-1a9 9 0 0 0-9-9z"></path>
+                <path d="M3 16h18v2H3z"></path>
+                <path d="M12 18v3"></path>
+                <path d="M8 21h8"></path>
+              </svg>
+              <div>
+                <div style="font-weight: 700; font-size: 15px; color: var(--text-color);">Máy in Bếp chính</div>
+                <div style="font-size: 12px; color: var(--muted); margin-top: 4px;">ID: kitchen_default • <span id="printer-type-lbl-kitchen_default">In trình duyệt</span></div>
+              </div>
+            </div>
+            <div id="printer-status-badge-kitchen_default" class="pulse-badge inactive">
+              <span class="pulse-dot"></span>
+              <span class="pulse-text">Chưa bật</span>
+            </div>
+          </div>
+
+          <!-- Card: Quay Bar -->
+          <div class="printer-role-card" onclick="selectPrinter('kitchen_bar')" id="printer-card-kitchen_bar">
+            <div style="display: flex; align-items: center;">
+              <svg class="sidebar-link-svg" style="width: 26px; height: 26px; color: var(--primary); margin-right: 12px; flex-shrink: 0;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M18 8h1a4 4 0 0 1 0 8h-1"></path>
+                <path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"></path>
+                <line x1="6" y1="2" x2="6" y2="4"></line>
+                <line x1="10" y1="2" x2="10" y2="4"></line>
+                <line x1="14" y1="2" x2="14" y2="4"></line>
+              </svg>
+              <div>
+                <div style="font-weight: 700; font-size: 15px; color: var(--text-color);">Máy in Quầy nước (Bar)</div>
+                <div style="font-size: 12px; color: var(--muted); margin-top: 4px;">ID: kitchen_bar • <span id="printer-type-lbl-kitchen_bar">In trình duyệt</span></div>
+              </div>
+            </div>
+            <div id="printer-status-badge-kitchen_bar" class="pulse-badge inactive">
+              <span class="pulse-dot"></span>
+              <span class="pulse-text">Chưa bật</span>
+            </div>
+          </div>
+
+          <!-- Card: Thu Ngan -->
+          <div class="printer-role-card" onclick="selectPrinter('receipt_default')" id="printer-card-receipt_default">
+            <div style="display: flex; align-items: center;">
+              <svg class="sidebar-link-svg" style="width: 26px; height: 26px; color: var(--primary); margin-right: 12px; flex-shrink: 0;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1-2-1z"></path>
+                <path d="M16 8h-6"></path>
+                <path d="M16 12H8"></path>
+                <path d="M16 16h-6"></path>
+              </svg>
+              <div>
+                <div style="font-weight: 700; font-size: 15px; color: var(--text-color);">Máy in Hóa đơn</div>
+                <div style="font-size: 12px; color: var(--muted); margin-top: 4px;">ID: receipt_default • <span id="printer-type-lbl-receipt_default">In trình duyệt</span></div>
+              </div>
+            </div>
+            <div id="printer-status-badge-receipt_default" class="pulse-badge inactive">
+              <span class="pulse-dot"></span>
+              <span class="pulse-text">Chưa bật</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right side: Printer Settings Form -->
+      <div class="right-section">
+        <div class="sticky-panel" style="padding: var(--space-md);">
+          <div class="panel-header" style="border-bottom:none; padding-bottom:0; margin-bottom: 12px;">
+            <div class="panel-header-title">
+              <h2 id="printer-settings-title" style="font-size: 18px; font-weight: 700;">Cấu hình máy in</h2>
+              <p id="printer-settings-desc" style="font-size: 12px; color: var(--muted);">Chọn một máy in từ danh sách để thiết lập kết nối</p>
+            </div>
+          </div>
+
+          <form id="printer-settings-form" onsubmit="handleSavePrinter(event)" style="display: flex; flex-direction: column; gap: var(--space-md);">
+            <!-- Connection Toggle Switch -->
+            <div style="display: flex; justify-content: space-between; align-items: center; border: 1.5px solid var(--hairline); padding: var(--space-sm); border-radius: 12px; background-color: var(--surface-soft); box-sizing: border-box; transition: all 0.3s ease;">
+              <div>
+                <label style="font-weight: 700; font-size: 14px; color: var(--text-color); display: block; margin-bottom: 2px;">Kích hoạt máy in</label>
+                <div style="font-size: 11px; color: var(--muted); font-weight: 500;">Cho phép in phiếu tự động từ hệ thống</div>
+              </div>
+              <div class="switch-wrapper">
+                <label class="switch-container">
+                  <input type="checkbox" id="printer-enabled-input" onchange="handleSavePrinter(null)">
+                  <span class="switch-slider"></span>
+                </label>
+              </div>
+            </div>
+
+            <!-- Printer Selection Select Dropdown -->
+            <div class="text-input-container">
+              <label class="text-input-label" for="printer-system-select" style="margin-bottom: 6px; display: block;">Chọn máy in kết nối</label>
+              <div class="iconic-input-container">
+                <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="6 9 6 2 18 2 18 9"></polyline>
+                  <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+                  <rect x="6" y="14" width="12" height="8"></rect>
+                </svg>
+                <select id="printer-system-select" class="text-input" style="width: 100%; border-radius: var(--rounded-md); padding: 10px; font-weight: 500; font-family: inherit; font-size: 14px; border: 1.5px solid var(--border-strong); background-color: white; outline: none; box-sizing: border-box;" onchange="handleSavePrinter(null); updateReceiptLivePreview();">
+                  <option value="">Đang tải danh sách máy in...</option>
+                </select>
+              </div>
+              <input type="hidden" id="printer-type-input" value="system">
+            </div>
+
+            <!-- Action buttons -->
+            <div style="display: flex; gap: var(--space-xs); margin-top: 8px;">
+              <button type="submit" class="btn btn-primary" style="flex: 1.2; border-radius: 8px; font-weight: 700; height: 42px;">Lưu cấu hình</button>
+              <button type="button" class="btn btn-secondary" onclick="handlePrintTest()" style="flex: 1; border-radius: 8px; font-weight: 700; height: 42px; border-color: var(--border-strong); background-color: transparent;">In thử bản tin</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Third Column: Printer Simulator & Live Preview -->
+      <div class="simulator-section">
+        <div class="sticky-panel" style="padding: var(--space-md);">
+          <div class="panel-header" style="border-bottom:none; padding-bottom:0; margin-bottom: 12px;">
+            <div class="panel-header-title">
+              <h2 style="font-size: 18px; font-weight: 700;">Xem trước bản in</h2>
+              <p style="font-size: 12px; color: var(--muted);">Trực quan hóa thiết kế phiếu trước khi gửi đi</p>
+            </div>
+          </div>
+          
+          <div class="printer-device-wrapper" style="margin-top: 16px;">
+            <div class="receipt-printer-device" id="live-printer-device">
+              <div class="printer-brand-logo">TẤM XƯA</div>
+              <div class="printer-feed-indicator" id="live-printer-indicator"></div>
+              <div class="printer-paper-slit"></div>
+            </div>
+            <div class="receipt-paper-envelope">
+              <div class="thermal-paper-slip" id="live-receipt-paper">
+                <div class="receipt-content" id="live-receipt-content">
+                  <!-- Receipt mock content goes here, generated dynamically -->
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- VIEW 4.5: Revenue Report View (Báo cáo doanh thu - Hidden by default) -->
     <style>
       .report-view-animate {
@@ -1900,23 +2421,28 @@
     <div id="report-revenue-dashboard-view" class="report-view-animate" style="display: none; flex-direction: column; width: 100%; box-sizing: border-box;">
       <!-- Filters bar -->
       <div class="report-filters-bar" style="display: flex; gap: 16px; align-items: flex-end; background-color: var(--canvas); border-bottom: 1px solid var(--hairline-soft); padding: 16px 24px; flex-wrap: wrap;">
-        <div style="width: 200px;">
+        <div style="width: 260px;">
           <select id="report-type">
             <option value="overview">Doanh thu tổng quan</option>
+            <option value="payment-method">Phương thức thanh toán</option>
           </select>
         </div>
-        <div style="width: 200px;">
+        <div style="width: 240px;">
           <select id="report-time-preset">
-            <option value="today">Hôm nay</option>
-            <option value="yesterday" selected>Hôm qua</option>
+            <option value="today" selected>Hôm nay</option>
+            <option value="yesterday">Hôm qua</option>
             <option value="7days">7 ngày qua</option>
             <option value="thismonth">Tháng này</option>
           </select>
         </div>
-        <div style="width: 200px;">
-          <select id="report-hour-range">
+        <div style="width: 240px;">
+          <select id="report-hour-range" style="display: none;">
             <option value="full">00:00 - 00:00 (+1)</option>
           </select>
+          <div id="btn-report-hour-trigger" class="custom-select-trigger" style="border: 1.5px solid var(--primary); height: 56px; display: flex !important; flex-direction: row !important; align-items: center !important; justify-content: space-between !important; padding: 0 16px !important; border-radius: 8px; background: #ffffff; cursor: pointer; user-select: none; box-sizing: border-box; font-size: 14px; font-weight: 600; color: var(--ink);">
+            <span id="report-hour-label">00:00 - 00:00 (+1)</span>
+            <span class="dropdown-chevron" style="color: var(--primary);">▼</span>
+          </div>
         </div>
         <button class="btn btn-primary" id="btn-view-report" style="height: 56px; padding: 0 24px; font-size: 14px; font-weight: 700; border-radius: 8px;">
           Xem báo cáo
@@ -1940,7 +2466,7 @@
       </div>
 
       <!-- Summary KPI cards -->
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; padding: 20px 24px; background-color: #f8fafc;">
+      <div id="revenue-kpi-cards" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; padding: 20px 24px; background-color: #f8fafc;">
         <div style="background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; display: flex; align-items: center; gap: 12px; box-shadow: var(--shadow-sm);">
           <div style="width: 40px; height: 40px; border-radius: 6px; background-color: #f1f5f9; display: flex; align-items: center; justify-content: center; font-size: 18px;">📄</div>
           <div>
@@ -1983,12 +2509,46 @@
       </div>
 
       <!-- Chart Panel -->
-      <div style="padding: 24px; background-color: #ffffff;">
+      <div id="revenue-chart-panel" style="padding: 24px; background-color: #ffffff;">
         <div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; box-shadow: var(--shadow-sm);">
-          <h3 style="font-size: 15px; font-weight: 700; color: #0f172a; margin: 0 0 16px 0;">Doanh thu bán hàng trung bình theo giờ</h3>
+          <h3 id="report-revenue-chart-title" style="font-size: 15px; font-weight: 700; color: #0f172a; margin: 0 0 16px 0;">Doanh thu bán hàng theo giờ</h3>
           <div style="height: 380px; position: relative; width: 100%;">
             <canvas id="report-revenue-hourly-chart"></canvas>
           </div>
+        </div>
+      </div>
+
+      <!-- Payment Method Report Panel (Hidden by default) -->
+      <div id="payment-method-report-panel" style="display: none; padding: 24px; background-color: #ffffff; flex-direction: column; box-sizing: border-box;">
+        <!-- Horizontal Bar Chart & Tabs Card -->
+        <div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; background: #ffffff;">
+          <!-- Tabs -->
+          <div style="display: flex; border-bottom: 2px solid #e2e8f0; margin-bottom: 20px; gap: 24px;">
+            <div id="report-pm-tab-revenue" class="report-pm-tab active" style="padding-bottom: 12px; font-size: 14px; font-weight: 700; color: #0066cc; border-bottom: 2px solid #0066cc; cursor: pointer; user-select: none;">Tổng doanh thu gồm thuế</div>
+            <div id="report-pm-tab-count" class="report-pm-tab" style="padding-bottom: 12px; font-size: 14px; font-weight: 700; color: #64748b; cursor: pointer; user-select: none; border-bottom: 2px solid transparent;">Số hoá đơn</div>
+          </div>
+          
+          <!-- Horizontal Bar Chart -->
+          <div style="height: 180px; position: relative; width: 100%;">
+            <canvas id="report-payment-method-chart"></canvas>
+          </div>
+        </div>
+
+        <!-- Table -->
+        <div class="table-responsive" style="margin-top: 24px; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; box-shadow: var(--shadow-sm);">
+          <table class="premium-table" style="width: 100%; border-collapse: collapse; text-align: left; font-size: 13px; background: #ffffff;">
+            <thead>
+              <tr style="background-color: #f8fafc; border-bottom: 1px solid #e2e8f0; font-weight: 700; color: #1e293b; height: 44px;">
+                <th style="padding: 12px 16px;">Phương thức</th>
+                <th style="padding: 12px 16px; text-align: center;">Hóa đơn</th>
+                <th style="padding: 12px 16px; text-align: center;">Số đơn hủy</th>
+                <th style="padding: 12px 16px; text-align: right;" id="report-pm-table-header-revenue">Doanh thu gồm thuế</th>
+              </tr>
+            </thead>
+            <tbody id="report-payment-method-table-body">
+              <!-- Dynamic rows -->
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
@@ -1997,7 +2557,7 @@
     <div id="report-items-dashboard-view" class="report-view-animate" style="display: none; flex-direction: column; width: 100%; box-sizing: border-box;">
       <!-- Filters bar -->
       <div class="report-filters-bar" style="display: flex; gap: 16px; align-items: flex-end; background-color: var(--canvas); border-bottom: 1px solid var(--hairline-soft); padding: 16px 24px; flex-wrap: wrap;">
-        <div style="width: 240px;">
+        <div style="width: 260px;">
           <select id="report-items-type">
             <option value="sales">Danh mục mặt hàng</option>
             <option value="best-sellers">Mặt hàng bán chạy</option>
@@ -2007,20 +2567,24 @@
             <option value="cancelled-combos">Combo đã huỷ</option>
           </select>
         </div>
-        <div style="width: 200px;">
+        <div style="width: 240px;">
           <select id="report-items-time">
-            <option value="today">Hôm nay</option>
-            <option value="yesterday" selected>Hôm qua</option>
+            <option value="today" selected>Hôm nay</option>
+            <option value="yesterday">Hôm qua</option>
             <option value="7days">7 ngày qua</option>
             <option value="thismonth">Tháng này</option>
           </select>
         </div>
-        <div style="width: 200px;">
-          <select id="report-items-hour">
+        <div style="width: 240px;">
+          <select id="report-items-hour" style="display: none;">
             <option value="full">00:00 - 00:00 (+1)</option>
           </select>
+          <div id="btn-report-items-hour-trigger" class="custom-select-trigger" style="border: 1.5px solid var(--primary); height: 56px; display: flex !important; flex-direction: row !important; align-items: center !important; justify-content: space-between !important; padding: 0 16px !important; border-radius: 8px; background: #ffffff; cursor: pointer; user-select: none; box-sizing: border-box; font-size: 14px; font-weight: 600; color: var(--ink);">
+            <span id="report-items-hour-label">00:00 - 00:00 (+1)</span>
+            <span class="dropdown-chevron" style="color: var(--primary);">▼</span>
+          </div>
         </div>
-        <div style="width: 200px;">
+        <div style="width: 240px;">
           <select id="report-items-compare">
             <option value="prev">Giai đoạn trước</option>
           </select>
@@ -2570,8 +3134,121 @@
     </div>
   </div>
 
-  <!-- Excel SheetJS Library -->
-  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <!-- Modal: Danh sach may in he thong -->
+  <div class="modal-backdrop" id="system-printers-modal" style="display: none; align-items: center; justify-content: center; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.5); z-index: 2500;">
+    <div class="modal-content" style="max-width: 500px; width: 90%; border-radius: var(--rounded-lg); overflow: hidden; background: #ffffff; display: flex; flex-direction: column; max-height: 80vh; box-shadow: var(--shadow-lg);">
+      <div class="modal-header" style="border-bottom: 1px solid var(--hairline-soft); padding: 16px 24px; display: flex; justify-content: space-between; align-items: center;">
+        <h3 class="modal-title" style="font-size: 18px; font-weight: 700; margin: 0;">Danh sách máy in trên máy tính</h3>
+        <button class="btn-close" onclick="closeSystemPrintersModal()" style="font-size: 24px; background: none; border: none; cursor: pointer; color: var(--muted);">&times;</button>
+      </div>
+      <div class="modal-body" style="padding: 24px; overflow-y: auto;">
+        <div style="font-size: 13px; color: var(--muted); margin-bottom: 16px; font-weight: 500;">Dưới đây là các máy in đang được kết nối và cài đặt trên máy tính của bạn:</div>
+        <ul id="system-printers-list-ul" style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px;">
+          <li style="padding: 12px 16px; border: 1.5px solid var(--hairline); border-radius: 8px; font-weight: 600; font-size: 14px; color: var(--muted); display: flex; align-items: center; gap: 8px;">
+            <span>🔄 Đang tải danh sách máy in từ hệ thống...</span>
+          </li>
+        </ul>
+      </div>
+      <div class="modal-footer" style="background-color: var(--surface-soft); border-top: 1px solid var(--hairline-soft); padding: 12px 24px; display: flex; justify-content: flex-end;">
+        <button type="button" class="btn btn-secondary btn-pill" onclick="closeSystemPrintersModal()" style="height: 38px; padding: 0 20px; font-weight: 600; border-radius: 8px; border: 1px solid var(--border-strong); background-color: transparent;">Đóng</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Khung gio bao cao -->
+  <div id="report-hour-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.5); z-index: 9999; justify-content: center; align-items: center;">
+    <div style="background: #ffffff; border-radius: 12px; width: 500px; max-width: 90%; box-shadow: 0 10px 25px rgba(0,0,0,0.15); display: flex; flex-direction: column; overflow: hidden;">
+      <!-- Header -->
+      <div style="display: flex; justify-content: space-between; align-items: center; padding: 20px 24px; border-bottom: 1px solid #e2e8f0;">
+        <h3 style="margin: 0; font-size: 18px; font-weight: 700; color: #1e293b;">Khung giờ báo cáo</h3>
+        <span id="close-hour-modal" style="font-size: 24px; cursor: pointer; color: #64748b; font-weight: 600; line-height: 1;">&times;</span>
+      </div>
+      
+      <!-- Body -->
+      <div style="padding: 24px; display: flex; flex-direction: column; gap: 20px;">
+        <!-- Option 1: Ca ngay -->
+        <label style="display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 500; color: #334155; cursor: pointer; margin: 0;">
+          <input type="radio" name="hour-option" value="all" checked style="width: 18px; height: 18px; accent-color: #0066cc;">
+          Cả ngày
+        </label>
+        
+        <!-- Option 2: Khung gio -->
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+          <label style="display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 500; color: #334155; cursor: pointer; margin: 0;">
+            <input type="radio" name="hour-option" value="range" style="width: 18px; height: 18px; accent-color: #0066cc;">
+            Khung giờ
+          </label>
+          
+          <!-- Range inputs -->
+          <div id="hour-range-inputs" style="padding-left: 28px; display: flex; flex-direction: column; gap: 12px; opacity: 0.5; pointer-events: none; transition: all 0.2s;">
+            <div style="display: flex; align-items: center; gap: 8px; font-size: 14px; color: #475569;">
+              <span style="width: 32px;">Từ</span>
+              <input type="number" id="hour-from-h" value="00" min="0" max="23" style="width: 60px; height: 36px; border: 1px solid #cbd5e1; border-radius: 6px; text-align: center; font-weight: 600; padding: 0 4px; box-sizing: border-box;">
+              <span>giờ</span>
+              <input type="number" id="hour-from-m" value="00" min="0" max="59" style="width: 60px; height: 36px; border: 1px solid #cbd5e1; border-radius: 6px; text-align: center; font-weight: 600; padding: 0 4px; box-sizing: border-box;">
+              <span>phút</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px; font-size: 14px; color: #475569;">
+              <span style="width: 32px;">Đến</span>
+              <input type="number" id="hour-to-h" value="23" min="0" max="23" style="width: 60px; height: 36px; border: 1px solid #cbd5e1; border-radius: 6px; text-align: center; font-weight: 600; padding: 0 4px; box-sizing: border-box;">
+              <span>giờ</span>
+              <input type="number" id="hour-to-m" value="59" min="0" max="59" style="width: 60px; height: 36px; border: 1px solid #cbd5e1; border-radius: 6px; text-align: center; font-weight: 600; padding: 0 4px; box-sizing: border-box;">
+              <span>phút</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Footer -->
+      <div style="display: flex; justify-content: flex-end; gap: 12px; padding: 16px 24px; background: #f8fafc; border-top: 1px solid #e2e8f0; box-sizing: border-box;">
+        <button id="btn-cancel-hour-modal" style="height: 38px; padding: 0 16px; border: 1px solid #cbd5e1; background: #ffffff; border-radius: 6px; font-size: 13px; font-weight: 600; color: #475569; cursor: pointer;">Hủy</button>
+        <button id="btn-apply-hour-modal" style="height: 38px; padding: 0 16px; border: none; background: #0066cc; border-radius: 6px; font-size: 13px; font-weight: 600; color: #ffffff; cursor: pointer;">Áp dụng</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: System Update Progress -->
+  <div class="system-update-backdrop" id="system-update-modal" style="display: none; position: fixed; inset: 0; background-color: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); justify-content: center; align-items: center; z-index: 99999;">
+    <div style="width: 500px; max-width: 90%; border-radius: 16px; overflow: hidden; background-color: #ffffff; display: flex; flex-direction: column; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);">
+      <!-- Header -->
+      <div style="padding: 18px 24px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background-color: #f8fafc;">
+        <h3 style="font-size: 16px; font-weight: 700; margin: 0; color: #0f172a; display: flex; align-items: center; gap: 8px;">
+          <span>🔄 Cập nhật hệ thống</span>
+        </h3>
+        <span id="btn-close-update-modal" style="font-size: 24px; cursor: pointer; color: #64748b; font-weight: bold; line-height: 1;">&times;</span>
+      </div>
+      <!-- Body -->
+      <div style="padding: 24px; display: flex; flex-direction: column; gap: 16px; box-sizing: border-box;">
+        <!-- Status Info -->
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+          <div style="font-weight: 600; font-size: 14px; color: #1e293b;" id="update-status-text">Đang kiểm tra bản cập nhật trên Git...</div>
+          
+          <!-- Progress bar -->
+          <div id="update-progress-wrapper" style="width: 100%; height: 10px; background-color: #e2e8f0; border-radius: 5px; overflow: hidden; display: none; margin: 8px 0;">
+            <div id="update-progress-bar" style="width: 0%; height: 100%; background: linear-gradient(90deg, #ea580c 0%, #db2777 100%); transition: width 0.3s ease; border-radius: 5px;"></div>
+          </div>
+          
+          <!-- Log Console -->
+          <div id="update-log-console" style="background-color: #0f172a; color: #38bdf8; font-family: monospace; font-size: 12px; padding: 12px; border-radius: 8px; max-height: 180px; overflow-y: auto; white-space: pre-wrap; display: none; text-align: left;"></div>
+        </div>
+        
+        <!-- Commits list -->
+        <div id="update-commits-container" style="display: none; flex-direction: column; gap: 8px; border-top: 1px solid #e2e8f0; padding-top: 12px; text-align: left;">
+          <div style="font-weight: 700; font-size: 12px; color: #475569; letter-spacing: 0.5px;">CÁC THAY ĐỔI MỚI:</div>
+          <div id="update-commits-list" style="max-height: 120px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: #334155; font-family: inherit;">
+          </div>
+        </div>
+      </div>
+      <!-- Footer -->
+      <div style="padding: 16px 24px; background-color: #f8fafc; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; gap: 12px; box-sizing: border-box;">
+        <button id="btn-cancel-update" style="height: 38px; padding: 0 16px; border: 1px solid #cbd5e1; background: #ffffff; border-radius: 6px; font-size: 13px; font-weight: 600; color: #475569; cursor: pointer;">Hủy bỏ</button>
+        <button id="btn-start-update" style="height: 38px; padding: 0 20px; border: none; background: #0066cc; border-radius: 6px; font-size: 13px; font-weight: 600; color: #ffffff; cursor: pointer; display: none;">Cập nhật ngay</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Excel SheetJS Library with Styles -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
   <!-- Chart.js & Logic JS -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="js/manager.js"></script>

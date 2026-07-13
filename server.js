@@ -14,6 +14,13 @@ const mammoth = require('mammoth');
 
 const app = express();
 
+// Ghi Process ID ra file để hỗ trợ tắt server chạy ngầm
+try {
+  fs.writeFileSync(path.join(__dirname, 'server.pid'), process.pid.toString());
+} catch (err) {
+  console.error('Không thể ghi file server.pid:', err.message);
+}
+
 // Multer memory storage configuration to support base64 conversion (avoiding read-only filesystem errors on Vercel)
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -62,6 +69,7 @@ app.use((req, res, next) => {
 
 // Serve static assets from public folder
 app.use(express.static(path.join(__dirname, 'public')));
+app.use('/templates', express.static(path.join(__dirname, 'templates')));
 
 // Database helper functions to format data for client
 async function getTablesWithOrders() {
@@ -1003,7 +1011,158 @@ app.post('/api/print-docx', async (req, res) => {
   }
 });
 
-// Endpoint to send raw print commands (Wifi or Windows Shared Spooler)
+// Endpoint to fetch system printers on Windows
+app.get('/api/system-printers', requireAuth, (req, res) => {
+  const { exec } = require('child_process');
+  exec('powershell -NoProfile -Command "Get-CimInstance Win32_Printer | Select-Object -ExpandProperty Name"', (err, stdout, stderr) => {
+    if (err) {
+      console.error('Lỗi lấy danh sách máy in:', err, stderr);
+      return res.status(500).json({ error: `Không thể quét danh sách máy in: ${err.message}` });
+    }
+    const printers = stdout.split(/\r?\n/).map(line => line.trim()).filter(line => line.length > 0);
+    res.json(printers);
+  });
+});
+
+// Helper function to print raw commands directly on server
+function printRawOnServer(printerType, sharedPath, ip, port, content) {
+  return new Promise((resolve, reject) => {
+    if (printerType === 'wifi') {
+      if (!ip) {
+        return reject(new Error('Địa chỉ IP máy in Wifi không được trống.'));
+      }
+      const printerPort = parseInt(port) || 9100;
+      const client = new net.Socket();
+      client.setTimeout(4000); // 4 seconds timeout
+
+      let printContent = content;
+      if (!printContent.endsWith('\x1b\x69')) {
+        printContent += '\n\n\n\n\n\x1b\x69';
+      }
+
+      client.connect(printerPort, ip, () => {
+        client.write(Buffer.from(printContent, 'utf-8'), () => {
+          client.end();
+          resolve({ success: true, message: `Đã gửi lệnh in đến máy in Wifi ${ip}:${printerPort}` });
+        });
+      });
+
+      client.on('error', (err) => {
+        client.destroy();
+        console.error('Lỗi in Wifi:', err);
+        reject(new Error(`Không thể kết nối đến máy in Wifi tại ${ip}:${printerPort}. Lỗi: ${err.message}`));
+      });
+
+      client.on('timeout', () => {
+        client.destroy();
+        reject(new Error(`Kết nối đến máy in Wifi tại ${ip}:${printerPort} bị quá hạn (Timeout).`));
+      });
+
+    } else if (printerType === 'shared') {
+      if (!sharedPath) {
+        return reject(new Error('Đường dẫn máy in chia sẻ (Shared Path) không được trống.'));
+      }
+
+      const scratchDir = path.join(__dirname, 'scratch');
+      if (!fs.existsSync(scratchDir)) {
+        fs.mkdirSync(scratchDir, { recursive: true });
+      }
+      
+      const tempFile = path.join(scratchDir, `print_job_${Date.now()}.txt`);
+      
+      let printContent = content;
+      if (!printContent.endsWith('\x1b\x69')) {
+        printContent += '\n\n\n\n\n\x1b\x69';
+      }
+
+      try {
+        fs.writeFileSync(tempFile, printContent, 'utf-8');
+        const cmd = `copy /B "${tempFile}" "${sharedPath}"`;
+        const { exec } = require('child_process');
+        exec(cmd, (err, stdout, stderr) => {
+          try { fs.unlinkSync(tempFile); } catch (e) {}
+
+          if (err) {
+            console.error('Lỗi in Shared Printer:', err, stderr);
+            return reject(new Error(`Lỗi khi in qua máy in chia sẻ: ${err.message}`));
+          }
+          resolve({ success: true, message: `Đã gửi lệnh in đến máy in chia sẻ ${sharedPath}` });
+        });
+      } catch (e) {
+        reject(e);
+      }
+
+    } else if (printerType === 'system') {
+      const scratchDir = path.join(__dirname, 'scratch');
+      if (!fs.existsSync(scratchDir)) {
+        fs.mkdirSync(scratchDir, { recursive: true });
+      }
+      
+      const tempFile = path.join(scratchDir, `print_job_${Date.now()}.txt`);
+      
+      let printContent = content.replace(/\x1b\x69/g, '');
+
+      try {
+        fs.writeFileSync(tempFile, printContent, 'utf-8');
+        const psCommand = sharedPath
+          ? `Get-Content -LiteralPath '${tempFile}' -Encoding utf8 | Out-Printer -Name '${sharedPath.replace(/'/g, "''")}'`
+          : `Get-Content -LiteralPath '${tempFile}' -Encoding utf8 | Out-Printer`;
+        const { exec } = require('child_process');
+        exec(`powershell -NoProfile -Command "${psCommand}"`, (err, stdout, stderr) => {
+          try { fs.unlinkSync(tempFile); } catch (e) {}
+
+          if (err) {
+            console.error('Lỗi in System Printer:', err, stderr);
+            return reject(new Error(`Lỗi khi in qua máy in hệ thống: ${err.message}`));
+          }
+          resolve({ success: true, message: sharedPath ? `Đã gửi lệnh in đến máy in hệ thống ${sharedPath}` : 'Đã gửi lệnh in đến máy in mặc định' });
+        });
+      } catch (e) {
+        reject(e);
+      }
+    } else {
+      reject(new Error('Loại kết nối máy in không hợp lệ (Chỉ hỗ trợ wifi, shared hoặc system).'));
+    }
+  });
+}
+
+// Endpoint to fetch printer settings
+app.get('/api/printer-settings', requireAuth, async (req, res) => {
+  try {
+    const result = await db.query('SELECT * FROM printer_settings');
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching printer settings:', error);
+    res.status(500).json({ error: 'Failed to fetch printer settings' });
+  }
+});
+
+// Endpoint to save/update printer settings
+app.post('/api/printer-settings', requireAuth, async (req, res) => {
+  const { printerId, connected, type, sharedPath, ip, port } = req.body;
+  if (!printerId) {
+    return res.status(400).json({ error: 'Printer ID is required' });
+  }
+  try {
+    await db.query(`
+      INSERT INTO printer_settings (printer_id, connected, type, shared_path, ip, port)
+      VALUES ($1, $2, $3, $4, $5, $6)
+      ON CONFLICT (printer_id) DO UPDATE
+      SET connected = EXCLUDED.connected,
+          type = EXCLUDED.type,
+          shared_path = EXCLUDED.shared_path,
+          ip = EXCLUDED.ip,
+          port = EXCLUDED.port
+    `, [printerId, connected, type, sharedPath || '', ip || '', port ? parseInt(port) : null]);
+    
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error saving printer settings:', error);
+    res.status(500).json({ error: 'Failed to save printer settings' });
+  }
+});
+
+// Endpoint to send raw print commands (Wifi, Windows Shared Spooler, or Direct System Printer)
 app.post('/api/print-raw', requireAuth, async (req, res) => {
   const { printerType, ip, port, sharedPath, content } = req.body;
 
@@ -1018,69 +1177,11 @@ app.post('/api/print-raw', requireAuth, async (req, res) => {
     }
   }
 
-  if (printerType === 'wifi') {
-    if (!ip) {
-      return res.status(400).json({ error: 'Địa chỉ IP máy in Wifi không được trống.' });
-    }
-    const printerPort = parseInt(port) || 9100;
-    
-    const client = new net.Socket();
-    client.setTimeout(4000); // 4 seconds timeout
-
-    client.connect(printerPort, ip, () => {
-      // Send raw binary content (supporting raw string commands)
-      client.write(Buffer.from(content, 'utf-8'), () => {
-        client.end();
-        res.json({ success: true, message: `Đã gửi lệnh in đến máy in Wifi ${ip}:${printerPort}` });
-      });
-    });
-
-    client.on('error', (err) => {
-      client.destroy();
-      console.error('Lỗi in Wifi:', err);
-      res.status(500).json({ error: `Không thể kết nối đến máy in Wifi tại ${ip}:${printerPort}. Lỗi: ${err.message}` });
-    });
-
-    client.on('timeout', () => {
-      client.destroy();
-      res.status(504).json({ error: `Kết nối đến máy in Wifi tại ${ip}:${printerPort} bị quá hạn (Timeout).` });
-    });
-
-  } else if (printerType === 'shared') {
-    if (!sharedPath) {
-      return res.status(400).json({ error: 'Đường dẫn máy in chia sẻ (Shared Path) không được trống.' });
-    }
-
-    const scratchDir = path.join(__dirname, 'scratch');
-    if (!fs.existsSync(scratchDir)) {
-      fs.mkdirSync(scratchDir, { recursive: true });
-    }
-    
-    const tempFile = path.join(scratchDir, `print_job_${Date.now()}.txt`);
-    
-    try {
-      fs.writeFileSync(tempFile, content, 'utf-8');
-      
-      // On Windows: copy /B "tempfile" "sharedPath" sends binary raw commands directly to local shared printer spooler
-      const cmd = `copy /B "${tempFile}" "${sharedPath}"`;
-      
-      const { exec } = require('child_process');
-      exec(cmd, (err, stdout, stderr) => {
-        try { fs.unlinkSync(tempFile); } catch (e) {}
-
-        if (err) {
-          console.error('Lỗi in Shared Printer:', err, stderr);
-          return res.status(500).json({ error: `Lỗi khi in qua máy in chia sẻ: ${err.message}` });
-        }
-        
-        res.json({ success: true, message: `Đã gửi lệnh in đến máy in chia sẻ ${sharedPath}` });
-      });
-    } catch (e) {
-      console.error(e);
-      res.status(500).json({ error: `Lỗi hệ thống: ${e.message}` });
-    }
-  } else {
-    res.status(400).json({ error: 'Loại kết nối máy in không hợp lệ (Chỉ hỗ trợ wifi hoặc shared).' });
+  try {
+    const result = await printRawOnServer(printerType, sharedPath, ip, port, content);
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 });
 
@@ -1279,6 +1380,217 @@ app.get('/api/scan-printers', requireAuth, async (req, res) => {
   }
 });
 
+function wrapAndCenter(text, width = 32) {
+  if (!text) return '';
+  const words = text.trim().split(/\s+/);
+  const lines = [];
+  let currentLine = '';
+
+  words.forEach(word => {
+    if ((currentLine + (currentLine ? ' ' : '') + word).length <= width) {
+      currentLine += (currentLine ? ' ' : '') + word;
+    } else {
+      if (currentLine) {
+        lines.push(currentLine);
+      }
+      currentLine = word;
+      while (currentLine.length > width) {
+        lines.push(currentLine.substring(0, width));
+        currentLine = currentLine.substring(width);
+      }
+    }
+  });
+  if (currentLine) {
+    lines.push(currentLine);
+  }
+
+  return lines.map(line => {
+    const pad = Math.floor((width - line.length) / 2);
+    return pad > 0 ? ' '.repeat(pad) + line : line;
+  }).join('\n');
+}
+
+function formatVNDShort(amount) {
+  if (amount >= 1000) {
+    return `${amount / 1000}K`;
+  }
+  return `${amount}đ`;
+}
+
+function padCenter(str, width) {
+  if (str.length >= width) return str.substring(0, width);
+  const padLeft = Math.floor((width - str.length) / 2);
+  const padRight = width - str.length - padLeft;
+  return ' '.repeat(padLeft) + str + ' '.repeat(padRight);
+}
+
+function padLeftRight(str, width) {
+  if (str.length >= width) return str.substring(0, width);
+  return str + ' '.repeat(width - str.length);
+}
+
+function wrapTextIntoChunks(text, maxWidth) {
+  if (!text) return [''];
+  const words = text.trim().split(/\s+/);
+  const chunks = [];
+  let currentChunk = '';
+  
+  words.forEach(word => {
+    if ((currentChunk + (currentChunk ? ' ' : '') + word).length <= maxWidth) {
+      currentChunk += (currentChunk ? ' ' : '') + word;
+    } else {
+      if (currentChunk) chunks.push(currentChunk);
+      currentChunk = word;
+      while (currentChunk.length > maxWidth) {
+        chunks.push(currentChunk.substring(0, maxWidth));
+        currentChunk = currentChunk.substring(maxWidth);
+      }
+    }
+  });
+  if (currentChunk) chunks.push(currentChunk);
+  return chunks.length > 0 ? chunks : [''];
+}
+
+function formatKitchenTable(items, width = 32) {
+  const colNameWidth = 23;
+  const colQtyWidth = 6;
+  const border = '+' + '-'.repeat(colNameWidth) + '+' + '-'.repeat(colQtyWidth) + '+\n';
+  
+  let text = border;
+  text += '|' + padCenter('Tên món', colNameWidth) + '|' + padCenter('SL', colQtyWidth) + '|\n';
+  text += border;
+  
+  items.forEach(item => {
+    const maxTextWidth = colNameWidth - 2; // 21 chars
+    const nameChunks = wrapTextIntoChunks(item.name, maxTextWidth);
+    
+    const qtyStr = `x${item.quantity}`;
+    text += '|' + padLeftRight(` ${nameChunks[0]}`, colNameWidth) + '|' + padCenter(qtyStr, colQtyWidth) + '|\n';
+    
+    for (let i = 1; i < nameChunks.length; i++) {
+      text += '|' + padLeftRight(` ${nameChunks[i]}`, colNameWidth) + '|' + ' '.repeat(colQtyWidth) + '|\n';
+    }
+    
+    if (item.notes) {
+      const noteChunks = wrapTextIntoChunks(`*Ghi chú: ${item.notes}`, maxTextWidth);
+      noteChunks.forEach(chunk => {
+        text += '|' + padLeftRight(` ${chunk}`, colNameWidth) + '|' + ' '.repeat(colQtyWidth) + '|\n';
+      });
+    }
+    text += border;
+  });
+  
+  return text;
+}
+
+function formatReceiptTable(items, width = 32) {
+  const colNameWidth = 16;
+  const colQtyWidth = 4;
+  const colPriceWidth = 8;
+  const border = '+' + '-'.repeat(colNameWidth) + '+' + '-'.repeat(colQtyWidth) + '+' + '-'.repeat(colPriceWidth) + '+\n';
+  
+  let text = border;
+  text += '|' + padCenter('Tên món', colNameWidth) + '|' + padCenter('SL', colQtyWidth) + '|' + padCenter('T.Tiền', colPriceWidth) + '|\n';
+  text += border;
+  
+  items.forEach(item => {
+    const maxTextWidth = colNameWidth - 2; // 14 chars
+    const nameChunks = wrapTextIntoChunks(item.name, maxTextWidth);
+    
+    const qtyStr = `x${item.quantity}`;
+    const priceStr = formatVNDShort(item.price * item.quantity);
+    
+    text += '|' + padLeftRight(` ${nameChunks[0]}`, colNameWidth) + '|' + padCenter(qtyStr, colQtyWidth) + '|' + padCenter(priceStr, colPriceWidth) + '|\n';
+    
+    for (let i = 1; i < nameChunks.length; i++) {
+      text += '|' + padLeftRight(` ${nameChunks[i]}`, colNameWidth) + '|' + ' '.repeat(colQtyWidth) + '|' + ' '.repeat(colPriceWidth) + '|\n';
+    }
+    
+    if (item.notes) {
+      const noteChunks = wrapTextIntoChunks(`*Ghi chú: ${item.notes}`, maxTextWidth);
+      noteChunks.forEach(chunk => {
+        text += '|' + padLeftRight(` ${chunk}`, colNameWidth) + '|' + ' '.repeat(colQtyWidth) + '|' + ' '.repeat(colPriceWidth) + '|\n';
+      });
+    }
+    text += border;
+  });
+  
+  return text;
+}
+
+function formatPlainKitchenSlipServer(tableName, items, title) {
+  const width = 32;
+  const border = '-'.repeat(width) + '\n';
+  const dateStr = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) + ' ' + new Date().toLocaleDateString('vi-VN');
+  
+  let text = '';
+  text += wrapAndCenter('TAM XUA ORDER', width) + '\n';
+  text += wrapAndCenter(title.toUpperCase(), width) + '\n';
+  text += border;
+  text += wrapAndCenter(`BÀN: ${tableName}`, width) + '\n';
+  text += wrapAndCenter(`Giờ order: ${dateStr}`, width) + '\n';
+  text += formatKitchenTable(items, width);
+  
+  text += '\n\n\n\n\n';
+  return text;
+}
+
+function formatTimeServer(isoString) {
+  if (!isoString) return '';
+  const date = new Date(isoString);
+  const pad = (n) => String(n).padStart(2, '0');
+  const hh = pad(date.getHours());
+  const mm = pad(date.getMinutes());
+  const ss = pad(date.getSeconds());
+  const DD = pad(date.getDate());
+  const MM = pad(date.getMonth() + 1);
+  const YYYY = date.getFullYear();
+  return `${hh}:${mm}:${ss} - ${DD}/${MM}/${YYYY}`;
+}
+
+function formatPlainReceiptServer(tableObj, orderItems, discountAmount, receivedAmount, timestamp, payMethod) {
+  const width = 32;
+  const border = '-'.repeat(width) + '\n';
+  const subtotal = orderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  const finalTotal = Math.max(0, subtotal - discountAmount);
+  const changeAmount = receivedAmount ? (receivedAmount - finalTotal) : 0;
+  
+  const orderTimeStr = (tableObj.updated_at || tableObj.updatedAt)
+    ? formatTimeServer(tableObj.updated_at || tableObj.updatedAt).replace(' - ', ' ') 
+    : (timestamp ? formatTimeServer(timestamp).replace(' - ', ' ') : formatTimeServer(new Date().toISOString()).replace(' - ', ' '));
+
+  const checkoutTimeStr = timestamp 
+    ? formatTimeServer(timestamp).replace(' - ', ' ') 
+    : formatTimeServer(new Date().toISOString()).replace(' - ', ' ');
+
+  const payMethodLabel = payMethod === 'bank' ? 'Chuyển khoản' : 'Tiền mặt';
+  
+  let text = '';
+  text += wrapAndCenter('TẤM XƯA', width) + '\n';
+  text += wrapAndCenter('Món Ngon Chuẩn Vị Bắc', width) + '\n';
+  text += border;
+  text += wrapAndCenter(`Bàn: ${tableObj.name}`, width) + '\n';
+  text += wrapAndCenter(`Giờ vào: ${orderTimeStr}`, width) + '\n';
+  text += wrapAndCenter(`Giờ ra: ${checkoutTimeStr}`, width) + '\n';
+  text += formatReceiptTable(orderItems, width);
+  
+  text += wrapAndCenter(`Cộng món: ${formatVNDShort(subtotal)}`, width) + '\n';
+  if (discountAmount > 0) {
+    text += wrapAndCenter(`Giảm giá: -${formatVNDShort(discountAmount)}`, width) + '\n';
+  }
+  text += wrapAndCenter(`TỔNG CỘNG: ${formatVNDShort(finalTotal)}`, width) + '\n';
+  text += wrapAndCenter(`Khách đưa: ${formatVNDShort(receivedAmount || finalTotal)}`, width) + '\n';
+  if (changeAmount > 0) {
+    text += wrapAndCenter(`Trả lại: ${formatVNDShort(changeAmount)}`, width) + '\n';
+  }
+  text += wrapAndCenter(`Thanh toán: ${payMethodLabel}`, width) + '\n';
+  text += border;
+  text += wrapAndCenter('Cảm ơn Quý khách!', width) + '\n';
+  text += wrapAndCenter('Hẹn gặp lại quý khách!', width) + '\n';
+  text += '\n\n\n\n\n';
+  return text;
+}
+
 // Socket.io Real-time connections
 io.on('connection', async (socket) => {
   try {
@@ -1291,17 +1603,225 @@ io.on('connection', async (socket) => {
   }
 
   // Handle printer routing requests from mobile phone clients to desktop cashier client
-  socket.on('request_print_kitchen_slip', (data) => {
-    socket.broadcast.emit('print_kitchen_slip', data);
+  socket.on('request_print_kitchen_slip', async (data) => {
+    try {
+      // Look up printer settings from database
+      const printerRes = await db.query('SELECT * FROM printer_settings WHERE printer_id = $1', [data.printerId]);
+      const printer = printerRes.rows[0];
+
+      const isConnected = printer ? printer.connected : true;
+
+      if (isConnected) {
+        let type = printer ? printer.type : 'system';
+        let sharedPath = printer ? printer.shared_path : '';
+        
+        // Force silent printing to default system printer if configured as browser
+        if (type === 'browser') {
+          type = 'system';
+          sharedPath = '';
+        }
+
+        const plainText = formatPlainKitchenSlipServer(data.tableName, data.items, data.title);
+        await printRawOnServer(type, sharedPath, printer ? printer.ip : '', printer ? printer.port : null, plainText);
+        
+        // Broadcast to all clients that server has printed it successfully
+        io.emit('print_kitchen_slip', {
+          ...data,
+          printedByServer: true
+        });
+      } else {
+        console.log(`Printer ${data.printerId} is disabled. Skipping print.`);
+      }
+    } catch (err) {
+      console.error(`Error handling direct server print for ${data.printerId}:`, err);
+      // Fallback: broadcast to client if printing on server failed
+      socket.broadcast.emit('print_kitchen_slip', {
+        ...data,
+        printedByServer: false,
+        error: err.message
+      });
+    }
   });
 
-  socket.on('request_print_receipt', (data) => {
-    socket.broadcast.emit('print_receipt', data);
+  socket.on('request_print_receipt', async (data) => {
+    try {
+      // Look up printer settings from database
+      const printerRes = await db.query("SELECT * FROM printer_settings WHERE printer_id = 'receipt_default'");
+      const printer = printerRes.rows[0];
+
+      const isConnected = printer ? printer.connected : true;
+
+      if (isConnected) {
+        let type = printer ? printer.type : 'system';
+        let sharedPath = printer ? printer.shared_path : '';
+        
+        if (type === 'browser') {
+          type = 'system';
+          sharedPath = '';
+        }
+
+        const plainText = formatPlainReceiptServer(data.tableObj, data.orderItems, data.discountAmount, data.receivedAmount, data.timestamp, data.payMethod);
+        await printRawOnServer(type, sharedPath, printer ? printer.ip : '', printer ? printer.port : null, plainText);
+        
+        io.emit('print_receipt', {
+          ...data,
+          printedByServer: true
+        });
+      } else {
+        console.log(`Receipt printer is disabled. Skipping print.`);
+      }
+    } catch (err) {
+      console.error(`Error handling direct receipt print:`, err);
+      socket.broadcast.emit('print_receipt', {
+        ...data,
+        printedByServer: false,
+        error: err.message
+      });
+    }
   });
 
   socket.on('request_print_test', (data) => {
     socket.broadcast.emit('print_test', data);
   });
+});
+
+// System Update Endpoints (Git-based auto-update)
+app.post('/api/system/check-update', async (req, res) => {
+  const { exec } = require('child_process');
+  const util = require('util');
+  const execPromise = util.promisify(exec);
+  
+  try {
+    // 1. Kiem tra xem co phai repo Git hay khong
+    try {
+      await execPromise('git rev-parse --is-inside-work-tree');
+    } catch (gitErr) {
+      return res.json({ hasUpdate: false, error: 'Thư mục ứng dụng không phải là một kho chứa Git (Git repository).' });
+    }
+
+    // 2. Fetch du lieu moi tu Git
+    await execPromise('git fetch');
+
+    // 3. Lay ten nhanh hien tai
+    const branchRes = await execPromise('git rev-parse --abbrev-ref HEAD');
+    const branch = branchRes.stdout.trim();
+
+    // 4. Lay commit hash local va remote tracking branch
+    const localCommitRes = await execPromise('git rev-parse HEAD');
+    const localCommit = localCommitRes.stdout.trim();
+
+    let remoteCommit = '';
+    try {
+      const remoteCommitRes = await execPromise('git rev-parse @{u}');
+      remoteCommit = remoteCommitRes.stdout.trim();
+    } catch (uErr) {
+      // Fallback neu khong co tracking branch
+      const originCommitRes = await execPromise(`git rev-parse origin/${branch}`);
+      remoteCommit = originCommitRes.stdout.trim();
+    }
+
+    if (localCommit === remoteCommit) {
+      return res.json({ hasUpdate: false, branch, localCommit });
+    }
+
+    // 5. Lay danh sach commit moi
+    const logRes = await execPromise(`git log HEAD..${remoteCommit} --oneline`);
+    const commits = logRes.stdout.trim().split('\n').filter(c => c);
+
+    return res.json({
+      hasUpdate: true,
+      branch,
+      localCommit,
+      remoteCommit,
+      commits
+    });
+
+  } catch (err) {
+    console.error('Loi kiem tra cap nhat:', err);
+    return res.status(500).json({ hasUpdate: false, error: err.message });
+  }
+});
+
+app.get('/api/system/apply-update', (req, res) => {
+  const { exec, spawn } = require('child_process');
+  const path = require('path');
+
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+
+  const sendProgress = (step, percent, message) => {
+    res.write(`data: ${JSON.stringify({ step, percent, message })}\n\n`);
+  };
+
+  sendProgress('START', 10, 'Bắt đầu quá trình cập nhật...');
+  sendProgress('GIT_PULL_START', 20, 'Đang kéo mã nguồn mới nhất từ Git (git pull)...');
+  
+  exec('git pull', async (pullErr, stdout, stderr) => {
+    if (pullErr) {
+      sendProgress('ERROR', 0, `Lỗi khi chạy git pull: ${pullErr.message}\n${stderr}`);
+      return res.end();
+    }
+
+    sendProgress('GIT_PULL_SUCCESS', 45, `Tải code mới thành công:\n${stdout}`);
+
+    // Kiem tra package.json co thay doi hay khong
+    let needsNpmInstall = false;
+    try {
+      const { execSync } = require('child_process');
+      const diffOutput = execSync('git diff --name-only HEAD@{1} HEAD').toString();
+      if (diffOutput.includes('package.json')) {
+        needsNpmInstall = true;
+      }
+    } catch (diffErr) {
+      needsNpmInstall = true; // Fallback
+    }
+
+    if (needsNpmInstall) {
+      sendProgress('NPM_INSTALL_START', 50, 'Phát hiện thay đổi thư viện. Đang cài đặt thư viện mới (npm install)...');
+      exec('npm install', (npmErr, npmStdout, npmStderr) => {
+        if (npmErr) {
+          sendProgress('ERROR', 0, `Lỗi khi cài đặt thư viện: ${npmErr.message}\n${npmStderr}`);
+          return res.end();
+        }
+        sendProgress('NPM_INSTALL_SUCCESS', 80, `Cập nhật thư viện thành công:\n${npmStdout}`);
+        proceedToRestart();
+      });
+    } else {
+      sendProgress('NPM_INSTALL_SKIP', 80, 'Không có thay đổi trong thư viện. Bỏ qua cài đặt.');
+      proceedToRestart();
+    }
+  });
+
+  function proceedToRestart() {
+    sendProgress('MIGRATING', 85, 'Đang kiểm tra và cập nhật cấu trúc cơ sở dữ liệu...');
+    db.setupDatabase()
+      .then(() => {
+        sendProgress('RESTARTING', 95, 'Cấu trúc cơ sở dữ liệu đã được cập nhật. Đang chuẩn bị khởi động lại máy chủ...');
+        sendProgress('DONE', 100, 'Cập nhật thành công! Hệ thống sẽ khởi động lại trong 3 giây. Vui lòng tải lại trang sau đó.');
+        res.end();
+
+        setTimeout(() => {
+          console.log('Tien hanh khoi dong lai server...');
+          server.close();
+          io.close();
+
+          setTimeout(() => {
+            const child = spawn(process.execPath, [path.join(__dirname, 'server.js')], {
+              cwd: __dirname,
+              detached: true,
+              stdio: 'ignore'
+            });
+            child.unref();
+            process.exit(0);
+          }, 1000);
+        }, 3000);
+      })
+      .catch((dbErr) => {
+        sendProgress('ERROR', 0, `Lỗi khi cập nhật cấu trúc dữ liệu: ${dbErr.message}`);
+        res.end();
+      });
+  }
 });
 
 // Start Server with Database Setup (Only run setupDatabase and server.listen if not on Vercel)

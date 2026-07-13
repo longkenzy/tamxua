@@ -95,6 +95,9 @@ async function init() {
     // Switch to default tab and render
     switchTab('orders');
     
+    // Sync printer settings from server
+    await syncPrinterSettingsFromServer().catch(err => console.error(err));
+
     // Initialize WebSockets or Polling fallback
     loadSocketScript(() => {
       initConnection();
@@ -176,14 +179,26 @@ function initConnection() {
       socket.on('print_kitchen_slip', (data) => {
         const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
         if (!isMobile) {
-          printDocxSlip(data.printerId, data.tableName, data.items, data.title);
+          if (data.printedByServer) {
+            if (typeof showSuccessToast === 'function') {
+              showSuccessToast(`✅ Đã tự động in ngầm ${data.title} tại ${data.printerId === 'kitchen_default' ? 'Bếp chính' : 'Quầy nước'} cho ${data.tableName}!`);
+            }
+          } else {
+            printDocxSlip(data.printerId, data.tableName, data.items, data.title);
+          }
         }
       });
 
       socket.on('print_receipt', (data) => {
         const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
         if (!isMobile) {
-          printReceipt(data.tableObj, data.orderItems, data.discountAmount, data.receivedAmount, data.transactionId, data.timestamp, data.payMethod);
+          if (data.printedByServer) {
+            if (typeof showSuccessToast === 'function') {
+              showSuccessToast(`✅ Đã tự động in ngầm hóa đơn thanh toán cho ${data.tableObj.name} thành công!`);
+            }
+          } else {
+            printReceipt(data.tableObj, data.orderItems, data.discountAmount, data.receivedAmount, data.transactionId, data.timestamp, data.payMethod);
+          }
         }
       });
 
@@ -1370,151 +1385,39 @@ function printTestIframe(printerType, targetStr) {
 async function printDocxSlip(printerId, tableName, items, title = 'HOÁ ĐƠN BẾP') {
   if (items.length === 0) return;
   
-  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-  if (isMobile) {
-    if (socket && socket.connected) {
-      socket.emit('request_print_kitchen_slip', {
-        printerId: printerId,
-        tableName: tableName,
-        items: items,
-        title: title
-      });
-      if (typeof showSuccessToast === 'function') {
-        showSuccessToast(`📤 Đã gửi lệnh in ${title} cho ${tableName} tới quầy thu ngân.`);
-      }
-    } else {
-      // Fallback: Enqueue print job in the database for polling cashier to print
-      try {
-        const response = await fetch('/api/print-jobs', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            printerId: printerId,
-            type: 'kitchen',
-            payload: { printerId, tableName, items, title }
-          })
-        });
-        if (response.ok) {
-          if (typeof showSuccessToast === 'function') {
-            showSuccessToast(`📤 Đã gửi lệnh in ${title} cho ${tableName} tới hàng đợi in.`);
-          }
-        } else {
-          throw new Error('Server error');
-        }
-      } catch (err) {
-        console.error('Failed to queue print job:', err);
-        alert('Không thể chuyển lệnh in (Socket offline và hàng đợi in lỗi).');
-      }
-    }
-    return;
-  }
-  
-  const isConnected = localStorage.getItem(`printer_${printerId}_connected`) === 'true';
-  if (!isConnected) {
-    console.log(`Printer ${printerId} is not connected. Skipping print.`);
-    return;
-  }
-
-  const orderTimeStr = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) + ' • ' + new Date().toLocaleDateString('vi-VN');
-  
-  const templateData = {
-    template: 'hoadonbep.docx',
-    table_name: tableName,
-    order_time: orderTimeStr,
-    items: items.map(item => ({
-      name: item.name,
-      quantity: item.quantity,
-      notes: item.notes || ''
-    }))
-  };
-
-  try {
-    const response = await fetch('/api/print-docx', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(templateData)
+  if (socket && socket.connected) {
+    socket.emit('request_print_kitchen_slip', {
+      printerId: printerId,
+      tableName: tableName,
+      items: items,
+      title: title
     });
-    
-    if (!response.ok) {
-      throw new Error('Lỗi phản hồi từ server');
+    if (typeof showSuccessToast === 'function') {
+      showSuccessToast(`📤 Đã gửi lệnh in ${title} cho ${tableName} tới máy chủ.`);
     }
-    
-    const htmlContent = await response.text();
-    
-    // Print by writing the styled HTML content to a hidden iframe
-    let iframe = document.getElementById(`print-iframe-${printerId}`);
-    if (iframe) {
-      iframe.remove();
+  } else {
+    // Fallback: Enqueue print job in the database for polling cashier to print
+    try {
+      const response = await fetch('/api/print-jobs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          printerId: printerId,
+          type: 'kitchen',
+          payload: { printerId, tableName, items, title }
+        })
+      });
+      if (response.ok) {
+        if (typeof showSuccessToast === 'function') {
+          showSuccessToast(`📤 Đã gửi lệnh in ${title} cho ${tableName} tới hàng đợi in.`);
+        }
+      } else {
+        throw new Error('Server error');
+      }
+    } catch (err) {
+      console.error('Failed to queue print job:', err);
+      alert('Không thể chuyển lệnh in (Socket offline và hàng đợi in lỗi).');
     }
-    
-    iframe = document.createElement('iframe');
-    iframe.id = `print-iframe-${printerId}`;
-    iframe.style.position = 'fixed';
-    iframe.style.right = '0';
-    iframe.style.bottom = '0';
-    iframe.style.width = '0';
-    iframe.style.height = '0';
-    iframe.style.border = '0';
-    
-    document.body.appendChild(iframe);
-    
-    const doc = iframe.contentWindow.document;
-    doc.open();
-    doc.write(htmlContent);
-    doc.close();
-
-    // Dynamically adjust header styles and font alignments
-    const paragraphs = doc.getElementsByTagName('p');
-    for (let p of paragraphs) {
-      let txt = p.textContent.trim();
-      p.style.fontFamily = 'Arial, sans-serif';
-      
-      // Replace title text if customized
-      if (title && (txt.toUpperCase().includes('HOÁ ĐƠN BẾP') || txt.toUpperCase().includes('HÓA ĐƠN BẾP'))) {
-        p.textContent = title;
-        txt = title;
-      }
-      
-      // Left-align Order and Checkout times
-      if (txt.includes('Giờ vào') || txt.includes('Giờ ra') || txt.includes('Giờ order')) {
-        p.style.textAlign = 'left';
-        p.style.fontSize = '12px';
-      }
-      
-      // Increase size for TẤM XƯA
-      if (txt.toUpperCase().includes('TẤM XƯA')) {
-        p.style.fontSize = '22px';
-        p.style.fontWeight = 'bold';
-        p.style.letterSpacing = '1px';
-      }
-      
-      // Increase size for HOÁ ĐƠN BẾP
-      if (txt.toUpperCase().includes('HOÁ ĐƠN BẾP') || txt.toUpperCase().includes('HÓA ĐƠN BẾP') || txt.toUpperCase().includes('PHIẾU THÊM MÓN')) {
-        p.style.fontSize = '20px';
-        p.style.fontWeight = 'bold';
-        p.style.marginTop = '15px';
-      }
-      
-      // Increase size for Table Name (e.g. Bàn 7)
-      if (txt.startsWith('Bàn') || (txt.includes('Bàn') && txt.length < 15)) {
-        p.style.fontSize = '16px';
-        p.style.fontWeight = 'bold';
-        p.style.marginBottom = '10px';
-      }
-    }
-    
-    iframe.contentWindow.focus();
-    setTimeout(() => {
-      iframe.contentWindow.print();
-      if (typeof showSuccessToast === 'function') {
-        showSuccessToast(`✅ Đã mở hộp thoại in ${title} cho ${tableName}!`);
-      }
-    }, 300);
-    
-  } catch (error) {
-    console.error('Lỗi xuất hóa đơn bếp:', error);
   }
 }
 
@@ -1534,153 +1437,42 @@ function formatTime(isoString) {
 
 // Global Print Receipt Function
 async function printReceipt(tableObj, orderItems, discountAmount, receivedAmount, transactionId = null, timestamp = null, payMethod = 'cash') {
-  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-  if (isMobile) {
-    if (socket && socket.connected) {
-      socket.emit('request_print_receipt', {
-        tableObj: tableObj,
-        orderItems: orderItems,
-        discountAmount: discountAmount,
-        receivedAmount: receivedAmount,
-        transactionId: transactionId,
-        timestamp: timestamp,
-        payMethod: payMethod
-      });
-      if (typeof showSuccessToast === 'function') {
-        showSuccessToast(`📤 Đã gửi yêu cầu in hóa đơn ${tableObj.name} tới quầy thu ngân.`);
-      }
-    } else {
-      // Fallback: Enqueue print job in the database
-      try {
-        const response = await fetch('/api/print-jobs', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            printerId: 'receipt',
-            type: 'receipt',
-            payload: { tableObj, orderItems, discountAmount, receivedAmount, transactionId, timestamp, payMethod }
-          })
-        });
-        if (response.ok) {
-          if (typeof showSuccessToast === 'function') {
-            showSuccessToast(`📤 Đã gửi yêu cầu in hóa đơn ${tableObj.name} tới hàng đợi in.`);
-          }
-        } else {
-          throw new Error('Server error');
-        }
-      } catch (err) {
-        console.error('Failed to queue print job:', err);
-        alert('Không thể chuyển lệnh in (Socket offline và hàng đợi in lỗi).');
-      }
-    }
-    return;
-  }
-
-  const subtotal = orderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  const finalTotal = Math.max(0, subtotal - discountAmount);
-  const changeAmount = receivedAmount ? (receivedAmount - finalTotal) : 0;
-
-  // Format date/times
-  const orderTimeStr = tableObj.updatedAt 
-    ? formatTime(tableObj.updatedAt).replace(' - ', ' • ') 
-    : (timestamp ? formatTime(timestamp).replace(' - ', ' • ') : formatTime(new Date().toISOString()).replace(' - ', ' • '));
-
-  const checkoutTimeStr = timestamp 
-    ? formatTime(timestamp).replace(' - ', ' • ') 
-    : formatTime(new Date().toISOString()).replace(' - ', ' • ');
-
-  const payMethodLabel = payMethod === 'bank' ? 'Chuyển khoản' : 'Tiền mặt';
-
-  const templateData = {
-    table_name: tableObj.name,
-    order_time: orderTimeStr,
-    checkout_time: checkoutTimeStr,
-    subtotal: formatVND(subtotal),
-    discount: discountAmount > 0 ? `-${formatVND(discountAmount)}` : '0đ',
-    final_total: formatVND(finalTotal),
-    received_amount: formatVND(receivedAmount || finalTotal),
-    change_amount: formatVND(Math.max(0, changeAmount)),
-    payment_method: payMethodLabel,
-    items: orderItems.map(item => ({
-      emoji: item.emoji || '🍽️',
-      name: item.name,
-      price: formatVND(item.price),
-      quantity: item.quantity,
-      total: formatVND(item.price * item.quantity)
-    }))
-  };
-
-  if (typeof showSuccessToast === 'function') {
-    showSuccessToast('🔄 Đang gửi dữ liệu in hóa đơn...');
-  }
-  
-  try {
-    const response = await fetch('/api/print-docx', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(templateData)
+  if (socket && socket.connected) {
+    socket.emit('request_print_receipt', {
+      tableObj: tableObj,
+      orderItems: orderItems,
+      discountAmount: discountAmount,
+      receivedAmount: receivedAmount,
+      transactionId: transactionId,
+      timestamp: timestamp,
+      payMethod: payMethod
     });
-    
-    if (!response.ok) {
-      throw new Error('Lỗi phản hồi từ server');
+    if (typeof showSuccessToast === 'function') {
+      showSuccessToast(`📤 Đã gửi yêu cầu in hóa đơn ${tableObj.name} tới quầy thu ngân.`);
     }
-    
-    const htmlContent = await response.text();
-    
-    // Print by writing the styled HTML content to a hidden iframe
-    let iframe = document.getElementById('print-receipt-iframe');
-    if (iframe) {
-      iframe.remove();
+  } else {
+    // Fallback: Enqueue print job in the database
+    try {
+      const response = await fetch('/api/print-jobs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          printerId: 'receipt',
+          type: 'receipt',
+          payload: { tableObj, orderItems, discountAmount, receivedAmount, transactionId, timestamp, payMethod }
+        })
+      });
+      if (response.ok) {
+        if (typeof showSuccessToast === 'function') {
+          showSuccessToast(`📤 Đã gửi yêu cầu in hóa đơn ${tableObj.name} tới hàng đợi in.`);
+        }
+      } else {
+        throw new Error('Server error');
+      }
+    } catch (err) {
+      console.error('Failed to queue print job:', err);
+      alert('Không thể chuyển lệnh in (Socket offline và hàng đợi in lỗi).');
     }
-    
-    iframe = document.createElement('iframe');
-    iframe.id = 'print-receipt-iframe';
-    iframe.style.position = 'fixed';
-    iframe.style.right = '0';
-    iframe.style.bottom = '0';
-    iframe.style.width = '0';
-    iframe.style.height = '0';
-    iframe.style.border = '0';
-    
-    document.body.appendChild(iframe);
-    
-    const doc = iframe.contentWindow.document;
-    doc.open();
-    doc.write(htmlContent);
-    doc.close();
-
-    // Dynamically adjust header text alignments and font sizes based on text content
-    const paragraphs = doc.getElementsByTagName('p');
-    for (let p of paragraphs) {
-      const txt = p.textContent.trim();
-      p.style.fontFamily = 'Arial, sans-serif';
-      
-      // Left-align Order and Checkout times
-      if (txt.includes('Giờ vào') || txt.includes('Giờ ra')) {
-        p.style.textAlign = 'left';
-        p.style.fontSize = '12px';
-      }
-      
-      // Increase size for TẤM XƯA
-      if (txt.toUpperCase().includes('TẤM XƯA')) {
-        p.style.fontSize = '22px';
-        p.style.fontWeight = 'bold';
-        p.style.letterSpacing = '1px';
-      }
-    }
-    
-    iframe.contentWindow.focus();
-    setTimeout(() => {
-      iframe.contentWindow.print();
-      if (typeof showSuccessToast === 'function') {
-        showSuccessToast(`✅ Đã in hóa đơn thành công cho ${tableObj.name}!`);
-      }
-    }, 300);
-    
-  } catch (error) {
-    console.error('Lỗi xuất hóa đơn:', error);
   }
 }
 
@@ -1790,15 +1582,17 @@ btnSubmitOrder.addEventListener('click', async () => {
       const diffItems = getOrderDifference(oldOrder, cart);
       
       if (diffItems.length > 0) {
-        const title = (oldOrder && oldOrder.length > 0) ? 'PHIẾU THÊM MÓN' : 'HOÁ ĐƠN BẾP';
+        const isAdd = (oldOrder && oldOrder.length > 0);
+        const kitchenTitle = isAdd ? 'PHIẾU THÊM MÓN' : 'HOÁ ĐƠN BẾP';
+        const drinkTitle = isAdd ? 'PHIẾU THÊM NƯỚC' : 'HOÁ ĐƠN NƯỚC';
         
         // Separate items in the cart
         const drinkItems = diffItems.filter(item => isDrinkItem(item, menu));
         const kitchenItems = diffItems.filter(item => !drinkItems.includes(item));
 
         // Trigger automatic printing for connected printers using docx templates
-        printDocxSlip('kitchen_default', tableName, kitchenItems, title);
-        printDocxSlip('kitchen_bar', tableName, drinkItems, title);
+        printDocxSlip('kitchen_default', tableName, kitchenItems, kitchenTitle);
+        printDocxSlip('kitchen_bar', tableName, drinkItems, drinkTitle);
       }
 
       showSuccessToast(`Đã gửi Order thành công cho ${tableName}!`);
@@ -2780,15 +2574,17 @@ if (btnOrderDetailsSave) {
         const diffItems = getOrderDifference(oldOrder, cart);
         
         if (diffItems.length > 0) {
-          const title = (oldOrder && oldOrder.length > 0) ? 'PHIẾU THÊM MÓN' : 'HOÁ ĐƠN BẾP';
+          const isAdd = (oldOrder && oldOrder.length > 0);
+          const kitchenTitle = isAdd ? 'PHIẾU THÊM MÓN' : 'HOÁ ĐƠN BẾP';
+          const drinkTitle = isAdd ? 'PHIẾU THÊM NƯỚC' : 'HOÁ ĐƠN NƯỚC';
           
           // Separate items in the cart
           const drinkItems = diffItems.filter(item => isDrinkItem(item, menu));
           const kitchenItems = diffItems.filter(item => !drinkItems.includes(item));
 
           // Trigger automatic printing for connected printers using docx templates
-          printDocxSlip('kitchen_default', tableName, kitchenItems, title);
-          printDocxSlip('kitchen_bar', tableName, drinkItems, title);
+          printDocxSlip('kitchen_default', tableName, kitchenItems, kitchenTitle);
+          printDocxSlip('kitchen_bar', tableName, drinkItems, drinkTitle);
         }
 
         showSuccessToast('Đã lưu thay đổi hóa đơn thành công!');
@@ -3411,6 +3207,29 @@ if (drawerMenuLogout) {
       console.error('Logout error:', err);
     }
   });
+}
+
+async function syncPrinterSettingsFromServer() {
+  try {
+    const res = await fetch('/api/printer-settings');
+    if (res.ok) {
+      const settingsList = await res.json();
+      settingsList.forEach(setting => {
+        const id = setting.printer_id;
+        localStorage.setItem(`printer_${id}_connected`, setting.connected ? 'true' : 'false');
+        localStorage.setItem(`printer_${id}_type`, setting.type || 'browser');
+        localStorage.setItem(`printer_${id}_shared`, setting.shared_path || '');
+        if (setting.ip) {
+          localStorage.setItem(`printer_${id}_ip`, setting.ip);
+        }
+        if (setting.port) {
+          localStorage.setItem(`printer_${id}_port`, setting.port.toString());
+        }
+      });
+    }
+  } catch (err) {
+    console.error('Lỗi đồng bộ cấu hình máy in:', err);
+  }
 }
 
 // App initialization

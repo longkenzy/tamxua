@@ -4,5 +4,8 @@ public/images/dishes/*
 !public/images/dishes/.gitkeep
 .gemini/
 .agents/
+server.pid
+tray_log.txt
 *.log
 ~$*
+*.lnk

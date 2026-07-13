@@ -27,13 +27,16 @@ try {
 
 const connectionString = process.env.DATABASE_URL || 'postgresql://neondb_owner:npg_X2jGPN4Autnl@ep-wispy-dew-aoeh1jje-pooler.c-2.ap-southeast-1.aws.neon.tech/neondb?channel_binding=require&sslmode=require';
 
+// Kiểm tra nếu là kết nối cơ sở dữ liệu cục bộ (localhost hoặc 127.0.0.1)
+const isLocalDb = connectionString.includes('localhost') || connectionString.includes('127.0.0.1');
+
 const pool = new Pool({
   connectionString: connectionString,
-  max: 2, // Limit pool size to prevent connection exhaustion on Vercel/Neon
+  max: isLocalDb ? 10 : 2, // Tăng kích thước pool ở môi trường local để tối ưu hiệu năng
   connectionTimeoutMillis: 5000, // Timeout after 5 seconds instead of hanging
   idleTimeoutMillis: 10000, // Close idle clients after 10 seconds
-  ssl: {
-    rejectUnauthorized: false // Ensure SSL works properly on Vercel/Neon
+  ssl: isLocalDb ? false : {
+    rejectUnauthorized: false // Đảm bảo SSL hoạt động đúng khi kết nối với Vercel/Neon
   }
 });
 
@@ -191,6 +194,30 @@ async function setupDatabase() {
       )
     `);
     await client.query('CREATE INDEX IF NOT EXISTS idx_print_jobs_status ON print_jobs (status)');
+
+    // 10. Create printer_settings table
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS printer_settings (
+        printer_id VARCHAR(50) PRIMARY KEY,
+        connected BOOLEAN DEFAULT TRUE,
+        type VARCHAR(20) DEFAULT 'browser',
+        shared_path VARCHAR(255),
+        ip VARCHAR(50),
+        port INT
+      )
+    `);
+
+    // Seed default printer settings
+    const printersCount = await client.query('SELECT COUNT(*) FROM printer_settings');
+    if (parseInt(printersCount.rows[0].count) === 0) {
+      await client.query(`
+        INSERT INTO printer_settings (printer_id, connected, type, shared_path) VALUES
+        ('kitchen_default', true, 'browser', ''),
+        ('kitchen_bar', true, 'browser', ''),
+        ('receipt_default', true, 'browser', '')
+      `);
+      console.log('Seeded default printer settings.');
+    }
 
     await client.query('COMMIT');
     console.log('PostgreSQL database schemas created successfully.');

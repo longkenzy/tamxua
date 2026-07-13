@@ -44,12 +44,14 @@ const tabReports = document.getElementById('tab-reports');
 const tabInvoices = document.getElementById('tab-invoices');
 const tabStaff = document.getElementById('tab-staff');
 const tabMenuMgmt = document.getElementById('tab-items');
+const tabPrinters = document.getElementById('tab-printers');
 
 const tablesDashboardView = document.getElementById('tables-dashboard-view');
 const reportsDashboardView = document.getElementById('reports-dashboard-view');
 const invoicesDashboardView = document.getElementById('invoices-dashboard-view');
 const staffDashboardView = document.getElementById('staff-dashboard-view');
 const menuMgmtDashboardView = document.getElementById('menu-mgmt-dashboard-view');
+const printersDashboardView = document.getElementById('printers-dashboard-view');
 
 // Active Tables Elements
 const managerTablesContainer = document.getElementById('manager-tables-container');
@@ -78,6 +80,11 @@ const statCashBills = document.getElementById('stat-cash-bills');
 const statCashAmount = document.getElementById('stat-cash-amount');
 const statBankBills = document.getElementById('stat-bank-bills');
 const statBankAmount = document.getElementById('stat-bank-amount');
+
+// Hour Filter State
+let overviewHourRange = { option: 'all', fromH: 0, fromM: 0, toH: 23, toM: 59 };
+let itemsHourRange = { option: 'all', fromH: 0, fromM: 0, toH: 23, toM: 59 };
+let currentHourFilterTarget = 'overview';
 
 // Time Filters Elements
 const filterPreset = document.getElementById('filter-preset');
@@ -204,6 +211,8 @@ async function init() {
 
     // Switch to default reports tab
     switchTab('reports');
+    // Sync printer settings from server
+    await syncPrinterSettingsFromServer().catch(err => console.error(err));
   } catch (error) {
     console.error('Lỗi tải dữ liệu ban đầu:', error);
   }
@@ -281,14 +290,22 @@ function initConnection() {
       socket.on('print_kitchen_slip', (data) => {
         const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
         if (!isMobile) {
-          printDocxSlip(data.printerId, data.tableName, data.items, data.title);
+          if (data.printedByServer) {
+            showToast(`✅ Đã tự động in ngầm ${data.title} tại ${data.printerId === 'kitchen_default' ? 'Bếp chính' : 'Quầy nước'} cho ${data.tableName}!`);
+          } else {
+            printDocxSlip(data.printerId, data.tableName, data.items, data.title);
+          }
         }
       });
 
       socket.on('print_receipt', (data) => {
         const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
         if (!isMobile) {
-          printReceipt(data.tableObj, data.orderItems, data.discountAmount, data.receivedAmount, data.transactionId, data.timestamp, data.payMethod);
+          if (data.printedByServer) {
+            showToast(`✅ Đã tự động in ngầm hóa đơn thanh toán cho ${data.tableObj.name} thành công!`);
+          } else {
+            printReceipt(data.tableObj, data.orderItems, data.discountAmount, data.receivedAmount, data.transactionId, data.timestamp, data.payMethod);
+          }
         }
       });
 
@@ -531,7 +548,8 @@ const tabs = {
   'invoices': { el: document.getElementById('tab-invoices'), view: document.getElementById('invoices-dashboard-view'), title: 'Lịch sử hóa đơn' },
   'menu-mgmt': { el: document.getElementById('subtab-item-list'), view: document.getElementById('menu-mgmt-dashboard-view'), title: 'Quản lý mặt hàng' },
   'menu-preview': { el: document.getElementById('subtab-menu-preview'), view: document.getElementById('menu-preview-dashboard-view'), title: 'Thực đơn' },
-  'staff': { el: document.getElementById('tab-staff'), view: document.getElementById('staff-dashboard-view'), title: 'Quản lý nhân viên' }
+  'staff': { el: document.getElementById('tab-staff'), view: document.getElementById('staff-dashboard-view'), title: 'Quản lý nhân viên' },
+  'printers': { el: tabPrinters, view: printersDashboardView, title: 'Cấu hình máy in' }
 };
 
 function switchTab(tabKey) {
@@ -555,7 +573,7 @@ function switchTab(tabKey) {
     }
     if (tabObj.view) {
       if (key === tabKey) {
-        if (key === 'tables' || key === 'staff') {
+        if (key === 'tables' || key === 'staff' || key === 'printers') {
           tabObj.view.style.display = 'grid';
         } else if (key === 'report-revenue' || key === 'report-items') {
           tabObj.view.style.display = 'flex';
@@ -627,6 +645,8 @@ function switchTab(tabKey) {
     loadRevenueReport();
   } else if (tabKey === 'report-items') {
     loadItemsReport();
+  } else if (tabKey === 'printers') {
+    initPrintersView();
   }
 }
 
@@ -898,12 +918,12 @@ function renderTables() {
         <div class="table-card-items-list" style="margin-top: 8px; border-top: 1px solid var(--hairline-soft); padding-top: 8px; text-align: left; display: flex; flex-direction: column; gap: 4px;">
           ${table.order.map(item => `
             <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 4px; line-height: 1.2; padding: 2px 0; font-size: 12px;">
-              <div style="display: flex; flex-direction: column; overflow: hidden; max-width: 70%;">
-                <span style="font-weight: 500; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;" title="${item.name}">
+              <div style="display: flex; flex-direction: column; max-width: 70%;">
+                <span style="font-weight: 500; word-break: break-word;" title="${item.name}">
                   ${item.emoji} ${item.name}
                 </span>
                 <span class="text-muted" style="font-size: 10px; margin-left: 14px;">
-                  SL: ${item.quantity} × ${formatVND(item.price)}
+                  SL: ${item.quantity}
                 </span>
               </div>
               <span class="bold" style="flex-shrink: 0; font-size: 12px; color: var(--ink); align-self: flex-start;">
@@ -1560,15 +1580,17 @@ function initManagerOrderModal() {
         const diffItems = getOrderDifference(oldOrder, managerCart);
         
         if (diffItems.length > 0) {
-          const title = (oldOrder && oldOrder.length > 0) ? 'PHIẾU THÊM MÓN' : 'HOÁ ĐƠN BẾP';
+          const isAdd = (oldOrder && oldOrder.length > 0);
+          const kitchenTitle = isAdd ? 'PHIẾU THÊM MÓN' : 'HOÁ ĐƠN BẾP';
+          const drinkTitle = isAdd ? 'PHIẾU THÊM NƯỚC' : 'HOÁ ĐƠN NƯỚC';
           
           // Separate items in the cart
           const drinkItems = diffItems.filter(item => isDrinkItem(item, menuItems));
           const kitchenItems = diffItems.filter(item => !drinkItems.includes(item));
 
           // Trigger automatic printing for connected printers
-          printDocxSlip('kitchen_default', tableName, kitchenItems, title);
-          printDocxSlip('kitchen_bar', tableName, drinkItems, title);
+          printDocxSlip('kitchen_default', tableName, kitchenItems, kitchenTitle);
+          printDocxSlip('kitchen_bar', tableName, drinkItems, drinkTitle);
         }
 
         closeModal();
@@ -1815,6 +1837,35 @@ async function printDocxSlip(printerId, tableName, items, title = 'HOÁ ĐƠN B�
     return;
   }
 
+  const type = localStorage.getItem(`printer_${printerId}_type`) || 'browser';
+  const sharedPath = localStorage.getItem(`printer_${printerId}_shared`) || '';
+
+  if (type === 'system') {
+    // Silent direct system print
+    const plainText = formatPlainKitchenSlip(tableName, items, title);
+    try {
+      const response = await fetch('/api/print-raw', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          printerType: 'system',
+          sharedPath: sharedPath,
+          content: plainText
+        })
+      });
+      if (response.ok) {
+        showToast(`✅ Đã in trực tiếp ${title} cho ${tableName} thành công!`);
+      } else {
+        const errData = await response.json();
+        showToast(`❌ Lỗi in trực tiếp: ${errData.error}`);
+      }
+    } catch (err) {
+      console.error('Silent print error:', err);
+      showToast('❌ Lỗi kết nối đến máy chủ in.');
+    }
+    return;
+  }
+
   const orderTimeStr = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) + ' • ' + new Date().toLocaleDateString('vi-VN');
   
   const templateData = {
@@ -1917,24 +1968,63 @@ async function printDocxSlip(printerId, tableName, items, title = 'HOÁ ĐƠN B�
 }
 
 // Global Print Receipt Function
-async function printReceipt(tableObj, orderItems, discountAmount, receivedAmount, transactionId = null, timestamp = null, payMethod = null) {
-  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-  if (isMobile) {
-    if (socket && socket.connected) {
-      socket.emit('request_print_receipt', {
-        tableObj: tableObj,
-        orderItems: orderItems,
-        discountAmount: discountAmount,
-        receivedAmount: receivedAmount,
-        transactionId: transactionId,
-        timestamp: timestamp,
-        payMethod: payMethod
-      });
-      showToast(`📤 Đã gửi yêu cầu in hóa đơn ${tableObj.name} tới quầy thu ngân.`);
-    } else {
-      console.warn('Socket không kết nối. Không thể chuyển lệnh in.');
+async function printReceipt(tableObj, orderItems, discountAmount, receivedAmount, transactionId = null, timestamp = null, payMethod = null, forceBrowserPrint = false) {
+  if (!forceBrowserPrint) {
+    // Kiểm tra cấu hình bật/tắt máy in hóa đơn từ mục cài đặt máy in
+    const isPrinterConnected = localStorage.getItem('printer_receipt_default_connected');
+    if (isPrinterConnected === 'false') {
+      console.log('Máy in hóa đơn (receipt_default) đang tắt trong cài đặt. Hủy in.');
+      showToast('⚠️ Máy in hóa đơn đang bị tắt trong phần Cấu hình.');
+      return;
     }
-    return;
+
+    const type = localStorage.getItem('printer_receipt_default_type') || 'browser';
+    const sharedPath = localStorage.getItem('printer_receipt_default_shared') || '';
+
+    if (type === 'system') {
+      // Silent direct system print for cashier receipt
+      const plainText = formatPlainReceipt(tableObj, orderItems, discountAmount, receivedAmount, timestamp, payMethod);
+      try {
+        const response = await fetch('/api/print-raw', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            printerType: 'system',
+            sharedPath: sharedPath,
+            content: plainText
+          })
+        });
+        if (response.ok) {
+          showToast(`✅ Đã in trực tiếp hóa đơn thanh toán cho ${tableObj.name} thành công!`);
+        } else {
+          const errData = await response.json();
+          showToast(`❌ Lỗi in trực tiếp hóa đơn: ${errData.error}`);
+        }
+      } catch (err) {
+        console.error('Silent print error:', err);
+        showToast('❌ Lỗi kết nối đến máy chủ in.');
+      }
+      return;
+    }
+
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    if (isMobile) {
+      if (socket && socket.connected) {
+        socket.emit('request_print_receipt', {
+          tableObj: tableObj,
+          orderItems: orderItems,
+          discountAmount: discountAmount,
+          receivedAmount: receivedAmount,
+          transactionId: transactionId,
+          timestamp: timestamp,
+          payMethod: payMethod
+        });
+        showToast(`📤 Đã gửi yêu cầu in hóa đơn ${tableObj.name} tới quầy thu ngân.`);
+      } else {
+        console.warn('Socket không kết nối. Không thể chuyển lệnh in.');
+      }
+      return;
+    }
   }
 
   const subtotal = orderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
@@ -2210,7 +2300,7 @@ function openCheckoutModal(table) {
   const btnPrintCheckout = document.getElementById('btn-print-checkout');
   if (btnPrintCheckout) {
     btnPrintCheckout.onclick = () => {
-      printReceipt(table, table.order, currentDiscountAmount, parseFloat(inputReceivedCash.value) || 0, null);
+      printReceipt(table, table.order, currentDiscountAmount, parseFloat(inputReceivedCash.value) || 0, null, null, null, true);
     };
   }
 }
@@ -4820,10 +4910,8 @@ function initCustomSelects() {
 
   if (reportType) makeSelectCustom(reportType, 'Loại báo cáo', true);
   if (reportTimePreset) makeSelectCustom(reportTimePreset, 'Thời gian', true);
-  if (reportHourRange) makeSelectCustom(reportHourRange, 'Giờ', true);
   if (reportItemsType) makeSelectCustom(reportItemsType, 'Loại báo cáo', true);
   if (reportItemsTime) makeSelectCustom(reportItemsTime, 'Thời gian', true);
-  if (reportItemsHour) makeSelectCustom(reportItemsHour, 'Giờ', true);
   if (reportItemsCompare) makeSelectCustom(reportItemsCompare, 'So sánh', true);
 }
 
@@ -5573,30 +5661,41 @@ window.editMenuGroup = editMenuGroup;
 
 // Reports Feature Support
 let reportRevenueHourlyChartInstance = null;
+let reportPaymentMethodChartInstance = null;
+let reportPaymentMethodActiveTab = 'revenue'; // 'revenue' or 'count'
 
 function loadRevenueReport() {
   const timePreset = document.getElementById('report-time-preset').value;
   const now = new Date();
+  const filterByHour = (tx) => {
+    if (!tx.timestamp) return false;
+    if (overviewHourRange.option === 'all') return true;
+    const date = new Date(tx.timestamp);
+    const m = date.getHours() * 60 + date.getMinutes();
+    const start = overviewHourRange.fromH * 60 + overviewHourRange.fromM;
+    const end = overviewHourRange.toH * 60 + overviewHourRange.toM;
+    return m >= start && m <= end;
+  };
+
   let reportTxs = [];
-  
   if (timePreset === 'today') {
     const todayStr = now.toDateString();
-    reportTxs = transactions.filter(tx => new Date(tx.timestamp).toDateString() === todayStr);
+    reportTxs = transactions.filter(tx => new Date(tx.timestamp).toDateString() === todayStr && filterByHour(tx));
   } else if (timePreset === 'yesterday') {
     const yesterday = new Date(now);
     yesterday.setDate(now.getDate() - 1);
     const yesterdayStr = yesterday.toDateString();
-    reportTxs = transactions.filter(tx => new Date(tx.timestamp).toDateString() === yesterdayStr);
+    reportTxs = transactions.filter(tx => new Date(tx.timestamp).toDateString() === yesterdayStr && filterByHour(tx));
   } else if (timePreset === '7days') {
     const limitDate = new Date(now);
     limitDate.setDate(now.getDate() - 7);
-    reportTxs = transactions.filter(tx => new Date(tx.timestamp).getTime() >= limitDate.getTime());
+    reportTxs = transactions.filter(tx => new Date(tx.timestamp).getTime() >= limitDate.getTime() && filterByHour(tx));
   } else if (timePreset === 'thismonth') {
     const thisMonth = now.getMonth();
     const thisYear = now.getFullYear();
     reportTxs = transactions.filter(tx => {
       const d = new Date(tx.timestamp);
-      return d.getMonth() === thisMonth && d.getFullYear() === thisYear;
+      return d.getMonth() === thisMonth && d.getFullYear() === thisYear && filterByHour(tx);
     });
   }
 
@@ -5611,7 +5710,7 @@ function loadRevenueReport() {
   const avgItemsPerInvoice = totalInvoices > 0 ? (totalItemsQty / totalInvoices) : 0;
   const avgRevenuePerInvoice = totalInvoices > 0 ? (totalRevenue / totalInvoices) : 0;
 
-  // Update DOM elements
+  // Update DOM elements for KPI cards
   document.getElementById('kpi-total-invoices').textContent = totalInvoices;
   document.getElementById('kpi-canceled-invoices').textContent = '0';
   document.getElementById('kpi-total-items-qty').textContent = totalItemsQty;
@@ -5630,84 +5729,275 @@ function loadRevenueReport() {
   const year = now.getFullYear();
   document.getElementById('report-view-time-label').textContent = `Xem lúc: ${pad(hours)}:${minutes} ${ampm} ${day}/${month}/${year}`;
 
-  // Prepare hourly data
-  const hourlyData = Array(24).fill(0);
-  reportTxs.forEach(tx => {
-    if (tx.timestamp) {
-      const hour = new Date(tx.timestamp).getHours();
-      if (hour >= 0 && hour < 24) {
-        hourlyData[hour] += (tx.subtotal - (tx.discountAmount || 0));
+  // Get report type
+  const reportTypeVal = document.getElementById('report-type') ? document.getElementById('report-type').value : 'overview';
+
+  // Toggle layout containers
+  const kpiCards = document.getElementById('revenue-kpi-cards');
+  const chartPanel = document.getElementById('revenue-chart-panel');
+  const pmPanel = document.getElementById('payment-method-report-panel');
+  const viewHeaderH2 = document.querySelector('#report-revenue-dashboard-view h2');
+
+  // Calculate comparison data if present
+  let compareTxs = [];
+  const startOfPeriod = reportTxs.length > 0 ? Math.min(...reportTxs.map(t => new Date(t.timestamp).getTime())) : 0;
+  const endOfPeriod = reportTxs.length > 0 ? Math.max(...reportTxs.map(t => new Date(t.timestamp).getTime())) : 0;
+  if (startOfPeriod && endOfPeriod) {
+    const duration = endOfPeriod - startOfPeriod;
+    const compareStart = startOfPeriod - duration - 1000;
+    const compareEnd = startOfPeriod - 1000;
+    compareTxs = transactions.filter(tx => {
+      const t = new Date(tx.timestamp).getTime();
+      return t >= compareStart && t <= compareEnd && filterByHour(tx);
+    });
+  }
+
+  const getTrendHTML = (current, past) => {
+    if (!past || past === 0) {
+      if (current > 0) return `<span style="color: #10b981; font-size: 11px; font-weight: 600; margin-right: 4px;">↑ 100%</span>`;
+      return '';
+    }
+    const pct = ((current - past) / past) * 100;
+    if (pct > 0) {
+      return `<span style="color: #10b981; font-size: 11px; font-weight: 600; margin-right: 4px;">↑ ${pct.toFixed(2)}%</span>`;
+    } else if (pct < 0) {
+      return `<span style="color: #ef4444; font-size: 11px; font-weight: 600; margin-right: 4px;">↓ ${Math.abs(pct).toFixed(2)}%</span>`;
+    }
+    return '';
+  };
+
+  if (reportTypeVal === 'payment-method') {
+    // 1. Giao diện Phương thức thanh toán
+    if (viewHeaderH2) viewHeaderH2.textContent = 'PHƯƠNG THỨC THANH TOÁN';
+    if (kpiCards) kpiCards.style.display = 'none';
+    if (chartPanel) chartPanel.style.display = 'none';
+    if (pmPanel) pmPanel.style.display = 'flex';
+
+    // Tính toán số liệu tiền mặt / chuyển khoản
+    let cashRevenue = 0;
+    let cashCount = 0;
+    let cashCanceled = 0;
+    let bankRevenue = 0;
+    let bankCount = 0;
+    let bankCanceled = 0;
+
+    reportTxs.forEach(tx => {
+      const net = tx.subtotal - (tx.discountAmount || 0);
+      if (tx.paymentMethod === 'bank') {
+        bankRevenue += net;
+        bankCount++;
+      } else {
+        cashRevenue += net;
+        cashCount++;
       }
-    }
-  });
+    });
 
-  // Render Bar Chart
-  const canvasEl = document.getElementById('report-revenue-hourly-chart');
-  if (canvasEl) {
-    const ctx = canvasEl.getContext('2d');
-    if (reportRevenueHourlyChartInstance) {
-      reportRevenueHourlyChartInstance.destroy();
+    let prevCashRevenue = 0;
+    let prevCashCount = 0;
+    let prevBankRevenue = 0;
+    let prevBankCount = 0;
+
+    compareTxs.forEach(tx => {
+      const net = tx.subtotal - (tx.discountAmount || 0);
+      if (tx.paymentMethod === 'bank') {
+        prevBankRevenue += net;
+        prevBankCount++;
+      } else {
+        prevCashRevenue += net;
+        prevCashCount++;
+      }
+    });
+
+    // Update Header Cột theo tab hoạt động
+    const pmTableHeaderRevenue = document.getElementById('report-pm-table-header-revenue');
+    if (pmTableHeaderRevenue) {
+      pmTableHeaderRevenue.textContent = reportPaymentMethodActiveTab === 'revenue' ? 'Doanh thu gồm thuế' : 'Số hóa đơn';
     }
 
-    reportRevenueHourlyChartInstance = new Chart(ctx, {
-      type: 'bar',
-      data: {
-        labels: Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0') + ':00'),
-        datasets: [{
-          label: 'Doanh thu bán hàng (đ)',
-          data: hourlyData,
-          backgroundColor: '#0084ff',
-          borderColor: '#0084ff',
-          borderWidth: 1,
-          borderRadius: 4,
-          barPercentage: 0.6
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: {
-            display: false
-          },
-          tooltip: {
-            callbacks: {
-              label: function(context) {
-                return 'Doanh thu: ' + formatVND(context.raw);
-              }
-            }
-          }
+    // Render Biểu đồ thanh toán nằm ngang
+    const pmCanvas = document.getElementById('report-payment-method-chart');
+    if (pmCanvas) {
+      const pmCtx = pmCanvas.getContext('2d');
+      if (reportPaymentMethodChartInstance) {
+        reportPaymentMethodChartInstance.destroy();
+      }
+
+      const isRev = reportPaymentMethodActiveTab === 'revenue';
+      const chartLabels = ['Tiền mặt', 'Chuyển khoản'];
+      const chartValues = isRev ? [cashRevenue, bankRevenue] : [cashCount, bankCount];
+      const colors = ['#0084ff', '#ff6b8b'];
+
+      reportPaymentMethodChartInstance = new Chart(pmCtx, {
+        type: 'bar',
+        data: {
+          labels: chartLabels,
+          datasets: [{
+            data: chartValues,
+            backgroundColor: colors,
+            borderColor: colors,
+            borderWidth: 1,
+            borderRadius: 4,
+            barPercentage: 0.5
+          }]
         },
-        scales: {
-          y: {
-            beginAtZero: true,
-            ticks: {
-              callback: function(value) {
-                return formatVND(value);
-              },
-              color: '#64748b',
-              font: {
-                size: 11
+        options: {
+          indexAxis: 'y',
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  const val = context.raw;
+                  return isRev ? ` Doanh thu: ${formatVND(val)}` : ` Hóa đơn: ${val}`;
+                }
               }
-            },
-            grid: {
-              color: '#f1f5f9'
             }
           },
-          x: {
-            ticks: {
-              color: '#64748b',
-              font: {
-                size: 11
+          scales: {
+            x: {
+              beginAtZero: true,
+              ticks: {
+                callback: function(value) {
+                  return isRev ? formatVND(value) : value;
+                }
               }
-            },
-            grid: {
-              display: false
             }
           }
         }
+      });
+    }
+
+    // Update Table body
+    const pmTbody = document.getElementById('report-payment-method-table-body');
+    if (pmTbody) {
+      pmTbody.innerHTML = `
+        <tr style="border-bottom: 1px solid #e2e8f0; height: 44px;">
+          <td style="padding: 12px 16px; font-weight: 600;">Tiền mặt</td>
+          <td style="padding: 12px 16px; text-align: center; font-weight: 600; color: #1e293b;">
+            <div style="display: flex; align-items: center; justify-content: center;">
+              ${getTrendHTML(cashCount, prevCashCount)}
+              <span>${cashCount}</span>
+            </div>
+          </td>
+          <td style="padding: 12px 16px; text-align: center; color: #64748b;">${cashCanceled}</td>
+          <td style="padding: 12px 16px; text-align: right; font-weight: 600; color: #1e293b;">
+            <div style="display: flex; align-items: center; justify-content: flex-end;">
+              ${getTrendHTML(cashRevenue, prevCashRevenue)}
+              <span>${formatVND(cashRevenue)} đ</span>
+            </div>
+          </td>
+        </tr>
+        <tr style="border-bottom: 1px solid #e2e8f0; height: 44px;">
+          <td style="padding: 12px 16px; font-weight: 600;">Chuyển khoản</td>
+          <td style="padding: 12px 16px; text-align: center; font-weight: 600; color: #1e293b;">
+            <div style="display: flex; align-items: center; justify-content: center;">
+              ${getTrendHTML(bankCount, prevBankCount)}
+              <span>${bankCount}</span>
+            </div>
+          </td>
+          <td style="padding: 12px 16px; text-align: center; color: #64748b;">${bankCanceled}</td>
+          <td style="padding: 12px 16px; text-align: right; font-weight: 600; color: #1e293b;">
+            <div style="display: flex; align-items: center; justify-content: flex-end;">
+              ${getTrendHTML(bankRevenue, prevBankRevenue)}
+              <span>${formatVND(bankRevenue)} đ</span>
+            </div>
+          </td>
+        </tr>
+        <tr style="background-color: #f8fafc; font-weight: 700; height: 44px; border-top: 2px solid #cbd5e1;">
+          <td style="padding: 12px 16px;">Tổng cộng</td>
+          <td style="padding: 12px 16px; text-align: center; color: #0066cc;">
+            <div style="display: flex; align-items: center; justify-content: center;">
+              ${getTrendHTML(cashCount + bankCount, prevCashCount + prevBankCount)}
+              <span>${cashCount + bankCount}</span>
+            </div>
+          </td>
+          <td style="padding: 12px 16px; text-align: center; color: #64748b;">${cashCanceled + bankCanceled}</td>
+          <td style="padding: 12px 16px; text-align: right; color: #10b981;">
+            <div style="display: flex; align-items: center; justify-content: flex-end;">
+              ${getTrendHTML(cashRevenue + bankRevenue, prevCashRevenue + prevBankRevenue)}
+              <span>${formatVND(cashRevenue + bankRevenue)} đ</span>
+            </div>
+          </td>
+        </tr>
+      `;
+    }
+  } else {
+    // 2. Giao diện Doanh thu tổng quan
+    if (viewHeaderH2) viewHeaderH2.textContent = 'DOANH THU TỔNG QUAN';
+    if (kpiCards) kpiCards.style.display = 'grid';
+    if (chartPanel) chartPanel.style.display = 'block';
+    if (pmPanel) pmPanel.style.display = 'none';
+
+    // Biểu đồ theo giờ
+    const hourlyData = Array(24).fill(0);
+    reportTxs.forEach(tx => {
+      if (tx.timestamp) {
+        const hour = new Date(tx.timestamp).getHours();
+        if (hour >= 0 && hour < 24) {
+          hourlyData[hour] += (tx.subtotal - (tx.discountAmount || 0));
+        }
       }
     });
+
+    const canvasEl = document.getElementById('report-revenue-hourly-chart');
+    if (canvasEl) {
+      const ctx = canvasEl.getContext('2d');
+      if (reportRevenueHourlyChartInstance) {
+        reportRevenueHourlyChartInstance.destroy();
+      }
+
+      reportRevenueHourlyChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0') + ':00'),
+          datasets: [{
+            label: 'Doanh thu bán hàng (đ)',
+            data: hourlyData,
+            backgroundColor: '#0084ff',
+            borderColor: '#0084ff',
+            borderWidth: 1,
+            borderRadius: 4,
+            barPercentage: 0.6
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  return 'Doanh thu: ' + formatVND(context.raw);
+                }
+              }
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: {
+                callback: function(value) {
+                  return formatVND(value);
+                },
+                color: '#64748b',
+                font: { size: 11 }
+              },
+              grid: { color: '#f1f5f9' }
+            },
+            x: {
+              ticks: {
+                color: '#64748b',
+                font: { size: 11 }
+              },
+              grid: { display: false }
+            }
+          }
+        }
+      });
+    }
   }
 
   // Hook export button
@@ -5744,26 +6034,34 @@ function loadItemsReport() {
   const timePreset = document.getElementById('report-items-time').value;
   const reportTypeVal = document.getElementById('report-items-type').value;
   const now = new Date();
-  let reportTxs = [];
-  
+  const filterByHour = (tx) => {
+    if (!tx.timestamp) return false;
+    if (itemsHourRange.option === 'all') return true;
+    const date = new Date(tx.timestamp);
+    const m = date.getHours() * 60 + date.getMinutes();
+    const start = itemsHourRange.fromH * 60 + itemsHourRange.fromM;
+    const end = itemsHourRange.toH * 60 + itemsHourRange.toM;
+    return m >= start && m <= end;
+  };
+
   if (timePreset === 'today') {
     const todayStr = now.toDateString();
-    reportTxs = transactions.filter(tx => new Date(tx.timestamp).toDateString() === todayStr);
+    reportTxs = transactions.filter(tx => new Date(tx.timestamp).toDateString() === todayStr && filterByHour(tx));
   } else if (timePreset === 'yesterday') {
     const yesterday = new Date(now);
     yesterday.setDate(now.getDate() - 1);
     const yesterdayStr = yesterday.toDateString();
-    reportTxs = transactions.filter(tx => new Date(tx.timestamp).toDateString() === yesterdayStr);
+    reportTxs = transactions.filter(tx => new Date(tx.timestamp).toDateString() === yesterdayStr && filterByHour(tx));
   } else if (timePreset === '7days') {
     const limitDate = new Date(now);
     limitDate.setDate(now.getDate() - 7);
-    reportTxs = transactions.filter(tx => new Date(tx.timestamp).getTime() >= limitDate.getTime());
+    reportTxs = transactions.filter(tx => new Date(tx.timestamp).getTime() >= limitDate.getTime() && filterByHour(tx));
   } else if (timePreset === 'thismonth') {
     const thisMonth = now.getMonth();
     const thisYear = now.getFullYear();
     reportTxs = transactions.filter(tx => {
       const d = new Date(tx.timestamp);
-      return d.getMonth() === thisMonth && d.getFullYear() === thisYear;
+      return d.getMonth() === thisMonth && d.getFullYear() === thisYear && filterByHour(tx);
     });
   }
 
@@ -6178,7 +6476,6 @@ function loadItemsReport() {
             
             itemTr.innerHTML = `
               <td style="padding: 12px 16px 12px 32px; color: #334155; font-weight: 500;">
-                <span style="font-size: 16px; margin-right: 6px;">${item.emoji || '🍔'}</span>
                 <span>${item.name}</span>
               </td>
               <td style="padding: 12px 16px; text-align: center; color: #64748b; font-weight: 600;">${item.unit}</td>
@@ -6263,40 +6560,488 @@ function loadItemsReport() {
   }
 }
 
-function exportRevenueReportToExcel(filteredTxs, totalRevenue, totalDiscount, totalInvoices, totalItemsQty) {
+async function exportRevenueReportToExcel(filteredTxs, totalRevenue, totalDiscount, totalInvoices, totalItemsQty) {
   if (typeof XLSX === 'undefined') {
     alert('Thư viện XLSX chưa được tải!');
     return;
   }
-  const data = [
-    { 'Chỉ số': 'Tổng số hóa đơn', 'Giá trị': totalInvoices },
-    { 'Chỉ số': 'Số hóa đơn hủy', 'Giá trị': 0 },
-    { 'Chỉ số': 'Số lượng mặt hàng đã bán', 'Giá trị': totalItemsQty },
-    { 'Chỉ số': 'Doanh thu thuần (đ)', 'Giá trị': totalRevenue },
-    { 'Chỉ số': 'Tổng giảm giá (đ)', 'Giá trị': totalDiscount },
-    { 'Chỉ số': 'Trung bình mặt hàng/HĐ', 'Giá trị': totalInvoices > 0 ? (totalItemsQty / totalInvoices).toFixed(2) : 0 },
-    { 'Chỉ số': 'Trung bình doanh thu/HĐ (đ)', 'Giá trị': totalInvoices > 0 ? Math.round(totalRevenue / totalInvoices) : 0 },
-    {},
-    { 'Chỉ số': 'CHI TIẾT DOANH THU THEO HÓA ĐƠN' },
-    { 'Chỉ số': 'Mã hóa đơn', 'Giá trị': 'Bàn', 'Chi tiết': 'Tổng tiền (đ)', 'Giảm giá (đ)': 'Giảm giá (đ)', 'Thực thu (đ)': 'Thực thu (đ)', 'Phương thức': 'Phương thức', 'Thời gian': 'Thời gian' }
-  ];
-  
-  filteredTxs.forEach(tx => {
-    data.push({
-      'Chỉ số': tx.id,
-      'Giá trị': tx.tableName,
-      'Chi tiết': tx.subtotal,
-      'Giảm giá (đ)': tx.discountAmount,
-      'Thực thu (đ)': tx.subtotal - tx.discountAmount,
-      'Phương thức': tx.paymentMethod === 'bank' ? 'Chuyển khoản' : 'Tiền mặt',
-      'Thời gian': tx.timestamp
-    });
-  });
 
-  const worksheet = XLSX.utils.json_to_sheet(data, { skipHeader: true });
-  const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, "Báo cáo doanh thu");
-  XLSX.writeFile(workbook, `Bao_cao_doanh_thu_${new Date().toISOString().slice(0,10)}.xlsx`);
+  const reportTypeVal = document.getElementById('report-type') ? document.getElementById('report-type').value : 'overview';
+
+  try {
+    const pad = (num) => String(num).padStart(2, '0');
+    const now = new Date();
+    const formattedCurrentTime = `${pad(now.getHours())}:${pad(now.getMinutes())} ${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${now.getFullYear()}`;
+    
+    // Lấy khoảng thời gian lọc từ giao diện
+    const timePreset = document.getElementById('report-time-preset').value;
+    let startDateStr = '';
+    let endDateStr = '';
+    
+    if (timePreset === 'today') {
+      const todayStr = `${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${now.getFullYear()}`;
+      startDateStr = `00:00 ${todayStr}`;
+      endDateStr = `23:59 ${todayStr}`;
+    } else if (timePreset === 'yesterday') {
+      const yesterday = new Date(now);
+      yesterday.setDate(now.getDate() - 1);
+      const yesterdayStr = `${pad(yesterday.getDate())}/${pad(yesterday.getMonth() + 1)}/${yesterday.getFullYear()}`;
+      startDateStr = `00:00 ${yesterdayStr}`;
+      endDateStr = `23:59 ${yesterdayStr}`;
+    } else if (timePreset === '7days') {
+      const startLimit = new Date(now);
+      startLimit.setDate(now.getDate() - 7);
+      const startStr = `${pad(startLimit.getDate())}/${pad(startLimit.getMonth() + 1)}/${startLimit.getFullYear()}`;
+      const endStr = `${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${now.getFullYear()}`;
+      startDateStr = `00:00 ${startStr}`;
+      endDateStr = `23:59 ${endStr}`;
+    } else if (timePreset === 'thismonth') {
+      const startStr = `01/${pad(now.getMonth() + 1)}/${now.getFullYear()}`;
+      const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+      const endStr = `${pad(lastDay)}/${pad(now.getMonth() + 1)}/${now.getFullYear()}`;
+      startDateStr = `00:00 ${startStr}`;
+      endDateStr = `23:59 ${endStr}`;
+    } else {
+      startDateStr = '00:00';
+      endDateStr = '23:59';
+    }
+
+    const styles = {
+      header: {
+        font: { name: 'Arial', sz: 10, bold: true, color: { rgb: '000000' } },
+        fill: { fgColor: { rgb: 'E2E8F0' } },
+        alignment: { vertical: 'center', horizontal: 'center', wrapText: true },
+        border: {
+          top: { style: 'thin', color: { rgb: '94A3B8' } },
+          bottom: { style: 'thin', color: { rgb: '94A3B8' } },
+          left: { style: 'thin', color: { rgb: 'CBD5E1' } },
+          right: { style: 'thin', color: { rgb: 'CBD5E1' } }
+        }
+      },
+      data: (align = 'left') => ({
+        font: { name: 'Arial', sz: 10, color: { rgb: '334155' } },
+        alignment: { vertical: 'center', horizontal: align },
+        border: {
+          top: { style: 'thin', color: { rgb: 'E2E8F0' } },
+          bottom: { style: 'thin', color: { rgb: 'E2E8F0' } },
+          left: { style: 'thin', color: { rgb: 'E2E8F0' } },
+          right: { style: 'thin', color: { rgb: 'E2E8F0' } }
+        }
+      }),
+      summary: (align = 'left') => ({
+        font: { name: 'Arial', sz: 10, bold: true, color: { rgb: '000000' } },
+        fill: { fgColor: { rgb: 'F8FAFC' } },
+        alignment: { vertical: 'center', horizontal: align },
+        border: {
+          top: { style: 'thin', color: { rgb: '94A3B8' } },
+          bottom: { style: 'double', color: { rgb: '000000' } },
+          left: { style: 'thin', color: { rgb: 'E2E8F0' } },
+          right: { style: 'thin', color: { rgb: 'E2E8F0' } }
+        }
+      })
+    };
+
+    if (reportTypeVal === 'payment-method') {
+      // BÁO CÁO PHƯƠNG THỨC THANH TOÁN
+      const workbook = XLSX.utils.book_new();
+      const sheet = {};
+      sheet['!ref'] = 'A1:I25'; // Dải cột ban đầu
+
+      // Tiêu đề
+      sheet['A1'] = { t: 's', v: 'TẤM XƯA', s: { font: { name: 'Arial', sz: 14, bold: true, color: { rgb: '0F172A' } } } };
+      sheet['A2'] = { t: 's', v: 'Thời gian xuất', s: { font: { name: 'Arial', sz: 9, italic: true, color: { rgb: '64748B' } } } };
+      sheet['B2'] = { t: 's', v: formattedCurrentTime, s: { font: { name: 'Arial', sz: 9, bold: true, color: { rgb: '334155' } } } };
+      sheet['A3'] = { t: 's', v: 'Người xuất', s: { font: { name: 'Arial', sz: 9, italic: true, color: { rgb: '64748B' } } } };
+      sheet['B3'] = { t: 's', v: 'HỘ KINH DOANH THANH BÌNH', s: { font: { name: 'Arial', sz: 9, bold: true, color: { rgb: '334155' } } } };
+      sheet['A5'] = { t: 's', v: 'BÁO CÁO DOANH THU THEO PHƯƠNG THỨC THANH TOÁN', s: { font: { name: 'Arial', sz: 14, bold: true, color: { rgb: '0F172A' } } } };
+      sheet['A7'] = { t: 's', v: 'Chi tiết phương thức thanh toán', s: { font: { name: 'Arial', sz: 11, bold: true, color: { rgb: '334155' } } } };
+      sheet['A8'] = { t: 's', v: `Từ ngày ${startDateStr} đến ngày ${endDateStr}`, s: { font: { name: 'Arial', sz: 10, italic: true, color: { rgb: '475569' } } } };
+
+      // Headers (r = 9)
+      const pmHeaders = [
+        'STT', 'Ngày', 'SL đơn hàng', 'Doanh thu CK (đ)', 'SL đơn CK', 
+        'Doanh thu TM (đ)', 'SL đơn TM', 'Giảm giá (đ)', 'Doanh thu thực (đ)'
+      ];
+      pmHeaders.forEach((h, c) => {
+        sheet[XLSX.utils.encode_cell({ r: 9, c })] = { t: 's', v: h, s: styles.header };
+      });
+
+      // Gom dữ liệu theo ngày
+      const dailyStats = {};
+      filteredTxs.forEach(tx => {
+        if (!tx.timestamp) return;
+        const d = new Date(tx.timestamp);
+        const dateKey = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+        if (!dailyStats[dateKey]) {
+          dailyStats[dateKey] = {
+            dateObj: d,
+            invoicesCount: 0,
+            bankRevenue: 0,
+            bankCount: 0,
+            cashRevenue: 0,
+            cashCount: 0,
+            discount: 0,
+            revenue: 0
+          };
+        }
+        const day = dailyStats[dateKey];
+        day.invoicesCount++;
+        day.discount += tx.discountAmount || 0;
+        const net = tx.subtotal - (tx.discountAmount || 0);
+        day.revenue += net;
+        
+        if (tx.paymentMethod === 'bank') {
+          day.bankRevenue += net;
+          day.bankCount++;
+        } else {
+          day.cashRevenue += net;
+          day.cashCount++;
+        }
+      });
+
+      const sortedDays = Object.values(dailyStats).sort((a, b) => a.dateObj - b.dateObj);
+
+      let currentRow = 10;
+      let stt = 1;
+      let totalInvoicesSum = 0;
+      let totalBankRevenueSum = 0;
+      let totalBankCountSum = 0;
+      let totalCashRevenueSum = 0;
+      let totalCashCountSum = 0;
+      let totalDiscountSum = 0;
+      let totalRevenueSum = 0;
+
+      const getColAlignPM = (c) => {
+        if (c === 0 || c === 1 || c === 2 || c === 4 || c === 6) return 'center';
+        return 'right';
+      };
+
+      const getColNumFmtPM = (c) => {
+        if (c === 0 || c === 1) return null;
+        return '#,##0';
+      };
+
+      sortedDays.forEach(day => {
+        const r = currentRow;
+        totalInvoicesSum += day.invoicesCount;
+        totalBankRevenueSum += day.bankRevenue;
+        totalBankCountSum += day.bankCount;
+        totalCashRevenueSum += day.cashRevenue;
+        totalCashCountSum += day.cashCount;
+        totalDiscountSum += day.discount;
+        totalRevenueSum += day.revenue;
+
+        const formattedDate = `${pad(day.dateObj.getDate())}/${pad(day.dateObj.getMonth() + 1)}/${day.dateObj.getFullYear()}`;
+        const rowValues = [
+          stt,
+          formattedDate,
+          day.invoicesCount,
+          day.bankRevenue,
+          day.bankCount,
+          day.cashRevenue,
+          day.cashCount,
+          day.discount,
+          day.revenue
+        ];
+
+        for (let c = 0; c < 9; c++) {
+          const cellAddr = XLSX.utils.encode_cell({ r, c });
+          const val = rowValues[c];
+          const newCell = {
+            t: (typeof val === 'number') ? 'n' : 's',
+            v: val,
+            s: styles.data(getColAlignPM(c))
+          };
+          const numFmt = getColNumFmtPM(c);
+          if (numFmt) newCell.z = numFmt;
+          sheet[cellAddr] = newCell;
+        }
+
+        currentRow++;
+        stt++;
+      });
+
+      // Dòng trống
+      currentRow++;
+
+      // Dòng tổng
+      const r = currentRow;
+      const summaryValues = [
+        'Tổng',
+        '',
+        totalInvoicesSum,
+        totalBankRevenueSum,
+        totalBankCountSum,
+        totalCashRevenueSum,
+        totalCashCountSum,
+        totalDiscountSum,
+        totalRevenueSum
+      ];
+
+      for (let c = 0; c < 9; c++) {
+        const cellAddr = XLSX.utils.encode_cell({ r, c });
+        const val = summaryValues[c];
+        const newCell = {
+          t: (typeof val === 'number') ? 'n' : 's',
+          v: val,
+          s: styles.summary(getColAlignPM(c))
+        };
+        const numFmt = getColNumFmtPM(c);
+        if (numFmt) newCell.z = numFmt;
+        sheet[cellAddr] = newCell;
+      }
+
+      // Column widths
+      sheet['!cols'] = [
+        { wch: 6 },   // STT
+        { wch: 13 },  // Ngày
+        { wch: 14 },  // SL đơn hàng
+        { wch: 18 },  // Doanh thu CK (đ)
+        { wch: 12 },  // SL đơn CK
+        { wch: 18 },  // Doanh thu TM (đ)
+        { wch: 12 },  // SL đơn TM
+        { wch: 16 },  // Giảm giá (đ)
+        { wch: 20 }   // Doanh thu thực (đ)
+      ];
+
+      sheet['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: currentRow, c: 8 } });
+      XLSX.utils.book_append_sheet(workbook, sheet, 'Báo cáo phương thức thanh toán');
+
+      const outBuf = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+      const blob = new Blob([outBuf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Bao_cao_phuong_thuc_thanh_toan_${new Date().toISOString().slice(0,10)}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } else {
+      // DOANH THU TỔNG QUAN (Theo doanhthutongquan.xls mẫu)
+      const response = await fetch('/templates/doanhthutongquan.xls');
+      if (!response.ok) throw new Error('Không thể tải file mẫu doanhthutongquan.xls');
+      const arrayBuffer = await response.arrayBuffer();
+      
+      const workbook = XLSX.read(new Uint8Array(arrayBuffer), { type: 'array' });
+      const sheetName = workbook.SheetNames[0];
+      const sheet = workbook.Sheets[sheetName];
+      
+      // Xóa dữ liệu cũ trong bảng mẫu từ Dòng 11 (r = 10) đến hết phạm vi hiện tại
+      const range = XLSX.utils.decode_range(sheet['!ref']);
+      for (let r = 10; r <= range.e.r; r++) {
+        for (let c = range.s.c; c <= range.e.c; c++) {
+          delete sheet[XLSX.utils.encode_cell({ r, c })];
+        }
+      }
+
+      // Cập nhật Header
+      sheet['A1'] = { t: 's', v: 'TẤM XƯA', s: { font: { name: 'Arial', sz: 14, bold: true, color: { rgb: '0F172A' } } } };
+      sheet['A2'] = { t: 's', v: 'Thời gian xuất', s: { font: { name: 'Arial', sz: 9, italic: true, color: { rgb: '64748B' } } } };
+      sheet['B2'] = { t: 's', v: formattedCurrentTime, s: { font: { name: 'Arial', sz: 9, bold: true, color: { rgb: '334155' } } } };
+      sheet['A3'] = { t: 's', v: 'Người xuất', s: { font: { name: 'Arial', sz: 9, italic: true, color: { rgb: '64748B' } } } };
+      sheet['B3'] = { t: 's', v: 'HỘ KINH DOANH THANH BÌNH', s: { font: { name: 'Arial', sz: 9, bold: true, color: { rgb: '334155' } } } };
+      sheet['A5'] = { t: 's', v: 'BÁO CÁO DOANH THU', s: { font: { name: 'Arial', sz: 14, bold: true, color: { rgb: '0F172A' } } } };
+      sheet['A7'] = { t: 's', v: 'Doanh thu tổng quan', s: { font: { name: 'Arial', sz: 11, bold: true, color: { rgb: '334155' } } } };
+      sheet['A8'] = { t: 's', v: `Từ ngày ${startDateStr} đến ngày ${endDateStr}`, s: { font: { name: 'Arial', sz: 10, italic: true, color: { rgb: '475569' } } } };
+
+      const headers = [
+        'STT', 'Ngày', 'SL đơn hàng', 'Số đơn hủy', 'Số lượng hàng', 
+        'Số lượng hàng TB', 'Trung bình/Đơn hàng', 'Tiền hàng', 'Tiền hủy', 
+        'Tiền trả lại', 'Giảm giá', 'Thuế', 'Phí dịch vụ trước thuế', 
+        'Phí giao hàng', 'Phí trả đối tác', 'Tiền thuế sàn thu hộ', 
+        'Tiền tip', 'Công nợ KH', 'Doanh thu thực', 'Doanh số'
+      ];
+      headers.forEach((h, c) => {
+        sheet[XLSX.utils.encode_cell({ r: 9, c })] = { t: 's', v: h, s: styles.header };
+      });
+
+      const dailyStats = {};
+      filteredTxs.forEach(tx => {
+        if (!tx.timestamp) return;
+        const d = new Date(tx.timestamp);
+        const dateKey = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+        if (!dailyStats[dateKey]) {
+          dailyStats[dateKey] = {
+            dateObj: d,
+            invoicesCount: 0,
+            cancelledCount: 0,
+            itemsCount: 0,
+            subtotal: 0,
+            discount: 0,
+            revenue: 0
+          };
+        }
+        const day = dailyStats[dateKey];
+        day.invoicesCount++;
+        day.itemsCount += tx.items ? tx.items.reduce((sum, item) => sum + (item.quantity || 0), 0) : 0;
+        day.subtotal += tx.subtotal || 0;
+        day.discount += tx.discountAmount || 0;
+        day.revenue += (tx.subtotal - (tx.discountAmount || 0));
+      });
+      
+      const sortedDays = Object.values(dailyStats).sort((a, b) => a.dateObj - b.dateObj);
+      
+      let currentRow = 10;
+      let stt = 1;
+      let totalInvoicesSum = 0;
+      let totalCancelledSum = 0;
+      let totalQtySum = 0;
+      let totalSubtotalSum = 0;
+      let totalDiscountSum = 0;
+      let totalRevenueSum = 0;
+      
+      const getColAlign = (c) => {
+        if (c <= 5) return 'center';
+        return 'right';
+      };
+      
+      const getColNumberFormat = (c) => {
+        if (c === 0 || c === 1) return null;
+        if (c === 5) return '#,##0.0';
+        return '#,##0';
+      };
+
+      sortedDays.forEach(day => {
+        const r = currentRow;
+        const invoicesCount = day.invoicesCount;
+        const cancelledCount = day.cancelledCount;
+        const itemsCount = day.itemsCount;
+        const subtotal = day.subtotal;
+        const discount = day.discount;
+        const revenue = day.revenue;
+        
+        totalInvoicesSum += invoicesCount;
+        totalCancelledSum += cancelledCount;
+        totalQtySum += itemsCount;
+        totalSubtotalSum += subtotal;
+        totalDiscountSum += discount;
+        totalRevenueSum += revenue;
+        
+        const formattedDate = `${pad(day.dateObj.getDate())}/${pad(day.dateObj.getMonth() + 1)}/${day.dateObj.getFullYear()}`;
+        const itemsAvg = invoicesCount > 0 ? parseFloat((itemsCount / invoicesCount).toFixed(1)) : 0;
+        const orderAvg = invoicesCount > 0 ? parseFloat((revenue / invoicesCount).toFixed(2)) : 0;
+        
+        const rowValues = [
+          stt,
+          formattedDate,
+          invoicesCount,
+          cancelledCount,
+          itemsCount,
+          itemsAvg,
+          orderAvg,
+          subtotal,
+          0,
+          0,
+          discount,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          revenue,
+          revenue
+        ];
+        
+        for (let c = 0; c < 20; c++) {
+          const cellAddr = XLSX.utils.encode_cell({ r, c });
+          const val = rowValues[c];
+          const newCell = {
+            t: (typeof val === 'number') ? 'n' : 's',
+            v: val,
+            s: styles.data(getColAlign(c))
+          };
+          const numFmt = getColNumberFormat(c);
+          if (numFmt) newCell.z = numFmt;
+          sheet[cellAddr] = newCell;
+        }
+        
+        currentRow++;
+        stt++;
+      });
+      
+      currentRow++;
+      
+      const r = currentRow;
+      const summaryValues = [
+        'Tổng',
+        '',
+        totalInvoicesSum,
+        totalCancelledSum,
+        totalQtySum,
+        totalInvoicesSum > 0 ? parseFloat((totalQtySum / totalInvoicesSum).toFixed(1)) : 0,
+        0,
+        totalSubtotalSum,
+        0,
+        0,
+        totalDiscountSum,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        totalRevenueSum,
+        totalRevenueSum
+      ];
+      
+      for (let c = 0; c < 20; c++) {
+        const cellAddr = XLSX.utils.encode_cell({ r, c });
+        const val = summaryValues[c];
+        const newCell = {
+          t: (typeof val === 'number') ? 'n' : 's',
+          v: val,
+          s: styles.summary(getColAlign(c))
+        };
+        const numFmt = getColNumberFormat(c);
+        if (numFmt) newCell.z = numFmt;
+        sheet[cellAddr] = newCell;
+      }
+      
+      sheet['!cols'] = [
+        { wch: 6 },   // STT
+        { wch: 13 },  // Ngày
+        { wch: 14 },  // SL đơn hàng
+        { wch: 12 },  // Số đơn hủy
+        { wch: 15 },  // Số lượng hàng
+        { wch: 18 },  // Số lượng hàng TB
+        { wch: 22 },  // Trung bình/Đơn hàng
+        { wch: 16 },  // Tiền hàng
+        { wch: 12 },  // Tiền hủy
+        { wch: 12 },  // Tiền trả lại
+        { wch: 15 },  // Giảm giá
+        { wch: 10 },  // Thuế
+        { wch: 24 },  // Phí dịch vụ trước thuế
+        { wch: 15 },  // Phí giao hàng
+        { wch: 15 },  // Phí trả đối tác
+        { wch: 24 },  // Tiền thuế sàn thu hộ
+        { wch: 12 },  // Tiền tip
+        { wch: 12 },  // Công nợ KH
+        { wch: 18 },  // Doanh thu thực
+        { wch: 18 }   // Doanh số
+      ];
+
+      range.e.r = currentRow;
+      sheet['!ref'] = XLSX.utils.encode_range(range);
+      
+      const outBuf = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+      const blob = new Blob([outBuf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Bao_cao_doanh_thu_tong_quan_${new Date().toISOString().slice(0,10)}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+  } catch (err) {
+    console.error('Lỗi khi xuất báo cáo doanh thu theo mẫu:', err);
+    alert('Không thể xuất báo cáo theo mẫu. Chi tiết: ' + err.message);
+  }
 }
 
 function exportItemsReportToExcel(tableData, totalQty, totalRevenue, totalDiscount, totalNet) {
@@ -6386,6 +7131,10 @@ function exportItemsReportToExcel(tableData, totalQty, totalRevenue, totalDiscou
 }
 
 // Hook filter changes
+const reportType = document.getElementById('report-type');
+if (reportType) {
+  reportType.addEventListener('change', loadRevenueReport);
+}
 const reportTimePreset = document.getElementById('report-time-preset');
 if (reportTimePreset) {
   reportTimePreset.addEventListener('change', loadRevenueReport);
@@ -6436,4 +7185,1099 @@ if (btnItemChartRevenue && btnItemChartQty) {
   };
 }
 
+// ==========================================
+// PRINTER MANAGEMENT VIEWS & LOGIC
+// ==========================================
+let activePrinterId = 'kitchen_default';
+let cachedSystemPrinters = [];
+
+async function initPrintersView() {
+  updatePrinterStatusBadges();
+  await loadSystemPrintersList();
+  selectPrinter(activePrinterId);
+}
+
+async function loadSystemPrintersList() {
+  try {
+    const res = await fetch('/api/system-printers');
+    if (res.ok) {
+      cachedSystemPrinters = await res.json();
+      populateSystemPrintersDropdown();
+    } else {
+      console.error('Lỗi khi lấy danh sách máy in hệ thống');
+    }
+  } catch (err) {
+    console.error('Lỗi gọi API máy in:', err);
+  }
+}
+
+function populateSystemPrintersDropdown() {
+  const select = document.getElementById('printer-system-select');
+  if (!select) return;
+  
+  select.innerHTML = '';
+  
+  // Add browser print option first
+  const optBrowser = document.createElement('option');
+  optBrowser.value = 'browser';
+  optBrowser.textContent = 'In qua trình duyệt (Mặc định)';
+  select.appendChild(optBrowser);
+  
+  cachedSystemPrinters.forEach(name => {
+    const opt = document.createElement('option');
+    opt.value = name;
+    opt.textContent = name;
+    select.appendChild(opt);
+  });
+  
+  // Select saved value
+  const savedType = localStorage.getItem(`printer_${activePrinterId}_type`) || 'browser';
+  const savedShared = localStorage.getItem(`printer_${activePrinterId}_shared`) || '';
+  
+  if (savedType === 'browser') {
+    select.value = 'browser';
+  } else {
+    let exists = Array.from(select.options).some(opt => opt.value === savedShared);
+    if (savedShared && !exists) {
+      const opt = document.createElement('option');
+      opt.value = savedShared;
+      opt.textContent = savedShared;
+      select.appendChild(opt);
+    }
+    select.value = savedShared;
+  }
+}
+
+function updatePrinterStatusBadges() {
+  const printerIds = ['kitchen_default', 'kitchen_bar', 'receipt_default'];
+  printerIds.forEach(id => {
+    const isConnected = localStorage.getItem(`printer_${id}_connected`) !== 'false';
+    const type = localStorage.getItem(`printer_${id}_type`) || 'browser';
+    
+    // Update Badge
+    const badge = document.getElementById(`printer-status-badge-${id}`);
+    if (badge) {
+      badge.innerHTML = '';
+      const dot = document.createElement('span');
+      dot.className = 'pulse-dot';
+      const txt = document.createElement('span');
+      txt.className = 'pulse-text';
+      badge.appendChild(dot);
+      badge.appendChild(txt);
+      
+      if (isConnected) {
+        badge.className = 'pulse-badge active';
+        txt.textContent = 'Hoạt động';
+      } else {
+        badge.className = 'pulse-badge inactive';
+        txt.textContent = 'Chưa bật';
+      }
+    }
+    
+    // Update type label
+    const typeLbl = document.getElementById(`printer-type-lbl-${id}`);
+    if (typeLbl) {
+      if (type === 'browser') {
+        typeLbl.textContent = 'In trình duyệt';
+      } else if (type === 'wifi') {
+        const ip = localStorage.getItem(`printer_${id}_ip`) || '192.168.1.100';
+        typeLbl.textContent = `Wifi: ${ip}`;
+      } else if (type === 'shared') {
+        const path = localStorage.getItem(`printer_${id}_shared`) || 'Shared Printer';
+        typeLbl.textContent = `Shared: ${path.split('\\').pop()}`;
+      } else if (type === 'system') {
+        const name = localStorage.getItem(`printer_${id}_shared`) || 'Chưa chọn';
+        typeLbl.textContent = `Hệ thống: ${name}`;
+      }
+    }
+  });
+}
+
+function selectPrinter(printerId) {
+  activePrinterId = printerId;
+  
+  // Highlight active list item
+  const printerIds = ['kitchen_default', 'kitchen_bar', 'receipt_default'];
+  printerIds.forEach(id => {
+    const card = document.getElementById(`printer-card-${id}`);
+    if (card) {
+      if (id === printerId) {
+        card.classList.add('active');
+      } else {
+        card.classList.remove('active');
+      }
+    }
+  });
+  
+  // Update Title & Description
+  const titleEl = document.getElementById('printer-settings-title');
+  const descEl = document.getElementById('printer-settings-desc');
+  if (printerId === 'kitchen_default') {
+    titleEl.textContent = 'Thiết lập Máy in Bếp';
+    descEl.textContent = 'Cấu hình kết nối cho máy in phiếu thêm món của Bếp chính';
+  } else if (printerId === 'kitchen_bar') {
+    titleEl.textContent = 'Thiết lập Máy in Quầy nước';
+    descEl.textContent = 'Cấu hình kết nối cho máy in hóa đơn đồ uống của Quầy Bar';
+  } else if (printerId === 'receipt_default') {
+    titleEl.textContent = 'Thiết lập Máy in Hóa đơn';
+    descEl.textContent = 'Cấu hình kết nối cho máy in hóa đơn thanh toán của Thu ngân';
+  }
+  
+  // Load values from localStorage
+  const isConnected = localStorage.getItem(`printer_${printerId}_connected`) !== 'false';
+  
+  // Populate form
+  document.getElementById('printer-enabled-input').checked = isConnected;
+  
+  // Populate system printers select dropdown
+  populateSystemPrintersDropdown();
+  
+  togglePrinterTypeFields();
+  
+  // Pull up preview paper before showing the new one
+  const paper = document.getElementById('live-receipt-paper');
+  if (paper) {
+    paper.classList.remove('feed-paper');
+    setTimeout(() => {
+      updateReceiptLivePreview();
+      paper.classList.add('feed-paper');
+    }, 300);
+  } else {
+    updateReceiptLivePreview();
+  }
+}
+
+function togglePrinterTypeFields() {
+  const select = document.getElementById('printer-system-select');
+  if (!select) return;
+  
+  const selectVal = select.value;
+  const typeInput = document.getElementById('printer-type-input');
+  if (typeInput) {
+    typeInput.value = (selectVal === 'browser') ? 'browser' : 'system';
+  }
+}
+
+async function handleSavePrinter(event) {
+  if (event) event.preventDefault();
+  
+  const isConnected = document.getElementById('printer-enabled-input').checked;
+  const selectVal = document.getElementById('printer-system-select').value;
+  
+  const type = (selectVal === 'browser') ? 'browser' : 'system';
+  const sharedPath = (selectVal === 'browser') ? '' : selectVal;
+  
+  // Save to localStorage
+  localStorage.setItem(`printer_${activePrinterId}_connected`, isConnected ? 'true' : 'false');
+  localStorage.setItem(`printer_${activePrinterId}_type`, type);
+  localStorage.setItem(`printer_${activePrinterId}_shared`, sharedPath);
+  
+  // Sync hidden type input
+  const typeInput = document.getElementById('printer-type-input');
+  if (typeInput) {
+    typeInput.value = type;
+  }
+  
+  updatePrinterStatusBadges();
+  updateReceiptLivePreview();
+  
+  // Save to server
+  try {
+    fetch('/api/printer-settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        printerId: activePrinterId,
+        connected: isConnected,
+        type: type,
+        sharedPath: sharedPath
+      })
+    }).catch(err => console.error('Failed to sync printer settings to server:', err));
+  } catch (e) {
+    console.error(e);
+  }
+  
+  // Only show notification toast if explicit form submission (event is passed)
+  if (event) {
+    showToast('💾 Đã lưu cấu hình máy in thành công!');
+  }
+}
+
+async function handlePrintTest() {
+  const selectVal = document.getElementById('printer-system-select').value;
+  const type = (selectVal === 'browser') ? 'browser' : 'system';
+  const sharedPath = (selectVal === 'browser') ? '' : selectVal;
+  
+  let targetStr = 'Trình duyệt Web (Mặc định)';
+  if (type === 'system') {
+    targetStr = sharedPath;
+  }
+  
+  showToast('🖨️ Đang tiến hành in thử bản tin...');
+
+  // Live Printer Animation Trigger
+  const device = document.getElementById('live-printer-device');
+  const paper = document.getElementById('live-receipt-paper');
+  if (device && paper) {
+    device.classList.add('printing');
+    paper.classList.remove('feed-paper');
+    
+    setTimeout(() => {
+      device.classList.remove('printing');
+      paper.classList.add('feed-paper');
+    }, 1200);
+  }
+  
+  if (type === 'browser') {
+    printTestIframe('browser', targetStr);
+  } else {
+    try {
+      const res = await fetch('/api/print-raw', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          printerType: type,
+          sharedPath: sharedPath,
+          content: `\\x1b\\x40\\x1b\\x61\\x01\\x1b\\x21\\x10\\x1b\\x21\\x20TAM XUA ORDER\\n----------------\\nIN THU KET NOI OK\\nMay in: ${activePrinterId}\\nLoai: ${type}\\nDia chi: ${targetStr}\\nThoi gian: ${new Date().toLocaleString('vi-VN')}\\n----------------\\n\\n\\n\\n\\x1b\\x69`
+        })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showToast(`✅ In thử thành công: ${data.message}`);
+      } else {
+        showToast(`❌ Lỗi in thử: ${data.error}`);
+      }
+    } catch (err) {
+      console.error('Lỗi in thử:', err);
+      showToast(`❌ Không thể kết nối tới server để gửi lệnh in: ${err.message}`);
+    }
+  }
+}
+
+// Modal: Open System Printers list
+async function openSystemPrintersModal() {
+  const modal = document.getElementById('system-printers-modal');
+  const ul = document.getElementById('system-printers-list-ul');
+  if (!modal || !ul) return;
+  
+  modal.style.display = 'flex';
+  
+  ul.innerHTML = `
+    <li style="padding: 12px 16px; border: 1.5px solid var(--hairline); border-radius: 8px; font-weight: 500; font-size: 14px; color: var(--muted);">
+      <span>🔄 Đang quét tìm máy in trên hệ thống...</span>
+    </li>
+  `;
+  
+  try {
+    const res = await fetch('/api/system-printers');
+    if (res.ok) {
+      cachedSystemPrinters = await res.json();
+      populateSystemPrintersDropdown();
+      
+      ul.innerHTML = '';
+      if (cachedSystemPrinters.length === 0) {
+        ul.innerHTML = `
+          <li style="padding: 12px 16px; border: 1.5px solid var(--hairline); border-radius: 8px; font-weight: 600; font-size: 14px; color: #ef4444; background-color: #fef2f2; border-color: #fca5a5;">
+            <span>❌ Không tìm thấy máy in nào kết nối. Hãy kết nối dây USB/Wifi máy in với máy tính.</span>
+          </li>
+        `;
+        return;
+      }
+      
+      cachedSystemPrinters.forEach(name => {
+        const li = document.createElement('li');
+        li.className = 'modal-driver-tile';
+        li.innerHTML = `
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <span style="font-size: 18px; color: var(--primary);">🖨️</span>
+            <span style="font-weight: 600; font-size: 14px; color: var(--ink);">${name}</span>
+          </div>
+          <button type="button" class="btn btn-secondary btn-pill" onclick="selectSystemPrinterFromModal('${name.replace(/'/g, "\\\\'")}')" style="height: 32px; font-size: 12px; padding: 0 14px; font-weight: 700; border-radius: 6px; border: 1px solid var(--border-strong); background-color: var(--canvas); color: var(--primary); transition: all 0.2s;">Chọn dùng</button>
+        `;
+        ul.appendChild(li);
+      });
+    } else {
+      ul.innerHTML = `
+        <li style="padding: 12px 16px; border: 1.5px solid var(--hairline); border-radius: 8px; font-weight: 600; font-size: 14px; color: #ef4444; background-color: #fef2f2; border-color: #fca5a5;">
+          <span>❌ Lỗi từ máy chủ: Không thể lấy danh sách máy in.</span>
+        </li>
+      `;
+    }
+  } catch (err) {
+    console.error('Lỗi khi tải modal máy in:', err);
+    ul.innerHTML = `
+      <li style="padding: 12px 16px; border: 1.5px solid var(--hairline); border-radius: 8px; font-weight: 600; font-size: 14px; color: #ef4444; background-color: #fef2f2; border-color: #fca5a5;">
+        <span>❌ Không thể kết nối tới máy chủ: ${err.message}</span>
+      </li>
+    `;
+  }
+}
+
+function selectSystemPrinterFromModal(printerName) {
+  const typeInput = document.getElementById('printer-type-input');
+  if (typeInput) {
+    typeInput.value = 'system';
+    togglePrinterTypeFields();
+  }
+  
+  const select = document.getElementById('printer-system-select');
+  if (select) {
+    let exists = Array.from(select.options).some(opt => opt.value === printerName);
+    if (!exists) {
+      const opt = document.createElement('option');
+      opt.value = printerName;
+      opt.textContent = printerName;
+      select.appendChild(opt);
+    }
+    select.value = printerName;
+  }
+  
+  closeSystemPrintersModal();
+  showToast(`✅ Đã chọn máy in: ${printerName}. Đừng quên nhấn "Lưu cấu hình"!`);
+  updateReceiptLivePreview();
+}
+
+function closeSystemPrintersModal() {
+  const modal = document.getElementById('system-printers-modal');
+  if (modal) {
+    modal.style.display = 'none';
+  }
+}
+
+// Live preview function
+function updateReceiptLivePreview() {
+  const contentEl = document.getElementById('live-receipt-content');
+  const indicatorEl = document.getElementById('live-printer-indicator');
+  if (!contentEl) return;
+
+  const isConnected = document.getElementById('printer-enabled-input').checked;
+  const selectVal = document.getElementById('printer-system-select').value;
+  const type = (selectVal === 'browser') ? 'browser' : 'system';
+  const sharedPath = (selectVal === 'browser') ? '' : selectVal;
+
+  // Update online/offline indicator
+  if (indicatorEl) {
+    if (isConnected) {
+      indicatorEl.classList.remove('offline');
+    } else {
+      indicatorEl.classList.add('offline');
+    }
+  }
+
+  let connectionDetailsText = '';
+  if (type === 'browser') {
+    connectionDetailsText = 'Browser Print (K80)';
+  } else if (type === 'system') {
+    connectionDetailsText = `System: ${sharedPath}`;
+  }
+
+  const dateStr = new Date().toLocaleString('vi-VN');
+
+  let html = '';
+  if (activePrinterId === 'kitchen_default') {
+    html = `
+<div style="text-align: center; font-weight: bold; font-size: 11px; border-bottom: 1px dashed #94a3b8; padding-bottom: 6px; margin-bottom: 6px;">
+  PHIẾU BẾP - TẤM XƯA
+</div>
+<div style="font-size: 9px; line-height: 1.4; margin-bottom: 6px;">
+  <b>BÀN:</b> Bàn VIP 02<br/>
+  <b>Giờ vào:</b> ${dateStr.split(' ')[1] || ''}<br/>
+  <b>Kết nối:</b> ${connectionDetailsText}
+</div>
+<div class="receipt-divider"></div>
+<table style="width: 100%; border-collapse: collapse; font-size: 9px;">
+  <tr style="border-bottom: 1px solid #cbd5e1; font-weight: bold;">
+    <td style="width: 70%; padding-bottom: 2px;">Tên món</td>
+    <td style="width: 30%; text-align: right; padding-bottom: 2px;">SL</td>
+  </tr>
+  <tr>
+    <td style="padding: 3px 0;">Bún Đậu Mắm Tôm</td>
+    <td style="text-align: right; font-weight: bold;">x2</td>
+  </tr>
+  <tr>
+    <td style="font-size: 8px; color: #475569; padding-left: 6px; padding-bottom: 3px;" colspan="2">* Ít bánh tráng, nhiều rau</td>
+  </tr>
+  <tr>
+    <td style="padding: 3px 0;">Bún Chả Hà Nội</td>
+    <td style="text-align: right; font-weight: bold;">x1</td>
+  </tr>
+</table>
+<div class="receipt-divider"></div>
+<div style="font-size: 8px; text-align: center; color: #64748b; margin-top: 4px;">
+  Trạng thái: ${isConnected ? 'Đang hoạt động' : 'Tắt (Chờ bật)'}
+</div>
+    `;
+  } else if (activePrinterId === 'kitchen_bar') {
+    html = `
+<div style="text-align: center; font-weight: bold; font-size: 11px; border-bottom: 1px dashed #94a3b8; padding-bottom: 6px; margin-bottom: 6px;">
+  PHIẾU PHA CHẾ (BAR)
+</div>
+<div style="font-size: 9px; line-height: 1.4; margin-bottom: 6px;">
+  <b>BÀN:</b> Bàn VIP 02<br/>
+  <b>Giờ vào:</b> ${dateStr.split(' ')[1] || ''}<br/>
+  <b>Kết nối:</b> ${connectionDetailsText}
+</div>
+<div class="receipt-divider"></div>
+<table style="width: 100%; border-collapse: collapse; font-size: 9px;">
+  <tr style="border-bottom: 1px solid #cbd5e1; font-weight: bold;">
+    <td style="width: 70%; padding-bottom: 2px;">Tên đồ uống</td>
+    <td style="width: 30%; text-align: right; padding-bottom: 2px;">SL</td>
+  </tr>
+  <tr>
+    <td style="padding: 3px 0;">Trà Tắc Khổng Lồ</td>
+    <td style="text-align: right; font-weight: bold;">x2</td>
+  </tr>
+  <tr>
+    <td style="font-size: 8px; color: #475569; padding-left: 6px; padding-bottom: 3px;" colspan="2">* 50% đường, nhiều đá</td>
+  </tr>
+  <tr>
+    <td style="padding: 3px 0;">Cà Phê Sữa Đá</td>
+    <td style="text-align: right; font-weight: bold;">x1</td>
+  </tr>
+</table>
+<div class="receipt-divider"></div>
+<div style="font-size: 8px; text-align: center; color: #64748b; margin-top: 4px;">
+  Trạng thái: ${isConnected ? 'Đang hoạt động' : 'Tắt (Chờ bật)'}
+</div>
+    `;
+  } else if (activePrinterId === 'receipt_default') {
+    html = `
+<div style="text-align: center; margin-bottom: 6px;">
+  <div style="font-weight: bold; font-size: 11px;">NHÀ HÀNG TẤM XƯA</div>
+  <div style="font-size: 8px; color: #64748b;">Đ/c: 42 Đường Láng, Hà Nội</div>
+  <div style="font-size: 8px; color: #64748b;">ĐT: 0987.654.321</div>
+</div>
+<div style="text-align: center; font-weight: bold; font-size: 10px; margin: 6px 0;">
+  HOÁ ĐƠN THANH TOÁN
+</div>
+<div style="font-size: 8px; line-height: 1.4; margin-bottom: 6px;">
+  <b>BÀN:</b> Bàn VIP 02<br/>
+  <b>Ngày:</b> ${dateStr.split(' ')[0] || ''}<br/>
+  <b>Mã HĐ:</b> HD82749<br/>
+  <b>Kết nối:</b> ${connectionDetailsText}
+</div>
+<div class="receipt-divider"></div>
+<table style="width: 100%; border-collapse: collapse; font-size: 8px;">
+  <tr style="border-bottom: 1px solid #cbd5e1; font-weight: bold;">
+    <td style="width: 50%;">Tên món</td>
+    <td style="width: 15%; text-align: center;">SL</td>
+    <td style="width: 35%; text-align: right;">T.Tiền</td>
+  </tr>
+  <tr>
+    <td style="padding: 2px 0;">Bún Đậu Mắm Tôm</td>
+    <td style="text-align: center;">2</td>
+    <td style="text-align: right;">170K</td>
+  </tr>
+  <tr>
+    <td style="padding: 2px 0;">Bún Chả Hà Nội</td>
+    <td style="text-align: center;">1</td>
+    <td style="text-align: right;">65K</td>
+  </tr>
+  <tr>
+    <td style="padding: 2px 0;">Trà Tắc Khổng Lồ</td>
+    <td style="text-align: center;">2</td>
+    <td style="text-align: right;">30K</td>
+  </tr>
+  <tr>
+    <td style="padding: 2px 0;">Cà Phê Sữa Đá</td>
+    <td style="text-align: center;">1</td>
+    <td style="text-align: right;">25K</td>
+  </tr>
+</table>
+<div class="receipt-divider"></div>
+<div style="font-size: 8px; line-height: 1.4;">
+  <div style="display: flex; justify-content: space-between;">
+    <span>Cộng món:</span>
+    <span>290K</span>
+  </div>
+  <div style="display: flex; justify-content: space-between;">
+    <span>Giảm giá (10%):</span>
+    <span>-29K</span>
+  </div>
+  <div style="display: flex; justify-content: space-between; font-weight: bold; margin-top: 3px; border-top: 1px dashed #94a3b8; padding-top: 3px;">
+    <span>TỔNG CỘNG:</span>
+    <span>261K</span>
+  </div>
+</div>
+<div class="receipt-divider"></div>
+<div style="text-align: center; font-size: 8px; margin-top: 6px;">
+  Cảm ơn Quý khách!<br/>
+  Hẹn gặp lại quý khách!
+</div>
+    `;
+  }
+
+  contentEl.innerHTML = html;
+}
+
+function formatVNDShort(amount) {
+  if (amount >= 1000) {
+    return `${amount / 1000}K`;
+  }
+  return `${amount}đ`;
+}
+
+function padCenter(str, width) {
+  if (str.length >= width) return str.substring(0, width);
+  const padLeft = Math.floor((width - str.length) / 2);
+  const padRight = width - str.length - padLeft;
+  return ' '.repeat(padLeft) + str + ' '.repeat(padRight);
+}
+
+function padLeftRight(str, width) {
+  if (str.length >= width) return str.substring(0, width);
+  return str + ' '.repeat(width - str.length);
+}
+
+function wrapTextIntoChunks(text, maxWidth) {
+  if (!text) return [''];
+  const words = text.trim().split(/\s+/);
+  const chunks = [];
+  let currentChunk = '';
+  
+  words.forEach(word => {
+    if ((currentChunk + (currentChunk ? ' ' : '') + word).length <= maxWidth) {
+      currentChunk += (currentChunk ? ' ' : '') + word;
+    } else {
+      if (currentChunk) chunks.push(currentChunk);
+      currentChunk = word;
+      while (currentChunk.length > maxWidth) {
+        chunks.push(currentChunk.substring(0, maxWidth));
+        currentChunk = currentChunk.substring(maxWidth);
+      }
+    }
+  });
+  if (currentChunk) chunks.push(currentChunk);
+  return chunks.length > 0 ? chunks : [''];
+}
+
+function wrapAndCenter(text, width = 32) {
+  if (!text) return '';
+  const words = text.trim().split(/\s+/);
+  const lines = [];
+  let currentLine = '';
+
+  words.forEach(word => {
+    if ((currentLine + (currentLine ? ' ' : '') + word).length <= width) {
+      currentLine += (currentLine ? ' ' : '') + word;
+    } else {
+      if (currentLine) {
+        lines.push(currentLine);
+      }
+      currentLine = word;
+      while (currentLine.length > width) {
+        lines.push(currentLine.substring(0, width));
+        currentLine = currentLine.substring(width);
+      }
+    }
+  });
+  if (currentLine) {
+    lines.push(currentLine);
+  }
+
+  return lines.map(line => {
+    const pad = Math.floor((width - line.length) / 2);
+    return pad > 0 ? ' '.repeat(pad) + line : line;
+  }).join('\n');
+}
+
+function formatKitchenTable(items, width = 32) {
+  const colNameWidth = 23;
+  const colQtyWidth = 6;
+  const border = '+' + '-'.repeat(colNameWidth) + '+' + '-'.repeat(colQtyWidth) + '+\n';
+  
+  let text = border;
+  text += '|' + padCenter('Tên món', colNameWidth) + '|' + padCenter('SL', colQtyWidth) + '|\n';
+  text += border;
+  
+  items.forEach(item => {
+    const maxTextWidth = colNameWidth - 2; // 21 chars
+    const nameChunks = wrapTextIntoChunks(item.name, maxTextWidth);
+    
+    const qtyStr = `x${item.quantity}`;
+    text += '|' + padLeftRight(` ${nameChunks[0]}`, colNameWidth) + '|' + padCenter(qtyStr, colQtyWidth) + '|\n';
+    
+    for (let i = 1; i < nameChunks.length; i++) {
+      text += '|' + padLeftRight(` ${nameChunks[i]}`, colNameWidth) + '|' + ' '.repeat(colQtyWidth) + '|\n';
+    }
+    
+    if (item.notes) {
+      const noteChunks = wrapTextIntoChunks(`*Ghi chú: ${item.notes}`, maxTextWidth);
+      noteChunks.forEach(chunk => {
+        text += '|' + padLeftRight(` ${chunk}`, colNameWidth) + '|' + ' '.repeat(colQtyWidth) + '|\n';
+      });
+    }
+    text += border;
+  });
+  
+  return text;
+}
+
+function formatReceiptTable(items, width = 32) {
+  const colNameWidth = 16;
+  const colQtyWidth = 4;
+  const colPriceWidth = 8;
+  const border = '+' + '-'.repeat(colNameWidth) + '+' + '-'.repeat(colQtyWidth) + '+' + '-'.repeat(colPriceWidth) + '+\n';
+  
+  let text = border;
+  text += '|' + padCenter('Tên món', colNameWidth) + '|' + padCenter('SL', colQtyWidth) + '|' + padCenter('T.Tiền', colPriceWidth) + '|\n';
+  text += border;
+  
+  items.forEach(item => {
+    const maxTextWidth = colNameWidth - 2; // 14 chars
+    const nameChunks = wrapTextIntoChunks(item.name, maxTextWidth);
+    
+    const qtyStr = `x${item.quantity}`;
+    const priceStr = formatVNDShort(item.price * item.quantity);
+    
+    text += '|' + padLeftRight(` ${nameChunks[0]}`, colNameWidth) + '|' + padCenter(qtyStr, colQtyWidth) + '|' + padCenter(priceStr, colPriceWidth) + '|\n';
+    
+    for (let i = 1; i < nameChunks.length; i++) {
+      text += '|' + padLeftRight(` ${nameChunks[i]}`, colNameWidth) + '|' + ' '.repeat(colQtyWidth) + '|' + ' '.repeat(colPriceWidth) + '|\n';
+    }
+    
+    if (item.notes) {
+      const noteChunks = wrapTextIntoChunks(`*Ghi chú: ${item.notes}`, maxTextWidth);
+      noteChunks.forEach(chunk => {
+        text += '|' + padLeftRight(` ${chunk}`, colNameWidth) + '|' + ' '.repeat(colQtyWidth) + '|' + ' '.repeat(colPriceWidth) + '|\n';
+      });
+    }
+    text += border;
+  });
+  
+  return text;
+}
+
+function formatPlainKitchenSlip(tableName, items, title) {
+  const width = 32;
+  const border = '-'.repeat(width) + '\n';
+  const dateStr = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) + ' ' + new Date().toLocaleDateString('vi-VN');
+  
+  let text = '';
+  text += wrapAndCenter('TAM XUA ORDER', width) + '\n';
+  text += wrapAndCenter(title.toUpperCase(), width) + '\n';
+  text += border;
+  text += wrapAndCenter(`BÀN: ${tableName}`, width) + '\n';
+  text += wrapAndCenter(`Giờ order: ${dateStr}`, width) + '\n';
+  text += formatKitchenTable(items, width);
+  
+  text += '\n\n\n\n\n\x1b\x69'; // ESC/POS cut paper command
+  return text;
+}
+
+function formatPlainReceipt(tableObj, orderItems, discountAmount, receivedAmount, timestamp, payMethod) {
+  const width = 32;
+  const border = '-'.repeat(width) + '\n';
+  const subtotal = orderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  const finalTotal = Math.max(0, subtotal - discountAmount);
+  const changeAmount = receivedAmount ? (receivedAmount - finalTotal) : 0;
+  
+  const orderTimeStr = tableObj.updatedAt 
+    ? formatTime(tableObj.updatedAt).replace(' - ', ' ') 
+    : (timestamp ? formatTime(timestamp).replace(' - ', ' ') : formatTime(new Date().toISOString()).replace(' - ', ' '));
+
+  const checkoutTimeStr = timestamp 
+    ? formatTime(timestamp).replace(' - ', ' ') 
+    : formatTime(new Date().toISOString()).replace(' - ', ' ');
+
+  const payMethodLabel = payMethod === 'bank' ? 'Chuyển khoản' : 'Tiền mặt';
+  
+  let text = '';
+  text += wrapAndCenter('TẤM XƯA', width) + '\n';
+  text += wrapAndCenter('Món Ngon Chuẩn Vị Bắc', width) + '\n';
+  text += border;
+  text += wrapAndCenter(`Bàn: ${tableObj.name}`, width) + '\n';
+  text += wrapAndCenter(`Giờ vào: ${orderTimeStr}`, width) + '\n';
+  text += wrapAndCenter(`Giờ ra: ${checkoutTimeStr}`, width) + '\n';
+  text += formatReceiptTable(orderItems, width);
+  
+  text += wrapAndCenter(`Cộng món: ${formatVNDShort(subtotal)}`, width) + '\n';
+  if (discountAmount > 0) {
+    text += wrapAndCenter(`Giảm giá: -${formatVNDShort(discountAmount)}`, width) + '\n';
+  }
+  text += wrapAndCenter(`TỔNG CỘNG: ${formatVNDShort(finalTotal)}`, width) + '\n';
+  text += wrapAndCenter(`Khách đưa: ${formatVNDShort(receivedAmount || finalTotal)}`, width) + '\n';
+  if (changeAmount > 0) {
+    text += wrapAndCenter(`Trả lại: ${formatVNDShort(changeAmount)}`, width) + '\n';
+  }
+  text += wrapAndCenter(`Thanh toán: ${payMethodLabel}`, width) + '\n';
+  text += border;
+  text += wrapAndCenter('Cảm ơn Quý khách!', width) + '\n';
+  text += wrapAndCenter('Hẹn gặp lại quý khách!', width) + '\n';
+  text += '\n\n\n\n\n\x1b\x69'; // ESC/POS cut paper command
+  return text;
+}
+
+async function syncPrinterSettingsFromServer() {
+  try {
+    const res = await fetch('/api/printer-settings');
+    if (res.ok) {
+      const settingsList = await res.json();
+      settingsList.forEach(setting => {
+        const id = setting.printer_id;
+        localStorage.setItem(`printer_${id}_connected`, setting.connected ? 'true' : 'false');
+        localStorage.setItem(`printer_${id}_type`, setting.type || 'browser');
+        localStorage.setItem(`printer_${id}_shared`, setting.shared_path || '');
+        if (setting.ip) {
+          localStorage.setItem(`printer_${id}_ip`, setting.ip);
+        }
+        if (setting.port) {
+          localStorage.setItem(`printer_${id}_port`, setting.port.toString());
+        }
+      });
+      if (typeof updatePrinterStatusBadges === 'function') {
+        updatePrinterStatusBadges();
+      }
+    }
+  } catch (err) {
+    console.error('Lỗi đồng bộ cấu hình máy in:', err);
+  }
+}
+
+window.selectPrinter = selectPrinter;
+window.togglePrinterTypeFields = togglePrinterTypeFields;
+window.handleSavePrinter = handleSavePrinter;
+window.handlePrintTest = handlePrintTest;
+window.openSystemPrintersModal = openSystemPrintersModal;
+window.closeSystemPrintersModal = closeSystemPrintersModal;
+window.selectSystemPrinterFromModal = selectSystemPrinterFromModal;
+window.updateReceiptLivePreview = updateReceiptLivePreview;
+
+// Hour filter modal logic
+const btnReportHourTrigger = document.getElementById('btn-report-hour-trigger');
+const btnReportItemsHourTrigger = document.getElementById('btn-report-items-hour-trigger');
+const reportHourModal = document.getElementById('report-hour-modal');
+const closeHourModal = document.getElementById('close-hour-modal');
+const btnCancelHourModal = document.getElementById('btn-cancel-hour-modal');
+const btnApplyHourModal = document.getElementById('btn-apply-hour-modal');
+const hourRangeInputs = document.getElementById('hour-range-inputs');
+const inputHourFromH = document.getElementById('hour-from-h');
+const inputHourFromM = document.getElementById('hour-from-m');
+const inputHourToH = document.getElementById('hour-to-h');
+const inputHourToM = document.getElementById('hour-to-m');
+
+function updateHourInputsState() {
+  const selectedOption = document.querySelector('input[name="hour-option"]:checked').value;
+  if (selectedOption === 'range') {
+    hourRangeInputs.style.opacity = '1';
+    hourRangeInputs.style.pointerEvents = 'auto';
+  } else {
+    hourRangeInputs.style.opacity = '0.5';
+    hourRangeInputs.style.pointerEvents = 'none';
+  }
+}
+
+if (document.querySelectorAll('input[name="hour-option"]').length > 0) {
+  document.querySelectorAll('input[name="hour-option"]').forEach(radio => {
+    radio.addEventListener('change', updateHourInputsState);
+  });
+}
+
+function openHourModal(target) {
+  currentHourFilterTarget = target;
+  const currentRange = target === 'overview' ? overviewHourRange : itemsHourRange;
+  
+  const radio = document.querySelector(`input[name="hour-option"][value="${currentRange.option}"]`);
+  if (radio) radio.checked = true;
+  
+  inputHourFromH.value = String(currentRange.fromH).padStart(2, '0');
+  inputHourFromM.value = String(currentRange.fromM).padStart(2, '0');
+  inputHourToH.value = String(currentRange.toH).padStart(2, '0');
+  inputHourToM.value = String(currentRange.toM).padStart(2, '0');
+  
+  updateHourInputsState();
+  if (reportHourModal) reportHourModal.style.display = 'flex';
+}
+
+if (btnReportHourTrigger) {
+  btnReportHourTrigger.addEventListener('click', () => openHourModal('overview'));
+}
+if (btnReportItemsHourTrigger) {
+  btnReportItemsHourTrigger.addEventListener('click', () => openHourModal('items'));
+}
+
+function closeHourModalWindow() {
+  if (reportHourModal) reportHourModal.style.display = 'none';
+}
+
+if (closeHourModal) closeHourModal.addEventListener('click', closeHourModalWindow);
+if (btnCancelHourModal) btnCancelHourModal.addEventListener('click', closeHourModalWindow);
+
+if (btnApplyHourModal) {
+  btnApplyHourModal.addEventListener('click', () => {
+    const option = document.querySelector('input[name="hour-option"]:checked').value;
+    const fromH = Math.min(23, Math.max(0, parseInt(inputHourFromH.value) || 0));
+    const fromM = Math.min(59, Math.max(0, parseInt(inputHourFromM.value) || 0));
+    const toH = Math.min(23, Math.max(0, parseInt(inputHourToH.value) || 23));
+    const toM = Math.min(59, Math.max(0, parseInt(inputHourToM.value) || 59));
+    
+    const formattedFrom = `${String(fromH).padStart(2, '0')}:${String(fromM).padStart(2, '0')}`;
+    const formattedTo = `${String(toH).padStart(2, '0')}:${String(toM).padStart(2, '0')}`;
+    const displayLabel = option === 'all' ? '00:00 - 00:00 (+1)' : `${formattedFrom} - ${formattedTo}`;
+    
+    if (currentHourFilterTarget === 'overview') {
+      overviewHourRange = { option, fromH, fromM, toH, toM };
+      const label = document.getElementById('report-hour-label');
+      if (label) label.textContent = displayLabel;
+      loadRevenueReport();
+    } else {
+      itemsHourRange = { option, fromH, fromM, toH, toM };
+      const label = document.getElementById('report-items-hour-label');
+      if (label) label.textContent = displayLabel;
+      loadItemsReport();
+    }
+    
+    closeHourModalWindow();
+  });
+}
+
+// Setup Report Payment Method Tab listeners
+document.addEventListener('click', (e) => {
+  const tabRevenue = document.getElementById('report-pm-tab-revenue');
+  const tabCount = document.getElementById('report-pm-tab-count');
+  
+  if (e.target === tabRevenue) {
+    reportPaymentMethodActiveTab = 'revenue';
+    if (tabRevenue) {
+      tabRevenue.style.color = '#0066cc';
+      tabRevenue.style.borderBottom = '2px solid #0066cc';
+    }
+    if (tabCount) {
+      tabCount.style.color = '#64748b';
+      tabCount.style.borderBottom = '2px solid transparent';
+    }
+    loadRevenueReport();
+  } else if (e.target === tabCount) {
+    reportPaymentMethodActiveTab = 'count';
+    if (tabCount) {
+      tabCount.style.color = '#0066cc';
+      tabCount.style.borderBottom = '2px solid #0066cc';
+    }
+    if (tabRevenue) {
+      tabRevenue.style.color = '#64748b';
+      tabRevenue.style.borderBottom = '2px solid transparent';
+    }
+    loadRevenueReport();
+  }
+});
+
 init();
+
+// --- SYSTEM UPDATE LOGIC ---
+async function checkSystemUpdate(showModal = false) {
+  const btnCheckUpdate = document.getElementById('btn-check-update');
+  const systemUpdateModal = document.getElementById('system-update-modal');
+  const updateStatusText = document.getElementById('update-status-text');
+  const btnStartUpdate = document.getElementById('btn-start-update');
+  const btnCancelUpdate = document.getElementById('btn-cancel-update');
+  const btnCloseUpdateModal = document.getElementById('btn-close-update-modal');
+  const updateCommitsContainer = document.getElementById('update-commits-container');
+  const updateCommitsList = document.getElementById('update-commits-list');
+  const updateProgressWrapper = document.getElementById('update-progress-wrapper');
+  const updateProgressBar = document.getElementById('update-progress-bar');
+  const updateLogConsole = document.getElementById('update-log-console');
+
+  if (showModal) {
+    if (systemUpdateModal) systemUpdateModal.style.display = 'flex';
+    if (updateStatusText) updateStatusText.textContent = 'Đang kiểm tra bản cập nhật trên Git...';
+    if (btnStartUpdate) btnStartUpdate.style.display = 'none';
+    if (btnCancelUpdate) btnCancelUpdate.style.display = 'inline-block';
+    if (btnCloseUpdateModal) btnCloseUpdateModal.style.display = 'inline-block';
+    if (updateCommitsContainer) updateCommitsContainer.style.display = 'none';
+    if (updateProgressWrapper) updateProgressWrapper.style.display = 'none';
+    if (updateLogConsole) updateLogConsole.style.display = 'none';
+  }
+
+  try {
+    const res = await fetch('/api/system/check-update', { method: 'POST' });
+    const data = await res.json();
+
+    if (data.error) {
+      if (showModal && updateStatusText) {
+        updateStatusText.innerHTML = `<span style="color: #ef4444;">❌ Lỗi: ${data.error}</span>`;
+      }
+      return;
+    }
+
+    if (data.hasUpdate) {
+      if (showModal) {
+        if (updateStatusText) updateStatusText.innerHTML = `📢 <strong>Phát hiện bản cập nhật mới!</strong><br><span style="font-size: 13px; color: #475569;">Nhánh hiện tại: <code>${data.branch}</code></span>`;
+        if (updateCommitsList) {
+          updateCommitsList.innerHTML = '';
+          data.commits.forEach(commit => {
+            const item = document.createElement('div');
+            item.style.padding = '6px 10px';
+            item.style.backgroundColor = '#f1f5f9';
+            item.style.borderRadius = '6px';
+            item.style.fontFamily = 'monospace';
+            item.style.fontSize = '12px';
+            item.style.borderLeft = '3px solid #0066cc';
+            item.textContent = commit;
+            updateCommitsList.appendChild(item);
+          });
+        }
+        if (updateCommitsContainer) updateCommitsContainer.style.display = 'flex';
+        if (btnStartUpdate) btnStartUpdate.style.display = 'inline-block';
+      }
+      
+      // Update topbar button styling
+      if (btnCheckUpdate) {
+        btnCheckUpdate.innerHTML = '<span>🔴 Có cập nhật mới</span>';
+        btnCheckUpdate.style.borderColor = '#ef4444';
+        btnCheckUpdate.style.color = '#ef4444';
+      }
+    } else {
+      if (showModal && updateStatusText) {
+        updateStatusText.innerHTML = `✨ <strong>Hệ thống đã là phiên bản mới nhất!</strong><br><span style="font-size: 13px; color: #475569;">Nhánh hiện tại: <code>${data.branch}</code></span>`;
+      }
+      if (btnStartUpdate) btnStartUpdate.style.display = 'none';
+      if (btnCheckUpdate) {
+        btnCheckUpdate.innerHTML = '<span>🔄 Cập nhật</span>';
+        btnCheckUpdate.style.borderColor = 'var(--hairline-strong)';
+        btnCheckUpdate.style.color = 'var(--ink)';
+      }
+    }
+  } catch (err) {
+    console.error('Lỗi kiểm tra cập nhật:', err);
+    if (showModal && updateStatusText) {
+      updateStatusText.innerHTML = `<span style="color: #ef4444;">❌ Không thể kết nối tới server kiểm tra.</span>`;
+    }
+  }
+}
+
+function applySystemUpdate() {
+  const systemUpdateModal = document.getElementById('system-update-modal');
+  const updateStatusText = document.getElementById('update-status-text');
+  const btnStartUpdate = document.getElementById('btn-start-update');
+  const btnCancelUpdate = document.getElementById('btn-cancel-update');
+  const btnCloseUpdateModal = document.getElementById('btn-close-update-modal');
+  const updateProgressWrapper = document.getElementById('update-progress-wrapper');
+  const updateProgressBar = document.getElementById('update-progress-bar');
+  const updateLogConsole = document.getElementById('update-log-console');
+  const updateCommitsContainer = document.getElementById('update-commits-container');
+
+  // Khóa đóng modal
+  if (btnCancelUpdate) btnCancelUpdate.style.display = 'none';
+  if (btnCloseUpdateModal) btnCloseUpdateModal.style.display = 'none';
+  if (btnStartUpdate) btnStartUpdate.style.display = 'none';
+  if (updateCommitsContainer) updateCommitsContainer.style.display = 'none';
+
+  // Hiện loader và log console
+  if (updateProgressWrapper) updateProgressWrapper.style.display = 'block';
+  if (updateProgressBar) updateProgressBar.style.width = '10%';
+  if (updateLogConsole) {
+    updateLogConsole.style.display = 'block';
+    updateLogConsole.textContent = '';
+  }
+  if (updateStatusText) updateStatusText.textContent = 'Đang tiến hành cập nhật hệ thống...';
+
+  // Sử dụng SSE để lắng nghe logs
+  const eventSource = new EventSource('/api/system/apply-update');
+
+  eventSource.onmessage = (event) => {
+    try {
+      const data = JSON.parse(event.data);
+      
+      // Cập nhật thanh tiến trình
+      if (data.percent && updateProgressBar) {
+        updateProgressBar.style.width = `${data.percent}%`;
+      }
+      
+      // Cập nhật trạng thái text
+      if (data.step === 'START' || data.step === 'GIT_PULL_START' || data.step === 'NPM_INSTALL_START' || data.step === 'MIGRATING' || data.step === 'RESTARTING') {
+        if (updateStatusText) updateStatusText.textContent = data.message;
+      }
+      
+      // In logs vào console
+      if (data.message && updateLogConsole) {
+        updateLogConsole.textContent += `${data.message}\n`;
+        updateLogConsole.scrollTop = updateLogConsole.scrollHeight;
+      }
+
+      if (data.step === 'ERROR') {
+        eventSource.close();
+        if (updateStatusText) updateStatusText.innerHTML = `<span style="color: #ef4444;">❌ Cập nhật thất bại. Vui lòng kiểm tra log bên dưới.</span>`;
+        if (btnCancelUpdate) btnCancelUpdate.style.display = 'inline-block';
+        if (btnCloseUpdateModal) btnCloseUpdateModal.style.display = 'inline-block';
+      }
+
+      if (data.step === 'DONE') {
+        eventSource.close();
+        
+        let countdown = 5;
+        const interval = setInterval(() => {
+          if (updateStatusText) {
+            updateStatusText.innerHTML = `<span style="color: #10b981;">🎉 Cập nhật thành công! Trình duyệt sẽ tự tải lại trang sau ${countdown} giây...</span>`;
+          }
+          countdown--;
+          if (countdown < 0) {
+            clearInterval(interval);
+            window.location.reload();
+          }
+        }, 1000);
+      }
+    } catch (err) {
+      console.error('Lỗi phân tích SSE:', err);
+    }
+  };
+
+  eventSource.onerror = (err) => {
+    console.error('SSE connection error:', err);
+    eventSource.close();
+    
+    // Khi server restart, luồng SSE sẽ bị ngắt đột ngột. Điều này là bình thường nếu đang ở bước Restarting.
+    if (updateProgressBar && parseInt(updateProgressBar.style.width) >= 90) {
+      if (updateLogConsole) updateLogConsole.textContent += `[HỆ THỐNG] Đang kết nối lại tới Server vừa khởi động...\n`;
+      if (updateStatusText) updateStatusText.textContent = 'Đang khởi động lại Server, vui lòng đợi...';
+      
+      // Vòng lặp ping kiểm tra server đã sống lại chưa
+      setTimeout(() => {
+        const checkInterval = setInterval(async () => {
+          try {
+            const check = await fetch('/login.html');
+            if (check.ok) {
+              clearInterval(checkInterval);
+              window.location.reload();
+            }
+          } catch (e) {
+            console.log('Chờ server khởi chạy...');
+          }
+        }, 1500);
+      }, 2000);
+    } else {
+      if (updateStatusText) updateStatusText.innerHTML = `<span style="color: #ef4444;">❌ Mất kết nối đột ngột với Server trong quá trình cập nhật.</span>`;
+      if (btnCancelUpdate) btnCancelUpdate.style.display = 'inline-block';
+      if (btnCloseUpdateModal) btnCloseUpdateModal.style.display = 'inline-block';
+    }
+  };
+}
+
+function setupSystemUpdateListeners() {
+  const btnCheckUpdate = document.getElementById('btn-check-update');
+  const btnCloseUpdateModal = document.getElementById('btn-close-update-modal');
+  const btnCancelUpdate = document.getElementById('btn-cancel-update');
+  const btnStartUpdate = document.getElementById('btn-start-update');
+  const systemUpdateModal = document.getElementById('system-update-modal');
+
+  if (btnCheckUpdate) {
+    btnCheckUpdate.addEventListener('click', () => {
+      checkSystemUpdate(true);
+    });
+  }
+
+  const closeModal = () => {
+    if (systemUpdateModal) systemUpdateModal.style.display = 'none';
+  };
+
+  if (btnCloseUpdateModal) btnCloseUpdateModal.addEventListener('click', closeModal);
+  if (btnCancelUpdate) btnCancelUpdate.addEventListener('click', closeModal);
+
+  if (btnStartUpdate) {
+    btnStartUpdate.addEventListener('click', applySystemUpdate);
+  }
+}
+
+// Chạy khởi tạo lắng nghe cập nhật
+setupSystemUpdateListeners();
