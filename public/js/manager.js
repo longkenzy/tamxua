@@ -887,12 +887,26 @@ function renderTables() {
   updateTableStatsSummary(filteredTables);
 
   if (filteredTables.length === 0) {
-    managerTablesContainer.innerHTML = `
+    let emptyHtml = `
       <div style="grid-column: 1 / -1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 60px 20px; color: #64748b; font-size: 14px; gap: 8px; text-align: center;">
         <span style="font-size: 32px;">🛍️</span>
         <span style="font-weight: 600;">Không có đơn mang đi nào đang hoạt động</span>
-      </div>
     `;
+    if (activeFloorFilter === 'mang đi') {
+      emptyHtml += `
+        <button class="btn-create-takeaway-premium" onclick="createTakeawayOrder()" style="margin-top: 12px;">
+          <span class="button__text">Tạo đơn mang đi</span>
+          <span class="button__icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" viewBox="0 0 24 24" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" stroke="currentColor" height="24" fill="none" class="svg">
+              <line y2="19" y1="5" x2="12" x1="12"></line>
+              <line y2="12" y1="12" x2="19" x1="5"></line>
+            </svg>
+          </span>
+        </button>
+      `;
+    }
+    emptyHtml += `</div>`;
+    managerTablesContainer.innerHTML = emptyHtml;
     playEntranceAnimation = false;
     return;
   }
@@ -1012,8 +1026,50 @@ function renderTableDetails(table) {
         <p style="font-size:14px; line-height: 1.4; margin-bottom: 20px; max-width: 280px; margin-left: auto; margin-right: auto;">
           Bàn này đang trống. Bạn có muốn tạo đơn gọi món mới cho bàn này không?
         </p>
-        <button class="btn btn-primary" id="btn-create-order-direct" style="height: 42px; font-weight: 700; font-size: 13px; padding: 0 24px; border-radius: 8px; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); display: flex; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 4px 6px -1px rgba(0, 136, 255, 0.15); cursor: pointer; border: none; background-color: var(--primary);">
-          ✨ Tạo đơn gọi món
+        <button class="btn-create-order-premium" id="btn-create-order-direct">
+          Tạo đơn gọi món
+          <div class="star-1">
+            <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+              <g id="Layer_x0020_1">
+                <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+              </g>
+            </svg>
+          </div>
+          <div class="star-2">
+            <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+              <g id="Layer_x0020_1">
+                <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+              </g>
+            </svg>
+          </div>
+          <div class="star-3">
+            <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+              <g id="Layer_x0020_1">
+                <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+              </g>
+            </svg>
+          </div>
+          <div class="star-4">
+            <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+              <g id="Layer_x0020_1">
+                <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+              </g>
+            </svg>
+          </div>
+          <div class="star-5">
+            <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+              <g id="Layer_x0020_1">
+                <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+              </g>
+            </svg>
+          </div>
+          <div class="star-6">
+            <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+              <g id="Layer_x0020_1">
+                <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+              </g>
+            </svg>
+          </div>
         </button>
       </div>
     `;
@@ -1059,14 +1115,140 @@ function renderTableDetails(table) {
     </div>
 
     <div style="display: flex; gap: 6px; margin-top: 16px; animation: fadeInUp 0.4s ease-out;">
-      <button class="btn btn-danger" id="btn-delete-order-direct" style="flex: 1; height: 42px; background-color: var(--primary-error-text); border-color: var(--primary-error-text); color: white; font-weight: 700; font-size: 12px; padding: 0 8px; border-radius: 8px; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); display: flex; align-items: center; justify-content: center; gap: 4px; cursor: pointer; border: none; box-shadow: 0 4px 6px -1px rgba(239, 68, 68, 0.15); white-space: nowrap;">
-        <span style="font-size: 13px;">🗑️</span> Hủy đơn
+      <button class="btn-delete-order-premium" id="btn-delete-order-direct">
+        Hủy đơn
+        <div class="star-1">
+          <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+            <g id="Layer_x0020_1">
+              <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+            </g>
+          </svg>
+        </div>
+        <div class="star-2">
+          <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+            <g id="Layer_x0020_1">
+              <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+            </g>
+          </svg>
+        </div>
+        <div class="star-3">
+          <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+            <g id="Layer_x0020_1">
+              <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+            </g>
+          </svg>
+        </div>
+        <div class="star-4">
+          <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+            <g id="Layer_x0020_1">
+              <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+            </g>
+          </svg>
+        </div>
+        <div class="star-5">
+          <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+            <g id="Layer_x0020_1">
+              <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+            </g>
+          </svg>
+        </div>
+        <div class="star-6">
+          <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+            <g id="Layer_x0020_1">
+              <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+            </g>
+          </svg>
+        </div>
       </button>
-      <button class="btn btn-secondary" id="btn-add-more-dishes" style="flex: 1.2; height: 42px; border-color: var(--primary); color: var(--primary); background-color: #ffffff; font-weight: 700; font-size: 12px; padding: 0 8px; border-radius: 8px; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); display: flex; align-items: center; justify-content: center; gap: 4px; cursor: pointer; border: 1px solid var(--primary); box-shadow: 0 4px 6px -1px rgba(0, 136, 255, 0.05); white-space: nowrap;">
-        <span style="font-size: 13px;">➕</span> Thêm món
+      <button class="btn-add-more-premium" id="btn-add-more-dishes">
+        Thêm món
+        <div class="star-1">
+          <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+            <g id="Layer_x0020_1">
+              <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+            </g>
+          </svg>
+        </div>
+        <div class="star-2">
+          <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+            <g id="Layer_x0020_1">
+              <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+            </g>
+          </svg>
+        </div>
+        <div class="star-3">
+          <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+            <g id="Layer_x0020_1">
+              <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+            </g>
+          </svg>
+        </div>
+        <div class="star-4">
+          <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+            <g id="Layer_x0020_1">
+              <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+            </g>
+          </svg>
+        </div>
+        <div class="star-5">
+          <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+            <g id="Layer_x0020_1">
+              <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+            </g>
+          </svg>
+        </div>
+        <div class="star-6">
+          <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+            <g id="Layer_x0020_1">
+              <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+            </g>
+          </svg>
+        </div>
       </button>
-      <button class="btn btn-primary" id="btn-trigger-checkout" style="flex: 1.8; height: 42px; font-weight: 700; font-size: 12px; padding: 0 8px; border-radius: 8px; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); display: flex; align-items: center; justify-content: center; gap: 4px; box-shadow: 0 4px 6px -1px rgba(0, 136, 255, 0.15); white-space: nowrap;">
-        🖨️ Thanh toán & In đơn
+      <button class="btn-checkout-premium" id="btn-trigger-checkout">
+        Thanh toán & In đơn
+        <div class="star-1">
+          <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+            <g id="Layer_x0020_1">
+              <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+            </g>
+          </svg>
+        </div>
+        <div class="star-2">
+          <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+            <g id="Layer_x0020_1">
+              <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+            </g>
+          </svg>
+        </div>
+        <div class="star-3">
+          <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+            <g id="Layer_x0020_1">
+              <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+            </g>
+          </svg>
+        </div>
+        <div class="star-4">
+          <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+            <g id="Layer_x0020_1">
+              <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+            </g>
+          </svg>
+        </div>
+        <div class="star-5">
+          <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+            <g id="Layer_x0020_1">
+              <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+            </g>
+          </svg>
+        </div>
+        <div class="star-6">
+          <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+            <g id="Layer_x0020_1">
+              <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+            </g>
+          </svg>
+        </div>
       </button>
     </div>
   `;
@@ -1074,14 +1256,7 @@ function renderTableDetails(table) {
   // Thêm hover effect động bằng JS cho nút Hủy đơn để mượt mà hơn
   const btnDeleteOrderDirect = document.getElementById('btn-delete-order-direct');
   if (btnDeleteOrderDirect) {
-    btnDeleteOrderDirect.onmouseover = () => {
-      btnDeleteOrderDirect.style.transform = 'translateY(-2px)';
-      btnDeleteOrderDirect.style.boxShadow = '0 6px 12px -2px rgba(239, 68, 68, 0.3)';
-    };
-    btnDeleteOrderDirect.onmouseout = () => {
-      btnDeleteOrderDirect.style.transform = 'translateY(0)';
-      btnDeleteOrderDirect.style.boxShadow = '0 4px 6px -1px rgba(239, 68, 68, 0.15)';
-    };
+    // Click event is handled natively below
     btnDeleteOrderDirect.addEventListener('click', () => {
       const tableName = table.name || `Bàn ${table.id}`;
       showConfirmDeleteModal(tableName, async () => {
@@ -4965,8 +5140,101 @@ window.switchManagerFloor = function(floor) {
     }
   });
   
+  // Show or hide the Create Takeaway button
+  const btnCreateTakeaway = document.getElementById('btn-create-takeaway');
+  if (btnCreateTakeaway) {
+    if (floor === 'mang đi') {
+      btnCreateTakeaway.style.display = 'inline-flex';
+    } else {
+      btnCreateTakeaway.style.display = 'none';
+    }
+  }
+  
   // Re-render tables with the selected floor
   renderTables();
+};
+
+window.createTakeawayOrder = async () => {
+  const btn = document.getElementById('btn-create-takeaway');
+  if (btn) {
+    btn.disabled = true;
+    const span = btn.querySelector('.button__text');
+    if (span) span.textContent = 'Đang tạo...';
+  }
+  
+  try {
+    const now = new Date();
+    const day = String(now.getDate()).padStart(2, '0');
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const year = now.getFullYear();
+    const dateStr = `${day}${month}${year}`;
+    
+    // Filter tables with location 'mang về' and name starting with dateStr
+    const todayTakeaways = tables.filter(t => t.location && t.location.toLowerCase() === 'mang về' && t.name.startsWith(dateStr));
+    const stt = String(todayTakeaways.length + 1).padStart(2, '0');
+    const orderCode = `${dateStr}${stt}`;
+    
+    const response = await fetch('/api/tables', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        name: orderCode,
+        location: 'mang về'
+      })
+    });
+    
+    if (response.status === 401) {
+      window.location.href = '/login.html';
+      return;
+    }
+    
+    const result = await response.json();
+    if (result.success) {
+      // Fetch updated tables list
+      const tablesRes = await fetch('/api/tables');
+      if (tablesRes.ok) {
+        tables = await tablesRes.json();
+      }
+      
+      const createdTable = tables.find(t => t.name === orderCode);
+      if (createdTable) {
+        selectedTableId = createdTable.id;
+        activeFloorFilter = 'mang đi';
+        
+        // Sync button display state
+        const btnCreateTakeaway = document.getElementById('btn-create-takeaway');
+        if (btnCreateTakeaway) btnCreateTakeaway.style.display = 'inline-flex';
+        
+        // Sync active state in UI tabs
+        const tabs = document.querySelectorAll('#manager-floor-tabs .category-tab');
+        tabs.forEach(tab => {
+          if (tab.getAttribute('data-floor') === 'mang đi') {
+            tab.classList.add('active');
+          } else {
+            tab.classList.remove('active');
+          }
+        });
+        
+        renderTables();
+        openManagerOrderModal(createdTable);
+      } else {
+        throw new Error('Không tìm thấy mã đơn vừa tạo.');
+      }
+    } else {
+      throw new Error(result.error || 'Lỗi tạo đơn mang đi.');
+    }
+  } catch (err) {
+    console.error(err);
+    alert(`Lỗi: ${err.message || 'Không thể tạo đơn mang đi.'}`);
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      const span = btn.querySelector('.button__text');
+      if (span) span.textContent = 'Tạo đơn mang đi';
+    }
+  }
 };
 
 // Add Table Location segment selector helper
@@ -5220,8 +5488,8 @@ function renderItemsChecklist() {
         } else {
           const selectedNames = menuItems
             .filter(m => selectedGroupItemIds.has(m.id))
-            .map(m => m.name);
-          selectValue.textContent = selectedNames.join(', ');
+            .map(m => `• ${m.name}`);
+          selectValue.textContent = selectedNames.join('\n');
           selectValue.style.color = 'var(--ink)';
         }
       }
@@ -5229,7 +5497,7 @@ function renderItemsChecklist() {
     
     const span = document.createElement('span');
     span.style.color = 'var(--ink)';
-    span.textContent = `${item.emoji} ${item.name}`;
+    span.textContent = item.name;
     
     label.appendChild(checkbox);
     label.appendChild(span);
@@ -5429,8 +5697,8 @@ function editMenuGroup(id) {
     } else {
       const selectedNames = menuItems
         .filter(m => selectedGroupItemIds.has(m.id))
-        .map(m => m.name);
-      selectValue.textContent = selectedNames.join(', ');
+        .map(m => `• ${m.name}`);
+      selectValue.textContent = selectedNames.join('\n');
       selectValue.style.color = 'var(--ink)';
     }
   }
@@ -8124,9 +8392,11 @@ async function checkSystemUpdate(showModal = false) {
       
       // Update topbar button styling
       if (btnCheckUpdate) {
-        btnCheckUpdate.innerHTML = '<span>🔴 Có cập nhật mới</span>';
-        btnCheckUpdate.style.borderColor = '#ef4444';
-        btnCheckUpdate.style.color = '#ef4444';
+        const btnText = btnCheckUpdate.querySelector('.button-text');
+        if (btnText) {
+          btnText.textContent = 'New update';
+        }
+        btnCheckUpdate.classList.add('has-update');
       }
     } else {
       if (showModal && updateStatusText) {
@@ -8134,9 +8404,11 @@ async function checkSystemUpdate(showModal = false) {
       }
       if (btnStartUpdate) btnStartUpdate.style.display = 'none';
       if (btnCheckUpdate) {
-        btnCheckUpdate.innerHTML = '<span>🔄 Cập nhật</span>';
-        btnCheckUpdate.style.borderColor = 'var(--hairline-strong)';
-        btnCheckUpdate.style.color = 'var(--ink)';
+        const btnText = btnCheckUpdate.querySelector('.button-text');
+        if (btnText) {
+          btnText.textContent = 'Update';
+        }
+        btnCheckUpdate.classList.remove('has-update');
       }
     }
   } catch (err) {

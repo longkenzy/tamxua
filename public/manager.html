@@ -1471,6 +1471,2226 @@
       background-color: rgba(2, 74, 216, 0.03);
       border-color: var(--primary);
     }
+
+    /* Premium Takeaway Sliding Button Styles */
+    .btn-create-takeaway-premium {
+      position: relative;
+      width: 175px;
+      height: 40px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      border: 1.5px solid #34974d;
+      background-color: #3aa856;
+      border-radius: 4px;
+      overflow: hidden;
+      transition: all 0.3s;
+      padding: 0;
+      box-shadow: 0 4px 6px -1px rgba(52, 151, 77, 0.15);
+    }
+
+    .btn-create-takeaway-premium, 
+    .btn-create-takeaway-premium .button__icon, 
+    .btn-create-takeaway-premium .button__text {
+      transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+    }
+
+    .btn-create-takeaway-premium .button__text {
+      transform: translateX(18px);
+      color: #fff;
+      font-weight: 600;
+      font-size: 13.5px;
+    }
+
+    .btn-create-takeaway-premium .button__icon {
+      position: absolute;
+      transform: translateX(134px);
+      height: 100%;
+      width: 39px;
+      background-color: #34974d;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 0 3px 3px 0;
+    }
+
+    .btn-create-takeaway-premium .svg {
+      width: 20px;
+      height: 20px;
+      stroke: #fff;
+      fill: none;
+    }
+
+    .btn-create-takeaway-premium:hover {
+      background-color: #34974d;
+      border-color: #34974d;
+      box-shadow: 0 6px 12px -2px rgba(52, 151, 77, 0.3);
+      transform: translateY(-1px);
+    }
+
+    .btn-create-takeaway-premium:hover .button__text {
+      color: transparent;
+    }
+
+    .btn-create-takeaway-premium:hover .button__icon {
+      width: 173px;
+      transform: translateX(0);
+      border-radius: 3px;
+    }
+
+    .btn-create-takeaway-premium:active .button__icon {
+      background-color: #2e8644;
+    }
+
+    .btn-create-takeaway-premium:active {
+      border: 1.5px solid #2e8644;
+    }
+
+    /* Premium Danger / Delete Order Button (Star Explosion Effect) */
+    .btn-delete-order-premium {
+      position: relative;
+      background: var(--primary-error-text);
+      font-size: 12px;
+      font-weight: 700;
+      color: #ffffff;
+      border: 2px solid var(--primary-error-text);
+      border-radius: 4px;
+      box-shadow: 0 4px 6px -1px rgba(179, 38, 43, 0.15);
+      transition: all 0.3s ease-in-out;
+      cursor: pointer;
+      height: 42px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      white-space: nowrap;
+      flex: 1;
+      overflow: visible;
+      z-index: 1;
+    }
+
+    .btn-delete-order-premium .star-1 {
+      position: absolute;
+      top: 20%;
+      left: 20%;
+      width: 14px;
+      height: auto;
+      filter: drop-shadow(0 0 0 #ffccd0);
+      z-index: -5;
+      opacity: 0;
+      transform: scale(0);
+      transition: all 1s cubic-bezier(0.05, 0.83, 0.43, 0.96);
+    }
+
+    .btn-delete-order-premium .star-2 {
+      position: absolute;
+      top: 45%;
+      left: 45%;
+      width: 10px;
+      height: auto;
+      filter: drop-shadow(0 0 0 #ffccd0);
+      z-index: -5;
+      opacity: 0;
+      transform: scale(0);
+      transition: all 1s cubic-bezier(0, 0.4, 0, 1.01);
+    }
+
+    .btn-delete-order-premium .star-3 {
+      position: absolute;
+      top: 40%;
+      left: 40%;
+      width: 4px;
+      height: auto;
+      filter: drop-shadow(0 0 0 #ffccd0);
+      z-index: -5;
+      opacity: 0;
+      transform: scale(0);
+      transition: all 1s cubic-bezier(0, 0.4, 0, 1.01);
+    }
+
+    .btn-delete-order-premium .star-4 {
+      position: absolute;
+      top: 20%;
+      left: 40%;
+      width: 6px;
+      height: auto;
+      filter: drop-shadow(0 0 0 #ffccd0);
+      z-index: -5;
+      opacity: 0;
+      transform: scale(0);
+      transition: all 0.8s cubic-bezier(0, 0.4, 0, 1.01);
+    }
+
+    .btn-delete-order-premium .star-5 {
+      position: absolute;
+      top: 25%;
+      left: 45%;
+      width: 10px;
+      height: auto;
+      filter: drop-shadow(0 0 0 #ffccd0);
+      z-index: -5;
+      opacity: 0;
+      transform: scale(0);
+      transition: all 0.6s cubic-bezier(0, 0.4, 0, 1.01);
+    }
+
+    .btn-delete-order-premium .star-6 {
+      position: absolute;
+      top: 5%;
+      left: 50%;
+      width: 4px;
+      height: auto;
+      filter: drop-shadow(0 0 0 #ffccd0);
+      z-index: -5;
+      opacity: 0;
+      transform: scale(0);
+      transition: all 0.8s ease;
+    }
+
+    .btn-delete-order-premium:hover {
+      background: transparent;
+      color: var(--primary-error-text);
+      box-shadow: 0 0 15px rgba(179, 38, 43, 0.3);
+    }
+
+    .btn-delete-order-premium:hover .star-1 {
+      top: -60%;
+      left: -25%;
+      filter: drop-shadow(0 0 6px #ffccd0);
+      z-index: 2;
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .btn-delete-order-premium:hover .star-2 {
+      top: -20%;
+      left: 15%;
+      filter: drop-shadow(0 0 6px #ffccd0);
+      z-index: 2;
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .btn-delete-order-premium:hover .star-3 {
+      top: 60%;
+      left: 20%;
+      filter: drop-shadow(0 0 6px #ffccd0);
+      z-index: 2;
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .btn-delete-order-premium:hover .star-4 {
+      top: 40%;
+      left: 75%;
+      filter: drop-shadow(0 0 6px #ffccd0);
+      z-index: 2;
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .btn-delete-order-premium:hover .star-5 {
+      top: 15%;
+      left: 105%;
+      filter: drop-shadow(0 0 6px #ffccd0);
+      z-index: 2;
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .btn-delete-order-premium:hover .star-6 {
+      top: -15%;
+      left: 55%;
+      filter: drop-shadow(0 0 6px #ffccd0);
+      z-index: 2;
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .btn-delete-order-premium .fil0 {
+      fill: #ffccd0;
+    }
+
+    /* Premium Secondary Button (Add Dishes) - Green Star Explosion Style */
+    .btn-add-more-premium {
+      position: relative;
+      background: #3aa856;
+      font-size: 12px;
+      font-weight: 700;
+      color: #ffffff;
+      border: 2px solid #34974d;
+      border-radius: 4px;
+      box-shadow: 0 4px 6px -1px rgba(52, 151, 77, 0.15);
+      transition: all 0.3s ease-in-out;
+      cursor: pointer;
+      height: 42px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      white-space: nowrap;
+      flex: 1.2;
+      overflow: visible;
+      z-index: 1;
+    }
+
+    .btn-add-more-premium .star-1 {
+      position: absolute;
+      top: 20%;
+      left: 20%;
+      width: 14px;
+      height: auto;
+      filter: drop-shadow(0 0 0 #a7f3d0);
+      z-index: -5;
+      opacity: 0;
+      transform: scale(0);
+      transition: all 1s cubic-bezier(0.05, 0.83, 0.43, 0.96);
+    }
+
+    .btn-add-more-premium .star-2 {
+      position: absolute;
+      top: 45%;
+      left: 45%;
+      width: 10px;
+      height: auto;
+      filter: drop-shadow(0 0 0 #a7f3d0);
+      z-index: -5;
+      opacity: 0;
+      transform: scale(0);
+      transition: all 1s cubic-bezier(0, 0.4, 0, 1.01);
+    }
+
+    .btn-add-more-premium .star-3 {
+      position: absolute;
+      top: 40%;
+      left: 40%;
+      width: 4px;
+      height: auto;
+      filter: drop-shadow(0 0 0 #a7f3d0);
+      z-index: -5;
+      opacity: 0;
+      transform: scale(0);
+      transition: all 1s cubic-bezier(0, 0.4, 0, 1.01);
+    }
+
+    .btn-add-more-premium .star-4 {
+      position: absolute;
+      top: 20%;
+      left: 40%;
+      width: 6px;
+      height: auto;
+      filter: drop-shadow(0 0 0 #a7f3d0);
+      z-index: -5;
+      opacity: 0;
+      transform: scale(0);
+      transition: all 0.8s cubic-bezier(0, 0.4, 0, 1.01);
+    }
+
+    .btn-add-more-premium .star-5 {
+      position: absolute;
+      top: 25%;
+      left: 45%;
+      width: 10px;
+      height: auto;
+      filter: drop-shadow(0 0 0 #a7f3d0);
+      z-index: -5;
+      opacity: 0;
+      transform: scale(0);
+      transition: all 0.6s cubic-bezier(0, 0.4, 0, 1.01);
+    }
+
+    .btn-add-more-premium .star-6 {
+      position: absolute;
+      top: 5%;
+      left: 50%;
+      width: 4px;
+      height: auto;
+      filter: drop-shadow(0 0 0 #a7f3d0);
+      z-index: -5;
+      opacity: 0;
+      transform: scale(0);
+      transition: all 0.8s ease;
+    }
+
+    .btn-add-more-premium:hover {
+      background: transparent;
+      color: #3aa856;
+      border-color: #34974d;
+      box-shadow: 0 0 15px rgba(52, 151, 77, 0.3);
+    }
+
+    .btn-add-more-premium:hover .star-1 {
+      top: -60%;
+      left: -25%;
+      filter: drop-shadow(0 0 6px #a7f3d0);
+      z-index: 2;
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .btn-add-more-premium:hover .star-2 {
+      top: -20%;
+      left: 15%;
+      filter: drop-shadow(0 0 6px #a7f3d0);
+      z-index: 2;
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .btn-add-more-premium:hover .star-3 {
+      top: 60%;
+      left: 20%;
+      filter: drop-shadow(0 0 6px #a7f3d0);
+      z-index: 2;
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .btn-add-more-premium:hover .star-4 {
+      top: 40%;
+      left: 75%;
+      filter: drop-shadow(0 0 6px #a7f3d0);
+      z-index: 2;
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .btn-add-more-premium:hover .star-5 {
+      top: 15%;
+      left: 105%;
+      filter: drop-shadow(0 0 6px #a7f3d0);
+      z-index: 2;
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .btn-add-more-premium:hover .star-6 {
+      top: -15%;
+      left: 55%;
+      filter: drop-shadow(0 0 6px #a7f3d0);
+      z-index: 2;
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .btn-add-more-premium .fil0 {
+      fill: #a7f3d0;
+    }
+
+    /* Premium Primary Button (Checkout) - Blue Star Explosion Solid Style */
+    .btn-checkout-premium {
+      position: relative;
+      background: var(--primary);
+      font-size: 12px;
+      font-weight: 700;
+      color: #ffffff;
+      border: 2px solid var(--primary);
+      border-radius: 4px;
+      box-shadow: 0 4px 6px -1px rgba(2, 74, 216, 0.15);
+      transition: all 0.3s ease-in-out;
+      cursor: pointer;
+      height: 42px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      white-space: nowrap;
+      flex: 1.8;
+      overflow: visible;
+      z-index: 1;
+    }
+
+    .btn-checkout-premium .star-1 {
+      position: absolute;
+      top: 20%;
+      left: 20%;
+      width: 14px;
+      height: auto;
+      filter: drop-shadow(0 0 0 #bfdbfe);
+      z-index: -5;
+      opacity: 0;
+      transform: scale(0);
+      transition: all 1s cubic-bezier(0.05, 0.83, 0.43, 0.96);
+    }
+
+    .btn-checkout-premium .star-2 {
+      position: absolute;
+      top: 45%;
+      left: 45%;
+      width: 10px;
+      height: auto;
+      filter: drop-shadow(0 0 0 #bfdbfe);
+      z-index: -5;
+      opacity: 0;
+      transform: scale(0);
+      transition: all 1s cubic-bezier(0, 0.4, 0, 1.01);
+    }
+
+    .btn-checkout-premium .star-3 {
+      position: absolute;
+      top: 40%;
+      left: 40%;
+      width: 4px;
+      height: auto;
+      filter: drop-shadow(0 0 0 #bfdbfe);
+      z-index: -5;
+      opacity: 0;
+      transform: scale(0);
+      transition: all 1s cubic-bezier(0, 0.4, 0, 1.01);
+    }
+
+    .btn-checkout-premium .star-4 {
+      position: absolute;
+      top: 20%;
+      left: 40%;
+      width: 6px;
+      height: auto;
+      filter: drop-shadow(0 0 0 #bfdbfe);
+      z-index: -5;
+      opacity: 0;
+      transform: scale(0);
+      transition: all 0.8s cubic-bezier(0, 0.4, 0, 1.01);
+    }
+
+    .btn-checkout-premium .star-5 {
+      position: absolute;
+      top: 25%;
+      left: 45%;
+      width: 10px;
+      height: auto;
+      filter: drop-shadow(0 0 0 #bfdbfe);
+      z-index: -5;
+      opacity: 0;
+      transform: scale(0);
+      transition: all 0.6s cubic-bezier(0, 0.4, 0, 1.01);
+    }
+
+    .btn-checkout-premium .star-6 {
+      position: absolute;
+      top: 5%;
+      left: 50%;
+      width: 4px;
+      height: auto;
+      filter: drop-shadow(0 0 0 #bfdbfe);
+      z-index: -5;
+      opacity: 0;
+      transform: scale(0);
+      transition: all 0.8s ease;
+    }
+
+    .btn-checkout-premium:hover {
+      background: transparent;
+      color: var(--primary);
+      box-shadow: 0 0 15px rgba(2, 74, 216, 0.3);
+    }
+
+    .btn-checkout-premium:hover .star-1 {
+      top: -60%;
+      left: -25%;
+      filter: drop-shadow(0 0 6px #bfdbfe);
+      z-index: 2;
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .btn-checkout-premium:hover .star-2 {
+      top: -20%;
+      left: 15%;
+      filter: drop-shadow(0 0 6px #bfdbfe);
+      z-index: 2;
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .btn-checkout-premium:hover .star-3 {
+      top: 60%;
+      left: 20%;
+      filter: drop-shadow(0 0 6px #bfdbfe);
+      z-index: 2;
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .btn-checkout-premium:hover .star-4 {
+      top: 40%;
+      left: 75%;
+      filter: drop-shadow(0 0 6px #bfdbfe);
+      z-index: 2;
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .btn-checkout-premium:hover .star-5 {
+      top: 15%;
+      left: 105%;
+      filter: drop-shadow(0 0 6px #bfdbfe);
+      z-index: 2;
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .btn-checkout-premium:hover .star-6 {
+      top: -15%;
+      left: 55%;
+      filter: drop-shadow(0 0 6px #bfdbfe);
+      z-index: 2;
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .btn-checkout-premium .fil0 {
+      fill: #bfdbfe;
+    }
+
+    /* Comic Brutalist Button Style (Check Update Button) */
+    .comic-brutal-button-container {
+      --primary-color: #0066cc;
+      --secondary-color: #004ea3;
+      --text-color: #ffffff;
+      --accent-color: #ffef00;
+      --panel-color: #000000;
+      --shadow-color: rgba(0, 0, 0, 0.75);
+      display: inline-flex;
+      align-items: center;
+      margin-right: 16px;
+    }
+
+    .comic-brutal-button {
+      position: relative;
+      font-size: 11px;
+      border: none;
+      background: none;
+      cursor: pointer;
+      padding: 0;
+      transform: rotate(-2deg);
+      transform-origin: center;
+      transition: transform 0.15s cubic-bezier(0.22, 0.61, 0.36, 1);
+      display: block;
+    }
+
+    /* Has update state */
+    .comic-brutal-button.has-update {
+      --primary-color: #ff3d3d;
+      --secondary-color: #cc2424;
+      --accent-color: #ffef00;
+    }
+
+    .comic-brutal-button .button-inner {
+      position: relative;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background-color: var(--primary-color);
+      color: var(--text-color);
+      padding: 7px 14px;
+      z-index: 3;
+      overflow: hidden;
+      transform: skew(-3deg, 1deg);
+      transition: transform 0.15s cubic-bezier(0.22, 0.61, 0.36, 1);
+      clip-path: polygon(
+        0% 10%,
+        3% 0%,
+        97% 0%,
+        100% 10%,
+        100% 90%,
+        97% 100%,
+        3% 100%,
+        0% 90%
+      );
+    }
+
+    .comic-brutal-button .button-text {
+      position: relative;
+      font-weight: 900;
+      font-size: 11.5px;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      z-index: 5;
+      color: var(--text-color);
+      text-shadow:
+        0.05em 0.05em 0 var(--panel-color),
+        -0.05em -0.05em 0 var(--panel-color),
+        0.05em -0.05em 0 var(--panel-color),
+        -0.05em 0.05em 0 var(--panel-color);
+      transform: rotate(2deg);
+      white-space: nowrap;
+    }
+
+    .comic-brutal-button .button-frame {
+      position: absolute;
+      top: -2px;
+      left: -2px;
+      right: -2px;
+      bottom: -2px;
+      background-color: var(--accent-color);
+      border: 2px solid var(--text-color);
+      z-index: 1;
+      transition: transform 0.15s cubic-bezier(0.22, 0.61, 0.36, 1);
+    }
+
+    .comic-brutal-button .button-shadow {
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      right: -3px;
+      bottom: -3px;
+      background-color: var(--shadow-color);
+      z-index: 0;
+      transition: all 0.15s cubic-bezier(0.22, 0.61, 0.36, 1);
+    }
+
+    /* Halftone overlay */
+    .comic-brutal-button .halftone-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-image: radial-gradient(
+        circle at 30% 30%,
+        rgba(0, 0, 0, 0.2) 0.1em,
+        transparent 0.1em
+      );
+      background-size: 0.5em 0.5em;
+      background-position: 0 0;
+      opacity: 0.3;
+      z-index: 2;
+      mix-blend-mode: multiply;
+    }
+
+    /* Ink splatter */
+    .comic-brutal-button .ink-splatter {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+      background: radial-gradient(
+          circle at 20% 30%,
+          rgba(0, 0, 0, 0.15) 0%,
+          rgba(0, 0, 0, 0.08) 20%,
+          transparent 50%
+        ),
+        radial-gradient(
+          circle at 70% 65%,
+          rgba(0, 0, 0, 0.15) 0%,
+          rgba(0, 0, 0, 0.08) 25%,
+          transparent 50%
+        ),
+        radial-gradient(
+          circle at 40% 50%,
+          rgba(0, 0, 0, 0.15) 0%,
+          rgba(0, 0, 0, 0.08) 30%,
+          transparent 60%
+        ),
+        radial-gradient(
+          circle at 85% 15%,
+          rgba(0, 0, 0, 0.15) 0%,
+          rgba(0, 0, 0, 0.08) 15%,
+          transparent 40%
+        );
+    }
+
+    /* Button hover state */
+    .comic-brutal-button:hover {
+      transform: rotate(-1deg) scale(1.05);
+    }
+
+    .comic-brutal-button:hover .button-inner {
+      transform: skew(-5deg, 2deg);
+      background-color: var(--secondary-color);
+    }
+
+    .comic-brutal-button:hover .button-text {
+      color: var(--text-color);
+      text-shadow:
+        0.05em 0.05em 0 var(--panel-color),
+        -0.05em -0.05em 0 var(--panel-color),
+        0.05em -0.05em 0 var(--panel-color),
+        -0.05em 0.05em 0 var(--panel-color);
+    }
+
+    .comic-brutal-button:hover .button-shadow {
+      transform: translate(0.2em, 0.2em);
+    }
+
+    .comic-brutal-button:hover .ink-splatter {
+      opacity: 1;
+    }
+
+    /* Button focus state */
+    .comic-brutal-button:focus {
+      outline: none;
+    }
+
+    .comic-brutal-button:focus .button-frame {
+      border-color: var(--secondary-color);
+    }
+
+    /* Button active state */
+    .comic-brutal-button:active {
+      transform: rotate(0) scale(0.98);
+    }
+
+    .comic-brutal-button:active .button-inner {
+      transform: skew(0, 0);
+    }
+
+    .comic-brutal-button:active .button-shadow {
+      transform: translate(0.1em, 0.1em);
+    }
+
+    /* Comic burst animation */
+    @keyframes burst {
+      0% {
+        transform: scale(0.95);
+      }
+      50% {
+        transform: scale(1.05);
+      }
+      100% {
+        transform: scale(1);
+      }
+    }
+
+    .comic-brutal-button:active .button-text {
+      animation: burst 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    /* Focus dashed border animation */
+    @keyframes dash {
+      to {
+        stroke-dashoffset: -20;
+      }
+    }
+
+    .comic-brutal-button:focus::after {
+      content: "";
+      position: absolute;
+      top: -0.5em;
+      left: -0.5em;
+      right: -0.5em;
+      bottom: -0.5em;
+      border: 0.15em dashed var(--panel-color);
+      z-index: 0;
+      animation: dash 1s linear infinite;
+      pointer-events: none;
+    }
+
+    /* Additional brutalist comic book elements */
+    .comic-brutal-button::before {
+      content: "";
+      position: absolute;
+      top: 0.4em;
+      left: 0.8em;
+      width: 1em;
+      height: 1em;
+      background-color: var(--accent-color);
+      border-radius: 50%;
+      z-index: 2;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+    }
+
+    .comic-brutal-button:hover::before {
+      opacity: 0.7;
+    }
+
+    /* Action lines on click */
+    @keyframes action-lines {
+      0% {
+        opacity: 0;
+        transform: scale(0.7);
+      }
+      50% {
+        opacity: 1;
+      }
+      100% {
+        opacity: 0;
+        transform: scale(1.2);
+      }
+    }
+
+    .comic-brutal-button:active::before {
+      content: "";
+      position: absolute;
+      top: -1em;
+      left: -1em;
+      right: -1em;
+      bottom: -1em;
+      background-image: radial-gradient(var(--panel-color) 0%, transparent 70%),
+        repeating-conic-gradient(
+          transparent 0%,
+          transparent 5%,
+          var(--panel-color) 5%,
+          var(--panel-color) 6%
+        );
+      opacity: 0;
+      z-index: 6;
+      mix-blend-mode: overlay;
+      pointer-events: none;
+      animation: action-lines 0.5s ease-out forwards;
+    }
+
+    /* Premium Centered Primary Button (Create Order) - Blue Star Explosion Style */
+    .btn-create-order-premium {
+      position: relative;
+      background: var(--primary);
+      font-size: 13px;
+      font-weight: 700;
+      color: #ffffff;
+      border: 2px solid var(--primary);
+      border-radius: 4px;
+      box-shadow: 0 4px 6px -1px rgba(2, 74, 216, 0.15);
+      transition: all 0.3s ease-in-out;
+      cursor: pointer;
+      height: 42px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 24px;
+      overflow: visible;
+      z-index: 1;
+    }
+
+    .btn-create-order-premium .star-1 {
+      position: absolute;
+      top: 20%;
+      left: 20%;
+      width: 14px;
+      height: auto;
+      filter: drop-shadow(0 0 0 #bfdbfe);
+      z-index: -5;
+      opacity: 0;
+      transform: scale(0);
+      transition: all 1s cubic-bezier(0.05, 0.83, 0.43, 0.96);
+    }
+
+    .btn-create-order-premium .star-2 {
+      position: absolute;
+      top: 45%;
+      left: 45%;
+      width: 10px;
+      height: auto;
+      filter: drop-shadow(0 0 0 #bfdbfe);
+      z-index: -5;
+      opacity: 0;
+      transform: scale(0);
+      transition: all 1s cubic-bezier(0, 0.4, 0, 1.01);
+    }
+
+    .btn-create-order-premium .star-3 {
+      position: absolute;
+      top: 40%;
+      left: 40%;
+      width: 4px;
+      height: auto;
+      filter: drop-shadow(0 0 0 #bfdbfe);
+      z-index: -5;
+      opacity: 0;
+      transform: scale(0);
+      transition: all 1s cubic-bezier(0, 0.4, 0, 1.01);
+    }
+
+    .btn-create-order-premium .star-4 {
+      position: absolute;
+      top: 20%;
+      left: 40%;
+      width: 6px;
+      height: auto;
+      filter: drop-shadow(0 0 0 #bfdbfe);
+      z-index: -5;
+      opacity: 0;
+      transform: scale(0);
+      transition: all 0.8s cubic-bezier(0, 0.4, 0, 1.01);
+    }
+
+    .btn-create-order-premium .star-5 {
+      position: absolute;
+      top: 25%;
+      left: 45%;
+      width: 10px;
+      height: auto;
+      filter: drop-shadow(0 0 0 #bfdbfe);
+      z-index: -5;
+      opacity: 0;
+      transform: scale(0);
+      transition: all 0.6s cubic-bezier(0, 0.4, 0, 1.01);
+    }
+
+    .btn-create-order-premium .star-6 {
+      position: absolute;
+      top: 5%;
+      left: 50%;
+      width: 4px;
+      height: auto;
+      filter: drop-shadow(0 0 0 #bfdbfe);
+      z-index: -5;
+      opacity: 0;
+      transform: scale(0);
+      transition: all 0.8s ease;
+    }
+
+    .btn-create-order-premium:hover {
+      background: transparent;
+      color: var(--primary);
+      box-shadow: 0 0 15px rgba(2, 74, 216, 0.3);
+    }
+
+    .btn-create-order-premium:hover .star-1 {
+      top: -60%;
+      left: -25%;
+      filter: drop-shadow(0 0 6px #bfdbfe);
+      z-index: 2;
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .btn-create-order-premium:hover .star-2 {
+      top: -20%;
+      left: 15%;
+      filter: drop-shadow(0 0 6px #bfdbfe);
+      z-index: 2;
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .btn-create-order-premium:hover .star-3 {
+      top: 60%;
+      left: 20%;
+      filter: drop-shadow(0 0 6px #bfdbfe);
+      z-index: 2;
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .btn-create-order-premium:hover .star-4 {
+      top: 40%;
+      left: 75%;
+      filter: drop-shadow(0 0 6px #bfdbfe);
+      z-index: 2;
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .btn-create-order-premium:hover .star-5 {
+      top: 15%;
+      left: 105%;
+      filter: drop-shadow(0 0 6px #bfdbfe);
+      z-index: 2;
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .btn-create-order-premium:hover .star-6 {
+      top: -15%;
+      left: 55%;
+      filter: drop-shadow(0 0 6px #bfdbfe);
+      z-index: 2;
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .btn-create-order-premium .fil0 {
+      fill: #bfdbfe;
+    }
+
+    /* 1. Management Secondary Button (Tải file mẫu, Nhập từ Excel) */
+    .btn-mgmt-secondary-premium {
+      position: relative;
+      background: #ffffff;
+      font-size: 11px;
+      font-weight: 700;
+      color: #334155;
+      border: 2.2px solid #334155;
+      border-radius: 4px;
+      box-shadow: 0 4px 6px -1px rgba(51, 65, 85, 0.05);
+      transition: all 0.3s ease-in-out;
+      cursor: pointer;
+      height: 40px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 16px;
+      overflow: visible;
+      z-index: 1;
+      text-transform: uppercase;
+    }
+
+    .btn-mgmt-secondary-premium .star-1 {
+      position: absolute;
+      top: 20%;
+      left: 20%;
+      width: 14px;
+      height: auto;
+      filter: drop-shadow(0 0 0 #e2e8f0);
+      z-index: -5;
+      opacity: 0;
+      transform: scale(0);
+      transition: all 1s cubic-bezier(0.05, 0.83, 0.43, 0.96);
+    }
+
+    .btn-mgmt-secondary-premium .star-2 {
+      position: absolute;
+      top: 45%;
+      left: 45%;
+      width: 10px;
+      height: auto;
+      filter: drop-shadow(0 0 0 #e2e8f0);
+      z-index: -5;
+      opacity: 0;
+      transform: scale(0);
+      transition: all 1s cubic-bezier(0, 0.4, 0, 1.01);
+    }
+
+    .btn-mgmt-secondary-premium .star-3 {
+      position: absolute;
+      top: 40%;
+      left: 40%;
+      width: 4px;
+      height: auto;
+      filter: drop-shadow(0 0 0 #e2e8f0);
+      z-index: -5;
+      opacity: 0;
+      transform: scale(0);
+      transition: all 1s cubic-bezier(0, 0.4, 0, 1.01);
+    }
+
+    .btn-mgmt-secondary-premium .star-4 {
+      position: absolute;
+      top: 20%;
+      left: 40%;
+      width: 6px;
+      height: auto;
+      filter: drop-shadow(0 0 0 #e2e8f0);
+      z-index: -5;
+      opacity: 0;
+      transform: scale(0);
+      transition: all 0.8s cubic-bezier(0, 0.4, 0, 1.01);
+    }
+
+    .btn-mgmt-secondary-premium .star-5 {
+      position: absolute;
+      top: 25%;
+      left: 45%;
+      width: 10px;
+      height: auto;
+      filter: drop-shadow(0 0 0 #e2e8f0);
+      z-index: -5;
+      opacity: 0;
+      transform: scale(0);
+      transition: all 0.6s cubic-bezier(0, 0.4, 0, 1.01);
+    }
+
+    .btn-mgmt-secondary-premium .star-6 {
+      position: absolute;
+      top: 5%;
+      left: 50%;
+      width: 4px;
+      height: auto;
+      filter: drop-shadow(0 0 0 #e2e8f0);
+      z-index: -5;
+      opacity: 0;
+      transform: scale(0);
+      transition: all 0.8s ease;
+    }
+
+    .btn-mgmt-secondary-premium:hover {
+      background: #334155;
+      color: #ffffff;
+      box-shadow: 0 0 15px rgba(51, 65, 85, 0.3);
+    }
+
+    .btn-mgmt-secondary-premium:hover .star-1 {
+      top: -60%;
+      left: -25%;
+      filter: drop-shadow(0 0 6px #e2e8f0);
+      z-index: 2;
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .btn-mgmt-secondary-premium:hover .star-2 {
+      top: -20%;
+      left: 15%;
+      filter: drop-shadow(0 0 6px #e2e8f0);
+      z-index: 2;
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .btn-mgmt-secondary-premium:hover .star-3 {
+      top: 60%;
+      left: 20%;
+      filter: drop-shadow(0 0 6px #e2e8f0);
+      z-index: 2;
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .btn-mgmt-secondary-premium:hover .star-4 {
+      top: 40%;
+      left: 75%;
+      filter: drop-shadow(0 0 6px #e2e8f0);
+      z-index: 2;
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .btn-mgmt-secondary-premium:hover .star-5 {
+      top: 15%;
+      left: 105%;
+      filter: drop-shadow(0 0 6px #e2e8f0);
+      z-index: 2;
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .btn-mgmt-secondary-premium:hover .star-6 {
+      top: -15%;
+      left: 55%;
+      filter: drop-shadow(0 0 6px #e2e8f0);
+      z-index: 2;
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .btn-mgmt-secondary-premium .fil0 {
+      fill: #e2e8f0;
+    }
+
+    /* 1.5. Excel Import Button - Green Star Explosion Style */
+    .btn-mgmt-excel-import-premium {
+      position: relative;
+      background: #3aa856;
+      font-size: 11px;
+      font-weight: 700;
+      color: #ffffff;
+      border: 2.2px solid #34974d;
+      border-radius: 4px;
+      box-shadow: 0 4px 6px -1px rgba(52, 151, 77, 0.15);
+      transition: all 0.3s ease-in-out;
+      cursor: pointer;
+      height: 40px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 16px;
+      overflow: visible;
+      z-index: 1;
+      text-transform: uppercase;
+    }
+
+    .btn-mgmt-excel-import-premium .star-1 {
+      position: absolute;
+      top: 20%;
+      left: 20%;
+      width: 14px;
+      height: auto;
+      filter: drop-shadow(0 0 0 #a7f3d0);
+      z-index: -5;
+      opacity: 0;
+      transform: scale(0);
+      transition: all 1s cubic-bezier(0.05, 0.83, 0.43, 0.96);
+    }
+
+    .btn-mgmt-excel-import-premium .star-2 {
+      position: absolute;
+      top: 45%;
+      left: 45%;
+      width: 10px;
+      height: auto;
+      filter: drop-shadow(0 0 0 #a7f3d0);
+      z-index: -5;
+      opacity: 0;
+      transform: scale(0);
+      transition: all 1s cubic-bezier(0, 0.4, 0, 1.01);
+    }
+
+    .btn-mgmt-excel-import-premium .star-3 {
+      position: absolute;
+      top: 40%;
+      left: 40%;
+      width: 4px;
+      height: auto;
+      filter: drop-shadow(0 0 0 #a7f3d0);
+      z-index: -5;
+      opacity: 0;
+      transform: scale(0);
+      transition: all 1s cubic-bezier(0, 0.4, 0, 1.01);
+    }
+
+    .btn-mgmt-excel-import-premium .star-4 {
+      position: absolute;
+      top: 20%;
+      left: 40%;
+      width: 6px;
+      height: auto;
+      filter: drop-shadow(0 0 0 #a7f3d0);
+      z-index: -5;
+      opacity: 0;
+      transform: scale(0);
+      transition: all 0.8s cubic-bezier(0, 0.4, 0, 1.01);
+    }
+
+    .btn-mgmt-excel-import-premium .star-5 {
+      position: absolute;
+      top: 25%;
+      left: 45%;
+      width: 10px;
+      height: auto;
+      filter: drop-shadow(0 0 0 #a7f3d0);
+      z-index: -5;
+      opacity: 0;
+      transform: scale(0);
+      transition: all 0.6s cubic-bezier(0, 0.4, 0, 1.01);
+    }
+
+    .btn-mgmt-excel-import-premium .star-6 {
+      position: absolute;
+      top: 5%;
+      left: 50%;
+      width: 4px;
+      height: auto;
+      filter: drop-shadow(0 0 0 #a7f3d0);
+      z-index: -5;
+      opacity: 0;
+      transform: scale(0);
+      transition: all 0.8s ease;
+    }
+
+    .btn-mgmt-excel-import-premium:hover {
+      background: transparent;
+      color: #3aa856;
+      border-color: #34974d;
+      box-shadow: 0 0 15px rgba(52, 151, 77, 0.3);
+    }
+
+    .btn-mgmt-excel-import-premium:hover .star-1 {
+      top: -60%;
+      left: -25%;
+      filter: drop-shadow(0 0 6px #a7f3d0);
+      z-index: 2;
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .btn-mgmt-excel-import-premium:hover .star-2 {
+      top: -20%;
+      left: 15%;
+      filter: drop-shadow(0 0 6px #a7f3d0);
+      z-index: 2;
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .btn-mgmt-excel-import-premium:hover .star-3 {
+      top: 60%;
+      left: 20%;
+      filter: drop-shadow(0 0 6px #a7f3d0);
+      z-index: 2;
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .btn-mgmt-excel-import-premium:hover .star-4 {
+      top: 40%;
+      left: 75%;
+      filter: drop-shadow(0 0 6px #a7f3d0);
+      z-index: 2;
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .btn-mgmt-excel-import-premium:hover .star-5 {
+      top: 15%;
+      left: 105%;
+      filter: drop-shadow(0 0 6px #a7f3d0);
+      z-index: 2;
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .btn-mgmt-excel-import-premium:hover .star-6 {
+      top: -15%;
+      left: 55%;
+      filter: drop-shadow(0 0 6px #a7f3d0);
+      z-index: 2;
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .btn-mgmt-excel-import-premium .fil0 {
+      fill: #a7f3d0;
+    }
+
+
+    /* 2. Management Primary Button (Tạo món ăn mới) */
+    .btn-mgmt-primary-premium {
+      position: relative;
+      background: var(--primary);
+      font-size: 11px;
+      font-weight: 700;
+      color: #ffffff;
+      border: 2.2px solid var(--primary);
+      border-radius: 4px;
+      box-shadow: 0 4px 6px -1px rgba(2, 74, 216, 0.15);
+      transition: all 0.3s ease-in-out;
+      cursor: pointer;
+      height: 40px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 16px;
+      overflow: visible;
+      z-index: 1;
+      text-transform: uppercase;
+    }
+
+    .btn-mgmt-primary-premium .star-1 {
+      position: absolute;
+      top: 20%;
+      left: 20%;
+      width: 14px;
+      height: auto;
+      filter: drop-shadow(0 0 0 #bfdbfe);
+      z-index: -5;
+      opacity: 0;
+      transform: scale(0);
+      transition: all 1s cubic-bezier(0.05, 0.83, 0.43, 0.96);
+    }
+
+    .btn-mgmt-primary-premium .star-2 {
+      position: absolute;
+      top: 45%;
+      left: 45%;
+      width: 10px;
+      height: auto;
+      filter: drop-shadow(0 0 0 #bfdbfe);
+      z-index: -5;
+      opacity: 0;
+      transform: scale(0);
+      transition: all 1s cubic-bezier(0, 0.4, 0, 1.01);
+    }
+
+    .btn-mgmt-primary-premium .star-3 {
+      position: absolute;
+      top: 40%;
+      left: 40%;
+      width: 4px;
+      height: auto;
+      filter: drop-shadow(0 0 0 #bfdbfe);
+      z-index: -5;
+      opacity: 0;
+      transform: scale(0);
+      transition: all 1s cubic-bezier(0, 0.4, 0, 1.01);
+    }
+
+    .btn-mgmt-primary-premium .star-4 {
+      position: absolute;
+      top: 20%;
+      left: 40%;
+      width: 6px;
+      height: auto;
+      filter: drop-shadow(0 0 0 #bfdbfe);
+      z-index: -5;
+      opacity: 0;
+      transform: scale(0);
+      transition: all 0.8s cubic-bezier(0, 0.4, 0, 1.01);
+    }
+
+    .btn-mgmt-primary-premium .star-5 {
+      position: absolute;
+      top: 25%;
+      left: 45%;
+      width: 10px;
+      height: auto;
+      filter: drop-shadow(0 0 0 #bfdbfe);
+      z-index: -5;
+      opacity: 0;
+      transform: scale(0);
+      transition: all 0.6s cubic-bezier(0, 0.4, 0, 1.01);
+    }
+
+    .btn-mgmt-primary-premium .star-6 {
+      position: absolute;
+      top: 5%;
+      left: 50%;
+      width: 4px;
+      height: auto;
+      filter: drop-shadow(0 0 0 #bfdbfe);
+      z-index: -5;
+      opacity: 0;
+      transform: scale(0);
+      transition: all 0.8s ease;
+    }
+
+    .btn-mgmt-primary-premium:hover {
+      background: transparent;
+      color: var(--primary);
+      box-shadow: 0 0 15px rgba(2, 74, 216, 0.3);
+    }
+
+    .btn-mgmt-primary-premium:hover .star-1 {
+      top: -60%;
+      left: -25%;
+      filter: drop-shadow(0 0 6px #bfdbfe);
+      z-index: 2;
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .btn-mgmt-primary-premium:hover .star-2 {
+      top: -20%;
+      left: 15%;
+      filter: drop-shadow(0 0 6px #bfdbfe);
+      z-index: 2;
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .btn-mgmt-primary-premium:hover .star-3 {
+      top: 60%;
+      left: 20%;
+      filter: drop-shadow(0 0 6px #bfdbfe);
+      z-index: 2;
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .btn-mgmt-primary-premium:hover .star-4 {
+      top: 40%;
+      left: 75%;
+      filter: drop-shadow(0 0 6px #bfdbfe);
+      z-index: 2;
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .btn-mgmt-primary-premium:hover .star-5 {
+      top: 15%;
+      left: 105%;
+      filter: drop-shadow(0 0 6px #bfdbfe);
+      z-index: 2;
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .btn-mgmt-primary-premium:hover .star-6 {
+      top: -15%;
+      left: 55%;
+      filter: drop-shadow(0 0 6px #bfdbfe);
+      z-index: 2;
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .btn-mgmt-primary-premium .fil0 {
+      fill: #bfdbfe;
+    }
+
+    /* 3. Management Danger Button (Xóa tất cả) */
+    .btn-mgmt-danger-premium {
+      position: relative;
+      background: var(--primary-error-text);
+      font-size: 11px;
+      font-weight: 700;
+      color: #ffffff;
+      border: 2.2px solid var(--primary-error-text);
+      border-radius: 4px;
+      box-shadow: 0 4px 6px -1px rgba(179, 38, 43, 0.15);
+      transition: all 0.3s ease-in-out;
+      cursor: pointer;
+      height: 40px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 16px;
+      overflow: visible;
+      z-index: 1;
+      text-transform: uppercase;
+    }
+
+    .btn-mgmt-danger-premium .star-1 {
+      position: absolute;
+      top: 20%;
+      left: 20%;
+      width: 14px;
+      height: auto;
+      filter: drop-shadow(0 0 0 #ffccd0);
+      z-index: -5;
+      opacity: 0;
+      transform: scale(0);
+      transition: all 1s cubic-bezier(0.05, 0.83, 0.43, 0.96);
+    }
+
+    .btn-mgmt-danger-premium .star-2 {
+      position: absolute;
+      top: 45%;
+      left: 45%;
+      width: 10px;
+      height: auto;
+      filter: drop-shadow(0 0 0 #ffccd0);
+      z-index: -5;
+      opacity: 0;
+      transform: scale(0);
+      transition: all 1s cubic-bezier(0, 0.4, 0, 1.01);
+    }
+
+    .btn-mgmt-danger-premium .star-3 {
+      position: absolute;
+      top: 40%;
+      left: 40%;
+      width: 4px;
+      height: auto;
+      filter: drop-shadow(0 0 0 #ffccd0);
+      z-index: -5;
+      opacity: 0;
+      transform: scale(0);
+      transition: all 1s cubic-bezier(0, 0.4, 0, 1.01);
+    }
+
+    .btn-mgmt-danger-premium .star-4 {
+      position: absolute;
+      top: 20%;
+      left: 40%;
+      width: 6px;
+      height: auto;
+      filter: drop-shadow(0 0 0 #ffccd0);
+      z-index: -5;
+      opacity: 0;
+      transform: scale(0);
+      transition: all 0.8s cubic-bezier(0, 0.4, 0, 1.01);
+    }
+
+    .btn-mgmt-danger-premium .star-5 {
+      position: absolute;
+      top: 25%;
+      left: 45%;
+      width: 10px;
+      height: auto;
+      filter: drop-shadow(0 0 0 #ffccd0);
+      z-index: -5;
+      opacity: 0;
+      transform: scale(0);
+      transition: all 0.6s cubic-bezier(0, 0.4, 0, 1.01);
+    }
+
+    .btn-mgmt-danger-premium .star-6 {
+      position: absolute;
+      top: 5%;
+      left: 50%;
+      width: 4px;
+      height: auto;
+      filter: drop-shadow(0 0 0 #ffccd0);
+      z-index: -5;
+      opacity: 0;
+      transform: scale(0);
+      transition: all 0.8s ease;
+    }
+
+    .btn-mgmt-danger-premium:hover {
+      background: transparent;
+      color: var(--primary-error-text);
+      box-shadow: 0 0 15px rgba(179, 38, 43, 0.3);
+    }
+
+    .btn-mgmt-danger-premium:hover .star-1 {
+      top: -60%;
+      left: -25%;
+      filter: drop-shadow(0 0 6px #ffccd0);
+      z-index: 2;
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .btn-mgmt-danger-premium:hover .star-2 {
+      top: -20%;
+      left: 15%;
+      filter: drop-shadow(0 0 6px #ffccd0);
+      z-index: 2;
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .btn-mgmt-danger-premium:hover .star-3 {
+      top: 60%;
+      left: 20%;
+      filter: drop-shadow(0 0 6px #ffccd0);
+      z-index: 2;
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .btn-mgmt-danger-premium:hover .star-4 {
+      top: 40%;
+      left: 75%;
+      filter: drop-shadow(0 0 6px #ffccd0);
+      z-index: 2;
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .btn-mgmt-danger-premium:hover .star-5 {
+      top: 15%;
+      left: 105%;
+      filter: drop-shadow(0 0 6px #ffccd0);
+      z-index: 2;
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .btn-mgmt-danger-premium:hover .star-6 {
+      top: -15%;
+      left: 55%;
+      filter: drop-shadow(0 0 6px #ffccd0);
+      z-index: 2;
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .btn-mgmt-danger-premium .fil0 {
+      fill: #ffccd0;
+    }
+
+    /* Modal 4 (Create/Edit Menu Group) Redesign Styles */
+    #menu-group-modal .modal-content {
+      max-width: 820px !important;
+      width: 90% !important;
+      border-radius: 12px !important;
+      overflow: hidden !important;
+      border: 1px solid var(--border-strong) !important;
+      box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25) !important;
+      transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+    }
+    
+    #menu-group-modal .modal-body {
+      display: grid !important;
+      grid-template-columns: 1.2fr 1.5fr !important;
+      gap: 28px !important;
+      padding: 28px !important;
+      max-height: 540px !important;
+      box-sizing: border-box !important;
+      overflow: hidden !important;
+    }
+
+    /* Left Column container */
+    #menu-group-modal .left-col {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      justify-content: flex-start;
+    }
+
+    #menu-group-modal .right-col {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      justify-content: flex-start;
+      overflow: hidden;
+    }
+
+    /* Hide the select trigger or turn it into a preview label */
+    #menu-group-modal #btn-close-menu-group-modal {
+      font-size: 24px;
+      line-height: 1;
+      cursor: pointer;
+      color: var(--muted);
+      transition: color 0.2s;
+    }
+    #menu-group-modal #btn-close-menu-group-modal:hover {
+      color: var(--ink);
+    }
+    
+    #menu-group-modal #menu-group-select-trigger {
+      min-height: 120px !important;
+      height: 180px !important;
+      max-height: 220px !important;
+      padding: 14px !important;
+      border: 1.5px dashed var(--border-strong) !important;
+      background: var(--surface-soft) !important;
+      border-radius: 8px !important;
+      flex-direction: column !important;
+      align-items: flex-start !important;
+      justify-content: flex-start !important;
+      gap: 6px !important;
+      cursor: default !important;
+      overflow-y: auto !important;
+      box-sizing: border-box !important;
+    }
+
+    #menu-group-modal #menu-group-select-trigger .custom-select-chevron {
+      display: none !important;
+    }
+
+    #menu-group-modal #menu-group-select-value {
+      font-size: 13px !important;
+      color: var(--ink) !important;
+      font-weight: 500 !important;
+      white-space: pre-line !important;
+      overflow-y: auto !important;
+      max-width: 100% !important;
+      display: block !important;
+      line-height: 1.6 !important;
+      text-align: left !important;
+    }
+
+    /* Style the select menu as the static right-hand column */
+    #menu-group-modal #menu-group-select-wrapper {
+      position: static !important;
+      display: flex !important;
+      flex-direction: column !important;
+      height: 100% !important;
+      width: 100% !important;
+    }
+
+    #menu-group-modal #menu-group-select-menu {
+      position: static !important;
+      display: flex !important;
+      flex-direction: column !important;
+      background: #ffffff !important;
+      border: none !important;
+      box-shadow: none !important;
+      padding: 0 !important;
+      gap: 12px !important;
+      width: 100% !important;
+      height: 100% !important;
+      z-index: 1 !important;
+    }
+
+    /* Style the search bar inside the select menu */
+    #menu-group-modal #menu-group-search-input {
+      padding: 10px 14px !important;
+      border: 1.5px solid var(--border-strong) !important;
+      border-radius: 6px !important;
+      font-size: 13.5px !important;
+      transition: border-color 0.2s, box-shadow 0.2s !important;
+      background-color: var(--canvas) !important;
+      width: 100% !important;
+      box-sizing: border-box !important;
+    }
+
+    #menu-group-modal #menu-group-search-input:focus {
+      border-color: var(--primary) !important;
+      box-shadow: 0 0 0 3px rgba(2, 74, 216, 0.1) !important;
+    }
+
+    /* Scrollable list of checkboxes */
+    #menu-group-modal #menu-group-items-checklist {
+      display: grid !important;
+      grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)) !important;
+      gap: 8px !important;
+      max-height: 320px !important;
+      overflow-y: auto !important;
+      padding: 2px !important;
+      box-sizing: border-box !important;
+    }
+
+    /* Custom labels styling for each checkbox list item */
+    #menu-group-modal #menu-group-items-checklist label {
+      display: flex !important;
+      align-items: center !important;
+      gap: 10px !important;
+      padding: 8px 12px !important;
+      border: 1.5px solid var(--border-strong) !important;
+      border-radius: 6px !important;
+      background: #ffffff !important;
+      cursor: pointer !important;
+      transition: all 0.2s ease !important;
+      user-select: none !important;
+      box-sizing: border-box !important;
+      margin: 0 !important;
+      height: 44px !important;
+    }
+
+    #menu-group-modal #menu-group-items-checklist label:hover {
+      border-color: var(--primary) !important;
+      background: rgba(2, 74, 216, 0.02) !important;
+      transform: translateY(-1px) !important;
+    }
+
+    #menu-group-modal #menu-group-items-checklist label input[type="checkbox"] {
+      width: 16px !important;
+      height: 16px !important;
+      border-radius: 4px !important;
+      accent-color: var(--primary) !important;
+      cursor: pointer !important;
+      margin: 0 !important;
+    }
+
+    #menu-group-modal #menu-group-items-checklist label span {
+      font-size: 13px !important;
+      font-weight: 600 !important;
+      color: var(--ink) !important;
+      white-space: nowrap !important;
+      overflow: hidden !important;
+      text-overflow: ellipsis !important;
+    }
+
+    /* Custom label for active checked elements */
+    #menu-group-modal #menu-group-items-checklist label:has(input[type="checkbox"]:checked) {
+      background: rgba(2, 74, 216, 0.06) !important;
+      border-color: var(--primary) !important;
+    }
+
+    /* Animations */
+    @keyframes fadeInBackdrop {
+      from {
+        background-color: rgba(0, 0, 0, 0);
+        backdrop-filter: blur(0px);
+      }
+      to {
+        background-color: rgba(0, 0, 0, 0.45);
+        backdrop-filter: blur(4px);
+      }
+    }
+    
+    #menu-group-modal.modal-backdrop {
+      animation: fadeInBackdrop 0.25s ease-out forwards;
+      backdrop-filter: blur(4px) !important;
+    }
+
+    /* Premium Checkout Buttons (Modal Footer) */
+    
+    /* 1. Print Checkout Button (In hóa đơn) - Outline Blue, Solid on Hover */
+    .btn-checkout-print-premium {
+      position: relative;
+      background: transparent;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--primary);
+      border: 2px solid var(--primary);
+      border-radius: 4px;
+      box-shadow: 0 4px 6px -1px rgba(2, 74, 216, 0.05);
+      transition: all 0.3s ease-in-out;
+      cursor: pointer;
+      height: 40px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 20px;
+      overflow: visible;
+      z-index: 1;
+    }
+
+    .btn-checkout-print-premium .star-1 {
+      position: absolute;
+      top: 20%;
+      left: 20%;
+      width: 14px;
+      height: auto;
+      filter: drop-shadow(0 0 0 #bfdbfe);
+      z-index: -5;
+      opacity: 0;
+      transform: scale(0);
+      transition: all 1s cubic-bezier(0.05, 0.83, 0.43, 0.96);
+    }
+
+    .btn-checkout-print-premium .star-2 {
+      position: absolute;
+      top: 45%;
+      left: 45%;
+      width: 10px;
+      height: auto;
+      filter: drop-shadow(0 0 0 #bfdbfe);
+      z-index: -5;
+      opacity: 0;
+      transform: scale(0);
+      transition: all 1s cubic-bezier(0, 0.4, 0, 1.01);
+    }
+
+    .btn-checkout-print-premium .star-3 {
+      position: absolute;
+      top: 40%;
+      left: 40%;
+      width: 4px;
+      height: auto;
+      filter: drop-shadow(0 0 0 #bfdbfe);
+      z-index: -5;
+      opacity: 0;
+      transform: scale(0);
+      transition: all 1s cubic-bezier(0, 0.4, 0, 1.01);
+    }
+
+    .btn-checkout-print-premium .star-4 {
+      position: absolute;
+      top: 20%;
+      left: 40%;
+      width: 6px;
+      height: auto;
+      filter: drop-shadow(0 0 0 #bfdbfe);
+      z-index: -5;
+      opacity: 0;
+      transform: scale(0);
+      transition: all 0.8s cubic-bezier(0, 0.4, 0, 1.01);
+    }
+
+    .btn-checkout-print-premium .star-5 {
+      position: absolute;
+      top: 25%;
+      left: 45%;
+      width: 10px;
+      height: auto;
+      filter: drop-shadow(0 0 0 #bfdbfe);
+      z-index: -5;
+      opacity: 0;
+      transform: scale(0);
+      transition: all 0.6s cubic-bezier(0, 0.4, 0, 1.01);
+    }
+
+    .btn-checkout-print-premium .star-6 {
+      position: absolute;
+      top: 5%;
+      left: 50%;
+      width: 4px;
+      height: auto;
+      filter: drop-shadow(0 0 0 #bfdbfe);
+      z-index: -5;
+      opacity: 0;
+      transform: scale(0);
+      transition: all 0.8s ease;
+    }
+
+    .btn-checkout-print-premium:hover {
+      background: var(--primary);
+      color: #ffffff;
+      box-shadow: 0 0 15px rgba(2, 74, 216, 0.3);
+    }
+
+    .btn-checkout-print-premium:hover .star-1 {
+      top: -60%;
+      left: -25%;
+      filter: drop-shadow(0 0 6px #bfdbfe);
+      z-index: 2;
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .btn-checkout-print-premium:hover .star-2 {
+      top: -20%;
+      left: 15%;
+      filter: drop-shadow(0 0 6px #bfdbfe);
+      z-index: 2;
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .btn-checkout-print-premium:hover .star-3 {
+      top: 60%;
+      left: 20%;
+      filter: drop-shadow(0 0 6px #bfdbfe);
+      z-index: 2;
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .btn-checkout-print-premium:hover .star-4 {
+      top: 40%;
+      left: 75%;
+      filter: drop-shadow(0 0 6px #bfdbfe);
+      z-index: 2;
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .btn-checkout-print-premium:hover .star-5 {
+      top: 15%;
+      left: 105%;
+      filter: drop-shadow(0 0 6px #bfdbfe);
+      z-index: 2;
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .btn-checkout-print-premium:hover .star-6 {
+      top: -15%;
+      left: 55%;
+      filter: drop-shadow(0 0 6px #bfdbfe);
+      z-index: 2;
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .btn-checkout-print-premium .fil0 {
+      fill: #bfdbfe;
+    }
+
+    /* 2. Confirm Payment Button (Xác nhận thanh toán) - Solid Blue, Outline on Hover */
+    .btn-checkout-confirm-premium {
+      position: relative;
+      background: var(--primary);
+      font-size: 13px;
+      font-weight: 700;
+      color: #ffffff;
+      border: 2px solid var(--primary);
+      border-radius: 4px;
+      box-shadow: 0 4px 6px -1px rgba(2, 74, 216, 0.15);
+      transition: all 0.3s ease-in-out;
+      cursor: pointer;
+      height: 40px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 24px;
+      overflow: visible;
+      z-index: 1;
+    }
+
+    .btn-checkout-confirm-premium .star-1 {
+      position: absolute;
+      top: 20%;
+      left: 20%;
+      width: 14px;
+      height: auto;
+      filter: drop-shadow(0 0 0 #bfdbfe);
+      z-index: -5;
+      opacity: 0;
+      transform: scale(0);
+      transition: all 1s cubic-bezier(0.05, 0.83, 0.43, 0.96);
+    }
+
+    .btn-checkout-confirm-premium .star-2 {
+      position: absolute;
+      top: 45%;
+      left: 45%;
+      width: 10px;
+      height: auto;
+      filter: drop-shadow(0 0 0 #bfdbfe);
+      z-index: -5;
+      opacity: 0;
+      transform: scale(0);
+      transition: all 1s cubic-bezier(0, 0.4, 0, 1.01);
+    }
+
+    .btn-checkout-confirm-premium .star-3 {
+      position: absolute;
+      top: 40%;
+      left: 40%;
+      width: 4px;
+      height: auto;
+      filter: drop-shadow(0 0 0 #bfdbfe);
+      z-index: -5;
+      opacity: 0;
+      transform: scale(0);
+      transition: all 1s cubic-bezier(0, 0.4, 0, 1.01);
+    }
+
+    .btn-checkout-confirm-premium .star-4 {
+      position: absolute;
+      top: 20%;
+      left: 40%;
+      width: 6px;
+      height: auto;
+      filter: drop-shadow(0 0 0 #bfdbfe);
+      z-index: -5;
+      opacity: 0;
+      transform: scale(0);
+      transition: all 0.8s cubic-bezier(0, 0.4, 0, 1.01);
+    }
+
+    .btn-checkout-confirm-premium .star-5 {
+      position: absolute;
+      top: 25%;
+      left: 45%;
+      width: 10px;
+      height: auto;
+      filter: drop-shadow(0 0 0 #bfdbfe);
+      z-index: -5;
+      opacity: 0;
+      transform: scale(0);
+      transition: all 0.6s cubic-bezier(0, 0.4, 0, 1.01);
+    }
+
+    .btn-checkout-confirm-premium .star-6 {
+      position: absolute;
+      top: 5%;
+      left: 50%;
+      width: 4px;
+      height: auto;
+      filter: drop-shadow(0 0 0 #bfdbfe);
+      z-index: -5;
+      opacity: 0;
+      transform: scale(0);
+      transition: all 0.8s ease;
+    }
+
+    .btn-checkout-confirm-premium:hover:not(:disabled) {
+      background: transparent;
+      color: var(--primary);
+      box-shadow: 0 0 15px rgba(2, 74, 216, 0.3);
+    }
+
+    .btn-checkout-confirm-premium:hover:not(:disabled) .star-1 {
+      top: -60%;
+      left: -25%;
+      filter: drop-shadow(0 0 6px #bfdbfe);
+      z-index: 2;
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .btn-checkout-confirm-premium:hover:not(:disabled) .star-2 {
+      top: -20%;
+      left: 15%;
+      filter: drop-shadow(0 0 6px #bfdbfe);
+      z-index: 2;
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .btn-checkout-confirm-premium:hover:not(:disabled) .star-3 {
+      top: 60%;
+      left: 20%;
+      filter: drop-shadow(0 0 6px #bfdbfe);
+      z-index: 2;
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .btn-checkout-confirm-premium:hover:not(:disabled) .star-4 {
+      top: 40%;
+      left: 75%;
+      filter: drop-shadow(0 0 6px #bfdbfe);
+      z-index: 2;
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .btn-checkout-confirm-premium:hover:not(:disabled) .star-5 {
+      top: 15%;
+      left: 105%;
+      filter: drop-shadow(0 0 6px #bfdbfe);
+      z-index: 2;
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .btn-checkout-confirm-premium:hover:not(:disabled) .star-6 {
+      top: -15%;
+      left: 55%;
+      filter: drop-shadow(0 0 6px #bfdbfe);
+      z-index: 2;
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .btn-checkout-confirm-premium .fil0 {
+      fill: #bfdbfe;
+    }
+
+    /* Disabled state for payment confirm button */
+    .btn-checkout-confirm-premium:disabled {
+      background: #f1f5f9 !important;
+      border-color: #e2e8f0 !important;
+      color: #94a3b8 !important;
+      cursor: not-allowed !important;
+      box-shadow: none !important;
+      transform: none !important;
+      pointer-events: none !important;
+    }
   </style>
 </head>
 <body>
@@ -1589,9 +3809,17 @@
         </div>
         <div class="topbar-actions">
           <!-- Update Button -->
-          <button id="btn-check-update" class="btn" style="margin-right: 16px; display: flex; align-items: center; gap: 8px; padding: 0 16px; height: 38px; font-size: 13px; font-weight: 600; border-radius: 8px; border: 1.5px solid var(--hairline-strong); background-color: var(--canvas); color: var(--ink); cursor: pointer; transition: all 0.2s;">
-            <span>🔄 Cập nhật</span>
-          </button>
+          <div class="comic-brutal-button-container">
+            <button id="btn-check-update" class="comic-brutal-button">
+              <div class="button-inner">
+                <span class="button-text">Update</span>
+                <div class="halftone-overlay"></div>
+                <div class="ink-splatter"></div>
+              </div>
+              <div class="button-shadow"></div>
+              <div class="button-frame"></div>
+            </button>
+          </div>
           <!-- Profile -->
           <div class="topbar-profile">
             <img class="profile-avatar" src="images/logo.png" alt="Logo" style="object-fit: cover;">
@@ -1633,20 +3861,31 @@
           </div>
         </div>
         
-        <!-- Floor Tabs -->
-        <div class="category-strip" id="manager-floor-tabs" style="margin-bottom: var(--space-md); border-bottom: 1px solid var(--hairline); padding-top: 0; gap: 24px;">
-          <div class="category-tab active" data-floor="trệt" onclick="switchManagerFloor('trệt')" style="flex-direction: row; gap: 8px; font-size: 14px; font-weight: 600; min-width: auto; padding-bottom: 8px;">
-            <span class="category-emoji" style="font-size: 16px;">🏠</span>
-            <span style="display: inline-flex; align-items: center;">Tầng Trệt (Bàn 1 - 20) <span id="tret-occupied-count" style="background-color: var(--primary); color: white; border-radius: 12px; padding: 1px 7px; font-size: 11px; margin-left: 6px; font-weight: 700; display: inline-block; line-height: 1.4;">0</span></span>
+        <!-- Floor Tabs Wrapper -->
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--hairline); margin-bottom: var(--space-md); flex-wrap: wrap; gap: 12px;">
+          <div class="category-strip" id="manager-floor-tabs" style="border-bottom: none; padding-top: 0; gap: 24px; margin-bottom: 0; flex-grow: 1;">
+            <div class="category-tab active" data-floor="trệt" onclick="switchManagerFloor('trệt')" style="flex-direction: row; gap: 8px; font-size: 14px; font-weight: 600; min-width: auto; padding-bottom: 8px;">
+              <span class="category-emoji" style="font-size: 16px;">🏠</span>
+              <span style="display: inline-flex; align-items: center;">Tầng Trệt (Bàn 1 - 20) <span id="tret-occupied-count" style="background-color: var(--primary); color: white; border-radius: 12px; padding: 1px 7px; font-size: 11px; margin-left: 6px; font-weight: 700; display: inline-block; line-height: 1.4;">0</span></span>
+            </div>
+            <div class="category-tab" data-floor="lầu" onclick="switchManagerFloor('lầu')" style="flex-direction: row; gap: 8px; font-size: 14px; font-weight: 600; min-width: auto; padding-bottom: 8px;">
+              <span class="category-emoji" style="font-size: 16px;">🏢</span>
+              <span style="display: inline-flex; align-items: center;">Tầng Lầu (Bàn 21 - 40) <span id="lau-occupied-count" style="background-color: var(--primary); color: white; border-radius: 12px; padding: 1px 7px; font-size: 11px; margin-left: 6px; font-weight: 700; display: inline-block; line-height: 1.4;">0</span></span>
+            </div>
+            <div class="category-tab" data-floor="mang đi" onclick="switchManagerFloor('mang đi')" style="flex-direction: row; gap: 8px; font-size: 14px; font-weight: 600; min-width: auto; padding-bottom: 8px;">
+              <span class="category-emoji" style="font-size: 16px;">🛍️</span>
+              <span style="display: inline-flex; align-items: center;">Mang đi <span id="takeaway-occupied-count" style="background-color: var(--primary); color: white; border-radius: 12px; padding: 1px 7px; font-size: 11px; margin-left: 6px; font-weight: 700; display: inline-block; line-height: 1.4;">0</span></span>
+            </div>
           </div>
-          <div class="category-tab" data-floor="lầu" onclick="switchManagerFloor('lầu')" style="flex-direction: row; gap: 8px; font-size: 14px; font-weight: 600; min-width: auto; padding-bottom: 8px;">
-            <span class="category-emoji" style="font-size: 16px;">🏢</span>
-            <span style="display: inline-flex; align-items: center;">Tầng Lầu (Bàn 21 - 40) <span id="lau-occupied-count" style="background-color: var(--primary); color: white; border-radius: 12px; padding: 1px 7px; font-size: 11px; margin-left: 6px; font-weight: 700; display: inline-block; line-height: 1.4;">0</span></span>
-          </div>
-          <div class="category-tab" data-floor="mang đi" onclick="switchManagerFloor('mang đi')" style="flex-direction: row; gap: 8px; font-size: 14px; font-weight: 600; min-width: auto; padding-bottom: 8px;">
-            <span class="category-emoji" style="font-size: 16px;">🛍️</span>
-            <span style="display: inline-flex; align-items: center;">Mang đi <span id="takeaway-occupied-count" style="background-color: var(--primary); color: white; border-radius: 12px; padding: 1px 7px; font-size: 11px; margin-left: 6px; font-weight: 700; display: inline-block; line-height: 1.4;">0</span></span>
-          </div>
+          <button id="btn-create-takeaway" class="btn-create-takeaway-premium" onclick="createTakeawayOrder()" style="display: none; margin-bottom: 8px;">
+            <span class="button__text">Tạo đơn mang đi</span>
+            <span class="button__icon">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" viewBox="0 0 24 24" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" stroke="currentColor" height="24" fill="none" class="svg">
+                <line y2="19" y1="5" x2="12" x1="12"></line>
+                <line y2="12" y1="12" x2="19" x1="5"></line>
+              </svg>
+            </span>
+          </button>
         </div>
 
         <div class="manager-tables-grid" id="manager-tables-container">
@@ -2659,10 +4898,186 @@
             <p style="margin: 4px 0 0 0; color: var(--muted); font-size: 13px;">Thiết lập danh sách món ăn, nước uống và phân loại phục vụ</p>
           </div>
           <div style="display: flex; gap: 8px;">
-            <button class="btn btn-secondary btn-pill" id="btn-download-excel-template" style="height: 40px; font-weight: 600;">Tải file mẫu</button>
-            <button class="btn btn-secondary btn-pill" id="btn-import-excel" style="height: 40px; font-weight: 600;">Nhập từ Excel</button>
-            <button class="btn btn-primary btn-pill" id="btn-create-menu-item" style="height: 40px; font-weight: 600;">Tạo món ăn mới</button>
-            <button class="btn btn-danger btn-pill" id="btn-delete-all-menu" style="height: 40px; font-weight: 600; background-color: var(--primary-error-text); border-color: var(--primary-error-text); color: white;">Xóa tất cả</button>
+            <button class="btn-mgmt-secondary-premium" id="btn-download-excel-template">
+              Tải file mẫu
+              <div class="star-1">
+                <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+                  <g id="Layer_x0020_1">
+                    <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+                  </g>
+                </svg>
+              </div>
+              <div class="star-2">
+                <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+                  <g id="Layer_x0020_1">
+                    <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+                  </g>
+                </svg>
+              </div>
+              <div class="star-3">
+                <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+                  <g id="Layer_x0020_1">
+                    <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+                  </g>
+                </svg>
+              </div>
+              <div class="star-4">
+                <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+                  <g id="Layer_x0020_1">
+                    <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+                  </g>
+                </svg>
+              </div>
+              <div class="star-5">
+                <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+                  <g id="Layer_x0020_1">
+                    <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+                  </g>
+                </svg>
+              </div>
+              <div class="star-6">
+                <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+                  <g id="Layer_x0020_1">
+                    <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+                  </g>
+                </svg>
+              </div>
+            </button>
+            <button class="btn-mgmt-excel-import-premium" id="btn-import-excel">
+              Nhập từ Excel
+              <div class="star-1">
+                <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+                  <g id="Layer_x0020_1">
+                    <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+                  </g>
+                </svg>
+              </div>
+              <div class="star-2">
+                <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+                  <g id="Layer_x0020_1">
+                    <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+                  </g>
+                </svg>
+              </div>
+              <div class="star-3">
+                <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+                  <g id="Layer_x0020_1">
+                    <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+                  </g>
+                </svg>
+              </div>
+              <div class="star-4">
+                <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+                  <g id="Layer_x0020_1">
+                    <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+                  </g>
+                </svg>
+              </div>
+              <div class="star-5">
+                <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+                  <g id="Layer_x0020_1">
+                    <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+                  </g>
+                </svg>
+              </div>
+              <div class="star-6">
+                <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+                  <g id="Layer_x0020_1">
+                    <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+                  </g>
+                </svg>
+              </div>
+            </button>
+            <button class="btn-mgmt-primary-premium" id="btn-create-menu-item">
+              Tạo món ăn mới
+              <div class="star-1">
+                <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+                  <g id="Layer_x0020_1">
+                    <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+                  </g>
+                </svg>
+              </div>
+              <div class="star-2">
+                <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+                  <g id="Layer_x0020_1">
+                    <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+                  </g>
+                </svg>
+              </div>
+              <div class="star-3">
+                <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+                  <g id="Layer_x0020_1">
+                    <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+                  </g>
+                </svg>
+              </div>
+              <div class="star-4">
+                <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+                  <g id="Layer_x0020_1">
+                    <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+                  </g>
+                </svg>
+              </div>
+              <div class="star-5">
+                <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+                  <g id="Layer_x0020_1">
+                    <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+                  </g>
+                </svg>
+              </div>
+              <div class="star-6">
+                <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+                  <g id="Layer_x0020_1">
+                    <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+                  </g>
+                </svg>
+              </div>
+            </button>
+            <button class="btn-mgmt-danger-premium" id="btn-delete-all-menu">
+              Xóa tất cả
+              <div class="star-1">
+                <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+                  <g id="Layer_x0020_1">
+                    <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+                  </g>
+                </svg>
+              </div>
+              <div class="star-2">
+                <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+                  <g id="Layer_x0020_1">
+                    <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+                  </g>
+                </svg>
+              </div>
+              <div class="star-3">
+                <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+                  <g id="Layer_x0020_1">
+                    <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+                  </g>
+                </svg>
+              </div>
+              <div class="star-4">
+                <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+                  <g id="Layer_x0020_1">
+                    <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+                  </g>
+                </svg>
+              </div>
+              <div class="star-5">
+                <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+                  <g id="Layer_x0020_1">
+                    <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+                  </g>
+                </svg>
+              </div>
+              <div class="star-6">
+                <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+                  <g id="Layer_x0020_1">
+                    <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+                  </g>
+                </svg>
+              </div>
+            </button>
             <input type="file" id="excel-import-file-input" accept=".xlsx, .xls" style="display: none;">
           </div>
         </div>
@@ -2707,7 +5122,51 @@
           <h1 class="section-title-v2">Quản lý thực đơn</h1>
           <p style="margin: 4px 0 0 0; color: var(--muted); font-size: 13px;">Thiết lập các nhóm thực đơn và lựa chọn mặt hàng tương ứng</p>
         </div>
-        <button class="btn btn-primary btn-pill" id="btn-create-menu-group" style="height: 40px; font-weight: 600;">Tạo thực đơn mới</button>
+        <button class="btn-mgmt-primary-premium" id="btn-create-menu-group">
+          Tạo thực đơn mới
+          <div class="star-1">
+            <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+              <g id="Layer_x0020_1">
+                <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+              </g>
+            </svg>
+          </div>
+          <div class="star-2">
+            <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+              <g id="Layer_x0020_1">
+                <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+              </g>
+            </svg>
+          </div>
+          <div class="star-3">
+            <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+              <g id="Layer_x0020_1">
+                <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+              </g>
+            </svg>
+          </div>
+          <div class="star-4">
+            <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+              <g id="Layer_x0020_1">
+                <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+              </g>
+            </svg>
+          </div>
+          <div class="star-5">
+            <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+              <g id="Layer_x0020_1">
+                <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+              </g>
+            </svg>
+          </div>
+          <div class="star-6">
+            <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+              <g id="Layer_x0020_1">
+                <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+              </g>
+            </svg>
+          </div>
+        </button>
       </div>
       
       <!-- List of Menu Groups -->
@@ -2823,11 +5282,143 @@
         </div>
       </div>
 
-      <div class="modal-footer" style="background-color: var(--surface-soft); border-top: 1px solid var(--hairline-soft); padding: 16px 24px; justify-content: space-between; align-items: center; width: 100%;">
-        <button class="btn btn-secondary" id="btn-print-checkout" style="border-color: var(--primary); color: var(--primary); height: 40px; padding: 0 20px; border-radius: 8px;"><span style="margin-right: 4px;">🖨️</span> In hóa đơn</button>
+      <div class="modal-footer" style="background-color: var(--surface-soft); border-top: 1px solid var(--hairline-soft); padding: 16px 24px; display: flex; justify-content: space-between; align-items: center; width: 100%;">
+        <button class="btn-checkout-print-premium" id="btn-print-checkout" style="height: 40px; min-width: 180px; justify-content: center;">
+          In hóa đơn
+          <div class="star-1">
+            <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+              <g id="Layer_x0020_1">
+                <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+              </g>
+            </svg>
+          </div>
+          <div class="star-2">
+            <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+              <g id="Layer_x0020_1">
+                <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+              </g>
+            </svg>
+          </div>
+          <div class="star-3">
+            <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+              <g id="Layer_x0020_1">
+                <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+              </g>
+            </svg>
+          </div>
+          <div class="star-4">
+            <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+              <g id="Layer_x0020_1">
+                <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+              </g>
+            </svg>
+          </div>
+          <div class="star-5">
+            <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+              <g id="Layer_x0020_1">
+                <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+              </g>
+            </svg>
+          </div>
+          <div class="star-6">
+            <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+              <g id="Layer_x0020_1">
+                <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+              </g>
+            </svg>
+          </div>
+        </button>
         <div style="display: flex; gap: var(--space-base);">
-          <button class="btn btn-secondary" id="btn-cancel-checkout" style="border-color: var(--border-strong); height: 40px; padding: 0 20px; border-radius: 8px;">Quay lại</button>
-          <button class="btn btn-primary" id="btn-confirm-checkout-pay" disabled style="height: 40px; padding: 0 24px; font-weight: 600; border-radius: 8px;">Xác nhận thanh toán</button>
+          <button class="btn-delete-order-premium" id="btn-cancel-checkout" style="height: 40px; min-width: 180px; justify-content: center;">
+            Quay lại
+            <div class="star-1">
+              <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+                <g id="Layer_x0020_1">
+                  <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+                </g>
+              </svg>
+            </div>
+            <div class="star-2">
+              <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+                <g id="Layer_x0020_1">
+                  <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+                </g>
+              </svg>
+            </div>
+            <div class="star-3">
+              <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+                <g id="Layer_x0020_1">
+                  <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+                </g>
+              </svg>
+            </div>
+            <div class="star-4">
+              <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+                <g id="Layer_x0020_1">
+                  <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+                </g>
+              </svg>
+            </div>
+            <div class="star-5">
+              <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+                <g id="Layer_x0020_1">
+                  <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+                </g>
+              </svg>
+            </div>
+            <div class="star-6">
+              <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+                <g id="Layer_x0020_1">
+                  <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+                </g>
+              </svg>
+            </div>
+          </button>
+          <button class="btn-checkout-confirm-premium" id="btn-confirm-checkout-pay" disabled style="height: 40px; min-width: 180px; justify-content: center;">
+            Xác nhận thanh toán
+            <div class="star-1">
+              <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+                <g id="Layer_x0020_1">
+                  <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+                </g>
+              </svg>
+            </div>
+            <div class="star-2">
+              <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+                <g id="Layer_x0020_1">
+                  <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+                </g>
+              </svg>
+            </div>
+            <div class="star-3">
+              <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+                <g id="Layer_x0020_1">
+                  <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+                </g>
+              </svg>
+            </div>
+            <div class="star-4">
+              <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+                <g id="Layer_x0020_1">
+                  <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+                </g>
+              </svg>
+            </div>
+            <div class="star-5">
+              <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+                <g id="Layer_x0020_1">
+                  <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+                </g>
+              </svg>
+            </div>
+            <div class="star-6">
+              <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+                <g id="Layer_x0020_1">
+                  <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+                </g>
+              </svg>
+            </div>
+          </button>
         </div>
       </div>
     </div>
@@ -3037,38 +5628,134 @@
         <button class="btn-close" id="btn-close-menu-group-modal" style="font-size: 24px;">&times;</button>
       </div>
       <form id="menu-group-form" style="margin: 0;">
-        <div class="modal-body" style="padding: 24px; max-height: 580px; overflow-y: auto;">
-          <!-- Name Input -->
-          <div class="text-input-container">
-            <span class="text-input-label">Tên nhóm thực đơn</span>
-            <input type="text" id="menu-group-name-input" class="text-input" placeholder="Ví dụ: Thực đơn sáng, Thực đơn tối, Đồ uống..." required autocomplete="off">
+        <div class="modal-body">
+          <!-- Left Column: Menu details and preview -->
+          <div class="left-col">
+            <!-- Name Input -->
+            <div class="text-input-container" style="margin: 0;">
+              <span class="text-input-label">Tên nhóm thực đơn</span>
+              <input type="text" id="menu-group-name-input" class="text-input" placeholder="Ví dụ: Thực đơn sáng, Thực đơn tối, Đồ uống..." required autocomplete="off" style="width: 100%; box-sizing: border-box;">
+            </div>
+            
+            <!-- Selected Items Display -->
+            <div style="margin-top: 16px; display: flex; flex-direction: column; flex-grow: 1;">
+              <span style="font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; text-align: left; display: block;">Mặt hàng đã chọn</span>
+              <div class="custom-select-trigger" id="menu-group-select-trigger">
+                <span id="menu-group-select-value">Chọn mặt hàng...</span>
+                <span class="custom-select-chevron">▼</span>
+              </div>
+            </div>
+            <div id="menu-group-error-msg" style="color: var(--primary-error-text); font-size: 12px; margin-top: 8px; display: none; font-weight: 500;"></div>
           </div>
           
-          <!-- Custom Search Select for Items -->
-          <div style="margin-top: 20px; position: relative;">
-            <span style="font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; text-align: left; display: block;">Lựa chọn mặt hàng vào thực đơn</span>
+          <!-- Right Column: Interactive Checklist -->
+          <div class="right-col">
+            <span style="font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px; text-align: left; display: block;">Lựa chọn mặt hàng</span>
             
-            <div class="custom-select-wrapper" id="menu-group-select-wrapper" style="position: relative; width: 100%;">
-              <div class="custom-select-trigger" id="menu-group-select-trigger" style="min-height: 48px; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; border: 1px solid var(--border-strong); border-radius: var(--rounded-md); background: #ffffff; cursor: pointer; user-select: none; box-sizing: border-box; position: relative;">
-                <span id="menu-group-select-value" style="font-size: 14px; color: var(--muted); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 85%;">Chọn mặt hàng...</span>
-                <span class="custom-select-chevron" style="pointer-events: none;">▼</span>
-              </div>
-              
-              <div class="custom-select-menu" id="menu-group-select-menu" style="position: absolute; top: calc(100% + 4px); left: 0; right: 0; background: #ffffff; border: 1px solid var(--border-strong); border-radius: var(--rounded-md); box-shadow: var(--shadow); z-index: 1010; padding: 12px; box-sizing: border-box; display: flex; flex-direction: column; gap: 8px;">
-                <input type="text" id="menu-group-search-input" placeholder="🔍 Tìm kiếm mặt hàng..." style="width: 100%; padding: 10px 12px; border: 1.5px solid var(--border-strong); border-radius: var(--rounded-sm); font-size: 13px; outline: none; box-sizing: border-box; font-family: inherit; font-weight: 500; margin-bottom: 4px; background-color: var(--canvas);">
+            <div class="custom-select-wrapper" id="menu-group-select-wrapper">
+              <div class="custom-select-menu" id="menu-group-select-menu">
+                <input type="text" id="menu-group-search-input" placeholder="🔍 Tìm kiếm mặt hàng...">
                 
                 <!-- Items list -->
-                <div id="menu-group-items-checklist" style="display: flex; flex-direction: column; gap: 6px; max-height: 300px; overflow-y: auto; padding-right: 4px;">
+                <div id="menu-group-items-checklist">
                   <!-- Rendered dynamically -->
                 </div>
               </div>
             </div>
           </div>
-          <div id="menu-group-error-msg" style="color: var(--primary-error-text); font-size: 12px; margin-top: 8px; display: none; font-weight: 500;"></div>
         </div>
-        <div class="modal-footer" style="background-color: var(--surface-soft); border-top: 1px solid var(--hairline-soft); padding: 12px 24px; display: flex; justify-content: flex-end; gap: var(--space-base);">
-          <button type="button" class="btn btn-secondary btn-pill" id="btn-cancel-menu-group-modal" style="height: 38px; padding: 0 16px;">Hủy</button>
-          <button type="submit" class="btn btn-primary btn-pill" style="height: 38px; padding: 0 20px; font-weight: 600;">Lưu thực đơn</button>
+        <div class="modal-footer" style="background-color: var(--surface-soft); border-top: 1px solid var(--hairline-soft); padding: 12px 24px; display: flex; justify-content: flex-end; gap: var(--space-base); align-items: center;">
+          <button type="button" class="btn-delete-order-premium" id="btn-cancel-menu-group-modal" style="height: 38px; min-width: 130px; justify-content: center;">
+            Hủy
+            <div class="star-1">
+              <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+                <g id="Layer_x0020_1">
+                  <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+                </g>
+              </svg>
+            </div>
+            <div class="star-2">
+              <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+                <g id="Layer_x0020_1">
+                  <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+                </g>
+              </svg>
+            </div>
+            <div class="star-3">
+              <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+                <g id="Layer_x0020_1">
+                  <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+                </g>
+              </svg>
+            </div>
+            <div class="star-4">
+              <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+                <g id="Layer_x0020_1">
+                  <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+                </g>
+              </svg>
+            </div>
+            <div class="star-5">
+              <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+                <g id="Layer_x0020_1">
+                  <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+                </g>
+              </svg>
+            </div>
+            <div class="star-6">
+              <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+                <g id="Layer_x0020_1">
+                  <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+                </g>
+              </svg>
+            </div>
+          </button>
+          
+          <button type="submit" class="btn-create-order-premium" style="height: 38px; min-width: 130px; justify-content: center;">
+            Lưu thực đơn
+            <div class="star-1">
+              <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+                <g id="Layer_x0020_1">
+                  <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+                </g>
+              </svg>
+            </div>
+            <div class="star-2">
+              <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+                <g id="Layer_x0020_1">
+                  <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+                </g>
+              </svg>
+            </div>
+            <div class="star-3">
+              <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+                <g id="Layer_x0020_1">
+                  <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+                </g>
+              </svg>
+            </div>
+            <div class="star-4">
+              <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+                <g id="Layer_x0020_1">
+                  <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+                </g>
+              </svg>
+            </div>
+            <div class="star-5">
+              <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+                <g id="Layer_x0020_1">
+                  <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+                </g>
+              </svg>
+            </div>
+            <div class="star-6">
+              <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+                <g id="Layer_x0020_1">
+                  <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+                </g>
+              </svg>
+            </div>
+          </button>
         </div>
       </form>
     </div>

@@ -236,7 +236,7 @@ async function setupDatabase() {
 
     // Seed tables
     const tablesCount = await client.query('SELECT COUNT(*) FROM tables');
-    if (parseInt(tablesCount.rows[0].count) !== 40) {
+    if (parseInt(tablesCount.rows[0].count) === 0) {
       await client.query('DELETE FROM order_items');
       await client.query('DELETE FROM tables');
       for (let i = 1; i <= 20; i++) {
