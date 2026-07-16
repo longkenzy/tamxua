@@ -26,6 +26,7 @@ let paymentMethodDonutChartInstance = null;
 let servingTypeDonutChartInstance = null;
 let itemsCategoryDonutChartInstance = null;
 let itemsBestsellDonutChartInstance = null;
+let reportCompareChartInstance = null;
 let activePaymentMethodTab = 'revenue'; // 'revenue' or 'count'
 let activeServingTypeTab = 'revenue'; // 'revenue' or 'count'
 let activeItemsCategoryTab = 'revenue'; // 'revenue' or 'count'
@@ -544,6 +545,7 @@ const tabs = {
   'reports': { el: document.getElementById('tab-overview'), view: document.getElementById('reports-dashboard-view'), title: 'Tổng quan kinh doanh' },
   'report-revenue': { el: document.getElementById('subtab-report-revenue'), view: document.getElementById('report-revenue-dashboard-view'), title: 'Báo cáo doanh thu' },
   'report-items': { el: document.getElementById('subtab-report-items'), view: document.getElementById('report-items-dashboard-view'), title: 'Báo cáo mặt hàng' },
+  'report-compare': { el: document.getElementById('subtab-report-compare'), view: document.getElementById('report-compare-dashboard-view'), title: 'So sánh doanh thu' },
   'tables': { el: document.getElementById('tab-reports'), view: document.getElementById('tables-dashboard-view'), title: 'Sơ đồ bàn ăn' },
   'invoices': { el: document.getElementById('tab-invoices'), view: document.getElementById('invoices-dashboard-view'), title: 'Lịch sử hóa đơn' },
   'menu-mgmt': { el: document.getElementById('subtab-item-list'), view: document.getElementById('menu-mgmt-dashboard-view'), title: 'Quản lý mặt hàng' },
@@ -575,7 +577,7 @@ function switchTab(tabKey) {
       if (key === tabKey) {
         if (key === 'tables' || key === 'staff' || key === 'printers') {
           tabObj.view.style.display = 'grid';
-        } else if (key === 'report-revenue' || key === 'report-items') {
+        } else if (key === 'report-revenue' || key === 'report-items' || key === 'report-compare') {
           tabObj.view.style.display = 'flex';
         } else {
           tabObj.view.style.display = 'block';
@@ -615,7 +617,7 @@ function switchTab(tabKey) {
   // Manage submenu items expansion & chevron rotation for Báo cáo dropdown
   const reportsSubmenu = document.getElementById('submenu-reports-new');
   const reportsChevron = document.querySelector('#tab-reports-new-toggle .dropdown-chevron-icon');
-  const isReportsSubmenuTab = ['report-revenue', 'report-items'].includes(tabKey);
+  const isReportsSubmenuTab = ['report-revenue', 'report-items', 'report-compare'].includes(tabKey);
   if (reportsSubmenu && reportsChevron) {
     if (isReportsSubmenuTab) {
       reportsSubmenu.style.display = 'flex';
@@ -645,6 +647,8 @@ function switchTab(tabKey) {
     loadRevenueReport();
   } else if (tabKey === 'report-items') {
     loadItemsReport();
+  } else if (tabKey === 'report-compare') {
+    loadCompareReport();
   } else if (tabKey === 'printers') {
     initPrintersView();
   }
@@ -1350,7 +1354,7 @@ function openManagerOrderModal(table) {
   const title = document.getElementById('manager-order-modal-title');
   if (table.order && table.order.length > 0) {
     title.textContent = `Thêm món - ${table.name}`;
-    managerCart = JSON.parse(JSON.stringify(table.order));
+    managerCart = JSON.parse(JSON.stringify(table.order)).map(item => ({ ...item, isOriginal: true }));
   } else {
     title.textContent = `Tạo đơn - ${table.name}`;
     managerCart = [];
@@ -1360,8 +1364,10 @@ function openManagerOrderModal(table) {
   document.getElementById('manager-order-search').value = '';
   isScrollingFromClickOrder = false;
   
-  // Show modal
+  // Show modal with transition animation
   modal.style.display = 'flex';
+  modal.offsetHeight; // force reflow
+  modal.classList.add('show');
   
   // Reset scroll container of the menu to top
   const container = document.getElementById('manager-order-menu-container');
@@ -1408,53 +1414,32 @@ function renderManagerOrderMenu() {
   groups.forEach((g, idx) => {
     const tab = document.createElement('div');
     tab.className = `manager-category-tab ${idx === 0 ? 'active' : ''}`;
-    tab.style.cssText = 'padding: 14px 16px; font-size: 13px; font-weight: 600; color: #475569; border-left: 3px solid transparent; cursor: pointer; transition: all 0.2s ease; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid rgba(0,0,0,0.02);';
-    if (idx === 0) {
-      tab.style.color = 'var(--primary)';
-      tab.style.borderLeftColor = 'var(--primary)';
-      tab.style.backgroundColor = 'rgba(2, 74, 216, 0.05)';
-    }
     
-    let emoji = '🍽️';
     let displayLabel = g.category;
-    if (g.category === 'main') { emoji = '🍛'; displayLabel = 'Món chính'; }
-    else if (g.category === 'side') { emoji = '🥗'; displayLabel = 'Món thêm'; }
-    else if (g.category === 'drink') { emoji = '🥤'; displayLabel = 'Nước uống'; }
-    else if (g.category === 'COMBO') { emoji = '🍱'; displayLabel = 'Combo'; }
-    else if (g.category === 'SƯỜN') { emoji = '🍛'; displayLabel = 'Cơm sườn'; }
-    else if (g.category === 'BA RỌI') { emoji = '🍛'; displayLabel = 'Cơm ba rọi'; }
-    else if (g.category === 'SƯỜN CỌNG') { emoji = '🍖'; displayLabel = 'Sườn cọng'; }
-    else if (g.category === 'CANH VÀ TOPPING') { emoji = '🍲'; displayLabel = 'Canh & Topping'; }
-    else if (g.category === 'CƠM NHÀ TẤM XƯA') { emoji = '🍚'; displayLabel = 'Cơm thêm'; }
+    if (g.category === 'main') displayLabel = 'Món chính';
+    else if (g.category === 'side') displayLabel = 'Món thêm';
+    else if (g.category === 'drink') displayLabel = 'Nước uống';
+    else if (g.category === 'COMBO') displayLabel = 'Combo';
+    else if (g.category === 'SƯỜN') displayLabel = 'Cơm sườn';
+    else if (g.category === 'BA RỌI') displayLabel = 'Cơm ba rọi';
+    else if (g.category === 'SƯỜN CỌNG') displayLabel = 'Sườn cọng';
+    else if (g.category === 'CANH VÀ TOPPING') displayLabel = 'Canh & Topping';
+    else if (g.category === 'CƠM NHÀ TẤM XƯA') displayLabel = 'Cơm thêm';
 
-    tab.innerHTML = `<span style="font-size: 16px; line-height: 1;">${emoji}</span> <span style="line-height: 1.2;">${displayLabel}</span>`;
+    tab.innerHTML = `<span style="line-height: 1.2;">${displayLabel}</span>`;
     tab.setAttribute('data-category', g.category);
     
-    // Hover effects
-    tab.onmouseenter = () => {
-      if (!tab.classList.contains('active')) {
-        tab.style.backgroundColor = 'rgba(0, 0, 0, 0.02)';
-        tab.style.color = 'var(--ink)';
-      }
-    };
-    tab.onmouseleave = () => {
-      if (!tab.classList.contains('active')) {
-        tab.style.backgroundColor = 'transparent';
-        tab.style.color = '#475569';
-      }
-    };
-
     tab.addEventListener('click', () => {
       document.querySelectorAll('#manager-order-category-sidebar .manager-category-tab').forEach(t => {
         t.classList.remove('active');
-        t.style.color = '#475569';
-        t.style.borderLeftColor = 'transparent';
-        t.style.backgroundColor = 'transparent';
+        t.style.color = '';
+        t.style.borderLeftColor = '';
+        t.style.backgroundColor = '';
       });
       tab.classList.add('active');
-      tab.style.color = 'var(--primary)';
-      tab.style.borderLeftColor = 'var(--primary)';
-      tab.style.backgroundColor = 'rgba(2, 74, 216, 0.05)';
+      tab.style.color = '';
+      tab.style.borderLeftColor = '';
+      tab.style.backgroundColor = '';
       
       const targetHeader = document.getElementById(`manager-order-sec-${g.category}`);
       if (targetHeader) {
@@ -1477,25 +1462,24 @@ function renderManagerOrderMenu() {
     const section = document.createElement('div');
     section.style.marginBottom = '28px';
     
-    let emoji = '🍽️';
     let displayLabel = g.category;
-    if (g.category === 'main') { emoji = '🍛'; displayLabel = 'Món chính'; }
-    else if (g.category === 'side') { emoji = '🥗'; displayLabel = 'Món thêm'; }
-    else if (g.category === 'drink') { emoji = '🥤'; displayLabel = 'Nước uống'; }
-    else if (g.category === 'COMBO') { emoji = '🍱'; displayLabel = 'Combo'; }
-    else if (g.category === 'SƯỜN') { emoji = '🍛'; displayLabel = 'Cơm sườn'; }
-    else if (g.category === 'BA RỌI') { emoji = '🍛'; displayLabel = 'Cơm ba rọi'; }
-    else if (g.category === 'SƯỜN CỌNG') { emoji = '🍖'; displayLabel = 'Sườn cọng'; }
-    else if (g.category === 'CANH VÀ TOPPING') { emoji = '🍲'; displayLabel = 'Canh & Topping'; }
-    else if (g.category === 'CƠM NHÀ TẤM XƯA') { emoji = '🍚'; displayLabel = 'Cơm thêm'; }
+    if (g.category === 'main') displayLabel = 'Món chính';
+    else if (g.category === 'side') displayLabel = 'Món thêm';
+    else if (g.category === 'drink') displayLabel = 'Nước uống';
+    else if (g.category === 'COMBO') displayLabel = 'Combo';
+    else if (g.category === 'SƯỜN') displayLabel = 'Cơm sườn';
+    else if (g.category === 'BA RỌI') displayLabel = 'Cơm ba rọi';
+    else if (g.category === 'SƯỜN CỌNG') displayLabel = 'Sườn cọng';
+    else if (g.category === 'CANH VÀ TOPPING') displayLabel = 'Canh & Topping';
+    else if (g.category === 'CƠM NHÀ TẤM XƯA') displayLabel = 'Cơm thêm';
 
     // Sticky Category Header
     const header = document.createElement('h3');
     header.id = `manager-order-sec-${g.category}`;
     header.className = 'manager-order-sec-header';
     header.setAttribute('data-category', g.category);
-    header.style.cssText = 'position: sticky; top: -20px; background: #fafafa; z-index: 10; padding: 10px 0; margin: 0 0 12px 0; font-size: 14px; font-weight: 700; color: var(--ink); text-transform: uppercase; border-bottom: 2px solid var(--hairline-soft); letter-spacing: 0.5px; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 6px -6px rgba(0,0,0,0.05);';
-    header.innerHTML = `<span style="font-size: 18px; line-height: 1;">${emoji}</span> <span>${displayLabel}</span>`;
+    header.style.cssText = ''; // Cleaned inline styles, styling moved to CSS
+    header.innerHTML = `<span>${displayLabel}</span>`;
     
     section.appendChild(header);
     
@@ -1505,38 +1489,28 @@ function renderManagerOrderMenu() {
     
     g.items.forEach(item => {
       const card = document.createElement('div');
-      card.style.cssText = 'border: 1px solid var(--hairline-soft); border-radius: 10px; padding: 12px 10px; text-align: center; background: #ffffff; display: flex; flex-direction: column; justify-content: space-between; cursor: pointer; transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1); box-shadow: 0 2px 5px rgba(0,0,0,0.01); height: 100%; box-sizing: border-box;';
-      
-      card.onmouseover = () => {
-        card.style.borderColor = 'var(--primary)';
-        card.style.transform = 'translateY(-3px)';
-        card.style.boxShadow = '0 6px 16px rgba(2, 74, 216, 0.08)';
-      };
-      card.onmouseout = () => {
-        card.style.borderColor = 'var(--hairline-soft)';
-        card.style.transform = 'translateY(0)';
-        card.style.boxShadow = '0 2px 5px rgba(0,0,0,0.01)';
-      };
+      card.className = 'manager-order-card';
       
       let visualHtml = '';
       if (item.image_url) {
-        visualHtml = `<img src="${item.image_url}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 8px; margin: 0 auto 8px auto; display: block; box-shadow: 0 2px 4px rgba(0,0,0,0.05);" onerror="this.onerror=null; this.src='images/logo.png'">`;
+        visualHtml = `<img src="${item.image_url}" onerror="this.onerror=null; this.src='images/logo.png'">`;
       } else {
-        visualHtml = `<div style="font-size: 34px; height: 50px; display: flex; align-items: center; justify-content: center; margin-bottom: 8px; line-height: 1;">${item.emoji || '🍽️'}</div>`;
+        const initialLetter = item.name ? item.name.charAt(0).toUpperCase() : '🍽️';
+        visualHtml = `<div class="manager-order-card-placeholder">${initialLetter}</div>`;
       }
       
       card.innerHTML = `
         <div>
           ${visualHtml}
-          <div style="font-size: 12px; font-weight: 600; color: var(--ink); line-height: 1.35; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; min-height: 32px;">${item.name}</div>
+          <div class="manager-order-card-text">${item.name}</div>
         </div>
-        <div style="font-size: 13px; font-weight: 700; color: var(--primary); margin-top: 8px;">${formatVND(item.price)}</div>
+        <div class="manager-order-card-price">${formatVND(item.price)}</div>
       `;
       
       card.addEventListener('click', () => {
         card.style.transform = 'scale(0.95)';
         setTimeout(() => {
-          card.style.transform = 'translateY(-3px)';
+          card.style.transform = 'translateY(-2px)';
         }, 100);
         addMenuItemToManagerCart(item);
       });
@@ -1550,14 +1524,26 @@ function renderManagerOrderMenu() {
 }
 
 function addMenuItemToManagerCart(item) {
-  const existing = managerCart.find(i => i.id === item.id);
+  let price = item.price;
+  if (price === 0) {
+    const inputPrice = prompt(`Mặt hàng "${item.name}" chưa có giá bán.\nVui lòng nhập giá bán của sản phẩm này (VNĐ):`, "");
+    if (inputPrice === null) return; // Quản lý bấm Hủy
+    const parsedPrice = parseInt(inputPrice.replace(/[^0-9]/g, ''));
+    if (isNaN(parsedPrice) || parsedPrice < 0) {
+      alert('⚠️ Giá bán nhập vào không hợp lệ!');
+      return;
+    }
+    price = parsedPrice;
+  }
+
+  const existing = managerCart.find(i => i.id === item.id && i.price === price);
   if (existing) {
     existing.quantity++;
   } else {
     managerCart.push({
       id: item.id,
       name: item.name,
-      price: item.price,
+      price: price,
       emoji: item.emoji || '🍽️',
       image_url: item.image_url,
       quantity: 1,
@@ -1582,19 +1568,29 @@ function renderManagerOrderSelected() {
   let totalQty = 0;
   let totalPrice = 0;
   
+  const firstNewItemIndex = managerCart.findIndex(item => !item.isOriginal);
+  
   managerCart.forEach((item, index) => {
     const subtotal = item.price * item.quantity;
     totalQty += item.quantity;
     totalPrice += subtotal;
     
+    if (index === firstNewItemIndex && firstNewItemIndex > 0) {
+      const divider = document.createElement('div');
+      divider.className = 'rgb-gradient-divider';
+      divider.innerHTML = '<span class="divider-text">Thêm món</span>';
+      list.appendChild(divider);
+    }
+    
     const row = document.createElement('div');
-    row.style.cssText = 'display: flex; flex-direction: column; gap: 6px; padding: 10px; border: 1px solid var(--hairline-soft); border-radius: 8px; background-color: var(--surface-soft);';
+    row.className = 'manager-selected-row';
     
     let visualHtml = '';
     if (item.image_url) {
-      visualHtml = `<img src="${item.image_url}" style="width: 32px; height: 32px; object-fit: cover; border-radius: 4px;" onerror="this.onerror=null; this.src='images/logo.png'">`;
+      visualHtml = `<img src="${item.image_url}" onerror="this.onerror=null; this.src='images/logo.png'">`;
     } else {
-      visualHtml = `<span style="font-size: 20px; width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center;">${item.emoji || '🍽️'}</span>`;
+      const initials = item.name ? item.name.substring(0, 2).toUpperCase() : '🍽️';
+      visualHtml = `<div class="manager-selected-row-placeholder">${initials}</div>`;
     }
     
     row.innerHTML = `
@@ -1608,19 +1604,19 @@ function renderManagerOrderSelected() {
         </div>
         <div style="display: flex; align-items: center; gap: 8px;">
           <!-- Stepper -->
-          <div style="display: flex; align-items: center; border: 1px solid var(--border-strong); border-radius: 6px; background: #ffffff; height: 28px; overflow: hidden;">
-            <button class="btn-minus" style="width: 24px; height: 100%; border: none; background: none; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px;">-</button>
-            <span class="qty-display" style="width: 28px; text-align: center; font-size: 12px; font-weight: 600;">${item.quantity}</span>
-            <button class="btn-plus" style="width: 24px; height: 100%; border: none; background: none; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px;">+</button>
+          <div class="manager-stepper">
+            <button class="btn-minus" type="button">-</button>
+            <span class="qty-display">${item.quantity}</span>
+            <button class="btn-plus" type="button">+</button>
           </div>
           <!-- Delete -->
-          <button class="btn-delete" style="border: none; background: none; color: var(--primary-error-text); cursor: pointer; font-size: 14px; padding: 4px; display: flex; align-items: center; justify-content: center;">🗑️</button>
+          <button class="btn-delete btn-delete-text" type="button">Xóa</button>
         </div>
       </div>
       <!-- Notes field -->
       <div style="display: flex; align-items: center; gap: 6px;">
         <span style="font-size: 11px; color: var(--muted); font-weight: 500; flex-shrink: 0;">Ghi chú:</span>
-        <input type="text" class="notes-input" placeholder="Ví dụ: Không hành, ít cay..." value="${item.notes || ''}" style="flex: 1; height: 24px; border: 1px solid var(--hairline); border-radius: 4px; padding: 0 6px; font-size: 11.5px; outline: none; background-color: #ffffff;">
+        <input type="text" class="notes-input" placeholder="Ví dụ: Không hành, ít cay..." value="${item.notes || ''}">
       </div>
     `;
     
@@ -1666,7 +1662,12 @@ function initManagerOrderModal() {
   if (!modal) return;
   
   const closeModal = () => {
-    modal.style.display = 'none';
+    modal.classList.remove('show');
+    setTimeout(() => {
+      if (!modal.classList.contains('show')) {
+        modal.style.display = 'none';
+      }
+    }, 250);
   };
   
   btnClose.onclick = closeModal;
@@ -1704,14 +1705,14 @@ function initManagerOrderModal() {
         document.querySelectorAll('#manager-order-category-sidebar .manager-category-tab').forEach(t => {
           if (t.getAttribute('data-category') === activeCategory) {
             t.classList.add('active');
-            t.style.color = 'var(--primary)';
-            t.style.borderLeftColor = 'var(--primary)';
-            t.style.backgroundColor = 'rgba(2, 74, 216, 0.05)';
+            t.style.color = '';
+            t.style.borderLeftColor = '';
+            t.style.backgroundColor = '';
           } else {
             t.classList.remove('active');
-            t.style.color = '#475569';
-            t.style.borderLeftColor = 'transparent';
-            t.style.backgroundColor = 'transparent';
+            t.style.color = '';
+            t.style.borderLeftColor = '';
+            t.style.backgroundColor = '';
           }
         });
       }
@@ -3591,9 +3592,7 @@ function updateAnalytics() {
 
   // Animate metrics row 1 (Primary cards)
   animateCounter('overview-items-amount', totalItemsAmount, true, 0);
-  animateCounter('overview-void-amount', 0, true, 0);
   animateCounter('overview-discount-amount', totalDiscount, true, 0);
-  animateCounter('overview-tax-amount', 0, true, 0);
   animateCounter('overview-revenue-amount', totalRevenue, true, 0);
 
   // Animate metrics row 2 (Secondary cards with border accents)
@@ -5077,17 +5076,15 @@ function initCustomSelects() {
   // Khởi tạo custom select cho các bộ lọc báo cáo mới
   const reportType = document.getElementById('report-type');
   const reportTimePreset = document.getElementById('report-time-preset');
-  const reportHourRange = document.getElementById('report-hour-range');
   const reportItemsType = document.getElementById('report-items-type');
   const reportItemsTime = document.getElementById('report-items-time');
-  const reportItemsHour = document.getElementById('report-items-hour');
-  const reportItemsCompare = document.getElementById('report-items-compare');
+  const reportComparePreset = document.getElementById('report-compare-preset');
 
   if (reportType) makeSelectCustom(reportType, 'Loại báo cáo', true);
   if (reportTimePreset) makeSelectCustom(reportTimePreset, 'Thời gian', true);
   if (reportItemsType) makeSelectCustom(reportItemsType, 'Loại báo cáo', true);
   if (reportItemsTime) makeSelectCustom(reportItemsTime, 'Thời gian', true);
-  if (reportItemsCompare) makeSelectCustom(reportItemsCompare, 'So sánh', true);
+  if (reportComparePreset) makeSelectCustom(reportComparePreset, 'Kỳ so sánh', true);
 }
 
 function initSidebarCollapse() {
@@ -8553,3 +8550,360 @@ function setupSystemUpdateListeners() {
 
 // Chạy khởi tạo lắng nghe cập nhật
 setupSystemUpdateListeners();
+
+// ==========================================
+// REVENUE COMPARISON DASHBOARD VIEWS & LOGIC
+// ==========================================
+function loadCompareReport() {
+  const preset = document.getElementById('report-compare-preset').value;
+  const now = new Date();
+  
+  const customDatesWrapper = document.getElementById('report-compare-custom-dates');
+  if (customDatesWrapper) {
+    customDatesWrapper.style.display = (preset === 'custom-days') ? 'flex' : 'none';
+  }
+  
+  let labelA = "";
+  let labelB = "";
+  let txsA = [];
+  let txsB = [];
+  
+  let breakdown = [];
+  
+  const fmt = (val) => formatVND(val);
+  
+  if (preset === 'custom-days') {
+    const inputDateA = document.getElementById('report-compare-date-a');
+    const inputDateB = document.getElementById('report-compare-date-b');
+    
+    if (inputDateA && !inputDateA.value) {
+      inputDateA.value = now.toISOString().split('T')[0];
+    }
+    if (inputDateB && !inputDateB.value) {
+      const yesterday = new Date(now);
+      yesterday.setDate(now.getDate() - 1);
+      inputDateB.value = yesterday.toISOString().split('T')[0];
+    }
+    
+    const dateValA = inputDateA ? inputDateA.value : "";
+    const dateValB = inputDateB ? inputDateB.value : "";
+    
+    const formatDateStr = (ymd) => {
+      if (!ymd) return "--/--/----";
+      const parts = ymd.split('-');
+      return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    };
+    labelA = formatDateStr(dateValA);
+    labelB = formatDateStr(dateValB);
+    
+    const parsedDateA = dateValA ? new Date(dateValA).toDateString() : "";
+    const parsedDateB = dateValB ? new Date(dateValB).toDateString() : "";
+    
+    txsA = dateValA ? transactions.filter(tx => new Date(tx.timestamp).toDateString() === parsedDateA) : [];
+    txsB = dateValB ? transactions.filter(tx => new Date(tx.timestamp).toDateString() === parsedDateB) : [];
+    
+    for (let h = 0; h < 24; h++) {
+      const name = `${String(h).padStart(2, '0')}:00`;
+      const valA = txsA.filter(tx => new Date(tx.timestamp).getHours() === h)
+                       .reduce((sum, tx) => sum + (tx.subtotal - (tx.discountAmount || 0)), 0);
+      const valB = txsB.filter(tx => new Date(tx.timestamp).getHours() === h)
+                       .reduce((sum, tx) => sum + (tx.subtotal - (tx.discountAmount || 0)), 0);
+      
+      breakdown.push({ name, valA, valB });
+    }
+  } else if (preset === 'today-yesterday') {
+    labelA = "Hôm nay";
+    labelB = "Hôm qua";
+    
+    const todayStr = now.toDateString();
+    const yesterday = new Date(now);
+    yesterday.setDate(now.getDate() - 1);
+    const yesterdayStr = yesterday.toDateString();
+    
+    txsA = transactions.filter(tx => new Date(tx.timestamp).toDateString() === todayStr);
+    txsB = transactions.filter(tx => new Date(tx.timestamp).toDateString() === yesterdayStr);
+    
+    for (let h = 0; h < 24; h++) {
+      const name = `${String(h).padStart(2, '0')}:00`;
+      const valA = txsA.filter(tx => new Date(tx.timestamp).getHours() === h)
+                       .reduce((sum, tx) => sum + (tx.subtotal - (tx.discountAmount || 0)), 0);
+      const valB = txsB.filter(tx => new Date(tx.timestamp).getHours() === h)
+                       .reduce((sum, tx) => sum + (tx.subtotal - (tx.discountAmount || 0)), 0);
+      
+      breakdown.push({ name, valA, valB });
+    }
+  } else if (preset === '7days-prev7days') {
+    labelA = "7 ngày này";
+    labelB = "7 ngày trước";
+    
+    const startA = new Date(now);
+    startA.setDate(now.getDate() - 6);
+    startA.setHours(0, 0, 0, 0);
+    
+    const startB = new Date(now);
+    startB.setDate(now.getDate() - 13);
+    startB.setHours(0, 0, 0, 0);
+    const endB = new Date(now);
+    endB.setDate(now.getDate() - 7);
+    endB.setHours(23, 59, 59, 999);
+    
+    txsA = transactions.filter(tx => {
+      const t = new Date(tx.timestamp).getTime();
+      return t >= startA.getTime();
+    });
+    txsB = transactions.filter(tx => {
+      const t = new Date(tx.timestamp).getTime();
+      return t >= startB.getTime() && t <= endB.getTime();
+    });
+    
+    for (let i = 6; i >= 0; i--) {
+      const dateA = new Date(now);
+      dateA.setDate(now.getDate() - i);
+      const dateStrA = dateA.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
+      
+      const dateB = new Date(now);
+      dateB.setDate(now.getDate() - i - 7);
+      const dateStrB = dateB.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
+      
+      const name = `${dateStrA} vs ${dateStrB}`;
+      
+      const valA = txsA.filter(tx => new Date(tx.timestamp).toDateString() === dateA.toDateString())
+                       .reduce((sum, tx) => sum + (tx.subtotal - (tx.discountAmount || 0)), 0);
+      const valB = txsB.filter(tx => new Date(tx.timestamp).toDateString() === dateB.toDateString())
+                       .reduce((sum, tx) => sum + (tx.subtotal - (tx.discountAmount || 0)), 0);
+      
+      breakdown.push({ name, valA, valB });
+    }
+  } else if (preset === '30days-prev30days') {
+    labelA = "30 ngày này";
+    labelB = "30 ngày trước";
+    
+    const startA = new Date(now);
+    startA.setDate(now.getDate() - 29);
+    startA.setHours(0, 0, 0, 0);
+    
+    const startB = new Date(now);
+    startB.setDate(now.getDate() - 59);
+    startB.setHours(0, 0, 0, 0);
+    const endB = new Date(now);
+    endB.setDate(now.getDate() - 30);
+    endB.setHours(23, 59, 59, 999);
+    
+    txsA = transactions.filter(tx => {
+      const t = new Date(tx.timestamp).getTime();
+      return t >= startA.getTime();
+    });
+    txsB = transactions.filter(tx => {
+      const t = new Date(tx.timestamp).getTime();
+      return t >= startB.getTime() && t <= endB.getTime();
+    });
+    
+    for (let g = 5; g >= 0; g--) {
+      const daysStartA = g * 5;
+      const daysEndA = g * 5 + 4;
+      
+      const name = `Nhóm ${6 - g} (${daysEndA} - ${daysStartA} ngày trước)`;
+      
+      const valA = txsA.filter(tx => {
+        const diffDays = Math.floor((now.getTime() - new Date(tx.timestamp).getTime()) / (1000 * 60 * 60 * 24));
+        return diffDays >= daysStartA && diffDays <= daysEndA;
+      }).reduce((sum, tx) => sum + (tx.subtotal - (tx.discountAmount || 0)), 0);
+      
+      const valB = txsB.filter(tx => {
+        const diffDays = Math.floor((now.getTime() - new Date(tx.timestamp).getTime()) / (1000 * 60 * 60 * 24));
+        const adjustedDiff = diffDays - 30;
+        return adjustedDiff >= daysStartA && adjustedDiff <= daysEndA;
+      }).reduce((sum, tx) => sum + (tx.subtotal - (tx.discountAmount || 0)), 0);
+      
+      breakdown.push({ name, valA, valB });
+    }
+  } else if (preset === 'thismonth-prevmonth') {
+    labelA = "Tháng này";
+    labelB = "Tháng trước";
+    
+    const yearA = now.getFullYear();
+    const monthA = now.getMonth();
+    
+    const prevMonthDate = new Date(now);
+    prevMonthDate.setMonth(now.getMonth() - 1);
+    const yearB = prevMonthDate.getFullYear();
+    const monthB = prevMonthDate.getMonth();
+    
+    txsA = transactions.filter(tx => {
+      const d = new Date(tx.timestamp);
+      return d.getFullYear() === yearA && d.getMonth() === monthA;
+    });
+    txsB = transactions.filter(tx => {
+      const d = new Date(tx.timestamp);
+      return d.getFullYear() === yearB && d.getMonth() === monthB;
+    });
+    
+    const daysInMonth = new Date(yearA, monthA + 1, 0).getDate();
+    for (let day = 1; day <= daysInMonth; day++) {
+      const name = `Ngày ${day}`;
+      const valA = txsA.filter(tx => new Date(tx.timestamp).getDate() === day)
+                       .reduce((sum, tx) => sum + (tx.subtotal - (tx.discountAmount || 0)), 0);
+      const valB = txsB.filter(tx => new Date(tx.timestamp).getDate() === day)
+                       .reduce((sum, tx) => sum + (tx.subtotal - (tx.discountAmount || 0)), 0);
+      
+      breakdown.push({ name, valA, valB });
+    }
+  }
+  
+  const totalRevA = txsA.reduce((sum, tx) => sum + (tx.subtotal - (tx.discountAmount || 0)), 0);
+  const totalRevB = txsB.reduce((sum, tx) => sum + (tx.subtotal - (tx.discountAmount || 0)), 0);
+  
+  const diffRev = totalRevA - totalRevB;
+  let growthPercent = 0;
+  if (totalRevB > 0) {
+    growthPercent = (diffRev / totalRevB) * 100;
+  } else if (totalRevA > 0) {
+    growthPercent = 100;
+  }
+  
+  document.getElementById('compare-kpi-title-a').textContent = `Kỳ A (${labelA})`;
+  document.getElementById('compare-kpi-title-b').textContent = `Kỳ B (${labelB})`;
+  
+  document.getElementById('compare-kpi-val-a').textContent = fmt(totalRevA);
+  document.getElementById('compare-kpi-val-b').textContent = fmt(totalRevB);
+  
+  document.getElementById('compare-kpi-sub-a').textContent = `${txsA.length} hóa đơn`;
+  document.getElementById('compare-kpi-sub-b').textContent = `${txsB.length} hóa đơn`;
+  
+  const diffEl = document.getElementById('compare-kpi-val-diff');
+  const growthEl = document.getElementById('compare-kpi-sub-growth');
+  
+  const diffPrefix = diffRev >= 0 ? "+" : "";
+  diffEl.textContent = `${diffPrefix}${fmt(diffRev)}`;
+  diffEl.style.color = diffRev >= 0 ? "#10b981" : "#ef4444";
+  
+  const growthPrefix = growthPercent >= 0 ? "+" : "";
+  growthEl.textContent = `${growthPrefix}${growthPercent.toFixed(1)}%`;
+  growthEl.style.color = growthPercent >= 0 ? "#10b981" : "#ef4444";
+  
+  document.getElementById('compare-table-header-a').textContent = `Doanh thu ${labelA}`;
+  document.getElementById('compare-table-header-b').textContent = `Doanh thu ${labelB}`;
+  
+  const tbody = document.getElementById('report-compare-table-body');
+  if (tbody) {
+    tbody.innerHTML = '';
+    
+    breakdown.forEach(row => {
+      const diff = row.valA - row.valB;
+      let pct = 0;
+      if (row.valB > 0) {
+        pct = (diff / row.valB) * 100;
+      } else if (row.valA > 0) {
+        pct = 100;
+      }
+      
+      const pctPrefix = pct >= 0 ? "+" : "";
+      const pctColor = pct >= 0 ? "#10b981" : "#ef4444";
+      const diffColor = diff >= 0 ? "#10b981" : "#ef4444";
+      
+      const tr = document.createElement('tr');
+      tr.style.borderBottom = '1px solid #f1f5f9';
+      tr.innerHTML = `
+        <td style="padding: 12px 16px; font-weight: 600; color: #334155;">${row.name}</td>
+        <td style="padding: 12px 16px; text-align: right; font-weight: 500; color: #0f172a;">${fmt(row.valA)}</td>
+        <td style="padding: 12px 16px; text-align: right; color: #475569;">${fmt(row.valB)}</td>
+        <td style="padding: 12px 16px; text-align: right; color: ${diffColor}; font-weight: 600;">${diff >= 0 ? '+' : ''}${fmt(diff)}</td>
+        <td style="padding: 12px 16px; text-align: center; color: ${pctColor}; font-weight: 700;">${row.valA === 0 && row.valB === 0 ? '0%' : `${pctPrefix}${pct.toFixed(1)}%`}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+  
+  const pad = (num) => String(num).padStart(2, '0');
+  let hours = now.getHours();
+  const minutes = pad(now.getMinutes());
+  const ampm = hours >= 12 ? 'CH' : 'SA';
+  hours = hours % 12;
+  hours = hours ? hours : 12;
+  const day = pad(now.getDate());
+  const month = pad(now.getMonth() + 1);
+  const year = now.getFullYear();
+  document.getElementById('report-compare-view-time-label').textContent = `Xem lúc: ${pad(hours)}:${minutes} ${ampm} ${day}/${month}/${year}`;
+  
+  const canvas = document.getElementById('report-compare-chart');
+  if (canvas) {
+    const ctx = canvas.getContext('2d');
+    
+    if (reportCompareChartInstance) {
+      reportCompareChartInstance.destroy();
+    }
+    
+    const chartLabels = breakdown.map(r => r.name);
+    const dataA = breakdown.map(r => r.valA);
+    const dataB = breakdown.map(r => r.valB);
+    
+    reportCompareChartInstance = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: chartLabels,
+        datasets: [
+          {
+            label: `Doanh thu Kỳ A (${labelA})`,
+            data: dataA,
+            backgroundColor: '#0066cc',
+            borderColor: '#0066cc',
+            borderWidth: 1,
+            borderRadius: 4
+          },
+          {
+            label: `Doanh thu Kỳ B (${labelB})`,
+            data: dataB,
+            backgroundColor: '#94a3b8',
+            borderColor: '#94a3b8',
+            borderWidth: 1,
+            borderRadius: 4
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: {
+              callback: function(value) {
+                return value.toLocaleString('vi-VN') + 'đ';
+              }
+            }
+          }
+        },
+        plugins: {
+          tooltip: {
+            callbacks: {
+              label: function(context) {
+                let label = context.dataset.label || '';
+                if (label) {
+                  label += ': ';
+                }
+                if (context.parsed.y !== null) {
+                  label += context.parsed.y.toLocaleString('vi-VN') + 'đ';
+                }
+                return label;
+              }
+            }
+          }
+        }
+      }
+    });
+  }
+}
+
+window.loadCompareReport = loadCompareReport;
+const reportComparePreset = document.getElementById('report-compare-preset');
+if (reportComparePreset) {
+  reportComparePreset.addEventListener('change', loadCompareReport);
+}
+const inputCompareDateA = document.getElementById('report-compare-date-a');
+const inputCompareDateB = document.getElementById('report-compare-date-b');
+if (inputCompareDateA) {
+  inputCompareDateA.addEventListener('change', loadCompareReport);
+}
+if (inputCompareDateB) {
+  inputCompareDateB.addEventListener('change', loadCompareReport);
+}
