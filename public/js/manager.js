@@ -4504,12 +4504,41 @@ function renderStaffList(staff) {
       <div class="history-card-left">
         <div class="history-card-title">👤 ${user.username}</div>
       </div>
-      <div class="history-card-right">
+      <div class="history-card-right" style="display: flex; align-items: center; gap: 8px;">
         <span class="role-badge waiter" style="font-size:11px; padding:3px 8px; margin-left:0;">Phục vụ</span>
+        <button class="btn-delete-text" onclick="deleteStaff(${user.id}, '${user.username}')">Xoá</button>
       </div>
     `;
     staffListContainer.appendChild(card);
   });
+}
+
+// Delete Staff account
+async function deleteStaff(id, username) {
+  if (!confirm(`Bạn có chắc chắn muốn xoá tài khoản nhân viên "${username}" không?`)) {
+    return;
+  }
+  
+  try {
+    const res = await fetch(`/api/users/${id}`, {
+      method: 'DELETE'
+    });
+    
+    if (res.status === 401) {
+      window.location.href = '/login.html';
+      return;
+    }
+    
+    const result = await res.json();
+    if (res.ok && result.success) {
+      loadStaffList();
+    } else {
+      alert(result.error || 'Có lỗi xảy ra khi xoá nhân viên.');
+    }
+  } catch (error) {
+    console.error('Lỗi khi xoá nhân viên:', error);
+    alert('Lỗi kết nối server.');
+  }
 }
 
 // Handle Form Submission for creating Waiter accounts
@@ -8907,3 +8936,117 @@ if (inputCompareDateA) {
 if (inputCompareDateB) {
   inputCompareDateB.addEventListener('change', loadCompareReport);
 }
+
+// Toggle profile dropdown
+const profileContainer = document.getElementById('topbar-profile-container');
+const dropdownMenu = document.getElementById('profile-dropdown-menu');
+
+if (profileContainer && dropdownMenu) {
+  profileContainer.addEventListener('click', (e) => {
+    // If clicking the change password trigger link, open the modal
+    if (e.target.closest('#btn-change-password-trigger')) {
+      e.preventDefault();
+      openChangePasswordModal();
+      dropdownMenu.style.display = 'none';
+      return;
+    }
+    
+    // Toggle dropdown
+    const isVisible = dropdownMenu.style.display === 'block';
+    dropdownMenu.style.display = isVisible ? 'none' : 'block';
+    e.stopPropagation();
+  });
+
+  // Close dropdown when clicking anywhere else
+  document.addEventListener('click', () => {
+    dropdownMenu.style.display = 'none';
+  });
+}
+
+// Open change password modal
+window.openChangePasswordModal = function() {
+  const modal = document.getElementById('change-password-modal');
+  if (modal) {
+    modal.style.display = 'flex';
+    // Clear forms and banner
+    document.getElementById('change-password-form').reset();
+    document.getElementById('change-password-error-banner').style.display = 'none';
+    document.getElementById('change-password-success-banner').style.display = 'none';
+  }
+};
+
+// Close change password modal
+window.closeChangePasswordModal = function() {
+  const modal = document.getElementById('change-password-modal');
+  if (modal) {
+    modal.style.display = 'none';
+  }
+};
+
+// Handle change password form submit
+window.handleChangePassword = async function(event) {
+  event.preventDefault();
+  
+  const currentPassword = document.getElementById('password-current').value;
+  const newPassword = document.getElementById('password-new').value;
+  const confirmNewPassword = document.getElementById('password-new-confirm').value;
+  
+  const errorBanner = document.getElementById('change-password-error-banner');
+  const errorMessage = document.getElementById('change-password-error-message');
+  const successBanner = document.getElementById('change-password-success-banner');
+  const submitBtn = document.getElementById('btn-change-password-submit');
+  
+  errorBanner.style.display = 'none';
+  successBanner.style.display = 'none';
+  
+  if (newPassword !== confirmNewPassword) {
+    errorMessage.textContent = 'Mật khẩu mới và xác nhận mật khẩu mới không khớp.';
+    errorBanner.style.display = 'flex';
+    return;
+  }
+  
+  if (newPassword.length < 4) {
+    errorMessage.textContent = 'Mật khẩu mới phải chứa ít nhất 4 ký tự.';
+    errorBanner.style.display = 'flex';
+    return;
+  }
+
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Đang đổi...';
+  
+  try {
+    const res = await fetch('/api/change-password', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ currentPassword, newPassword })
+    });
+    
+    if (res.status === 401) {
+      window.location.href = '/login.html';
+      return;
+    }
+    
+    const result = await res.json();
+    if (res.ok && result.success) {
+      successBanner.style.display = 'flex';
+      document.getElementById('change-password-form').reset();
+      
+      // Auto close modal after 1.5 seconds
+      setTimeout(() => {
+        closeChangePasswordModal();
+      }, 1500);
+    } else {
+      errorMessage.textContent = result.error || 'Có lỗi xảy ra.';
+      errorBanner.style.display = 'flex';
+    }
+  } catch (error) {
+    console.error('Lỗi đổi mật khẩu:', error);
+    errorMessage.textContent = 'Lỗi kết nối server.';
+    errorBanner.style.display = 'flex';
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Đổi mật khẩu';
+  }
+};

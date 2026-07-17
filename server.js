@@ -248,6 +248,61 @@ app.post('/api/users', requireManager, async (req, res) => {
   }
 });
 
+// Delete waiter account
+app.delete('/api/users/:id', requireManager, async (req, res) => {
+  const { id } = req.params;
+  try {
+    const checkUser = await db.query('SELECT id, role FROM users WHERE id = $1', [parseInt(id)]);
+    if (checkUser.rows.length === 0) {
+      return res.status(404).json({ error: 'Không tìm thấy tài khoản nhân viên.' });
+    }
+    if (checkUser.rows[0].role !== 'waiter') {
+      return res.status(400).json({ error: 'Chỉ có thể xoá tài khoản nhân viên phục vụ.' });
+    }
+
+    await db.query('DELETE FROM users WHERE id = $1', [parseInt(id)]);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Lỗi xoá tài khoản nhân viên:', error);
+    res.status(500).json({ error: 'Lỗi hệ thống.' });
+  }
+});
+
+// Change password for manager account
+app.post('/api/change-password', async (req, res) => {
+  const role = req.signedCookies.role;
+  const username = req.signedCookies.username;
+
+  if (!role || !username) {
+    return res.status(401).json({ error: 'Chưa đăng nhập.' });
+  }
+
+  if (role !== 'manager') {
+    return res.status(403).json({ error: 'Chỉ tài khoản quản lý mới có quyền thực hiện chức năng này.' });
+  }
+
+  const { currentPassword, newPassword } = req.body;
+  if (!currentPassword || !newPassword) {
+    return res.status(400).json({ error: 'Vui lòng điền đủ thông tin.' });
+  }
+
+  try {
+    // Verify current password
+    const userRes = await db.query('SELECT * FROM users WHERE username = $1 AND password = $2', [username, currentPassword]);
+    if (userRes.rows.length === 0) {
+      return res.status(400).json({ error: 'Mật khẩu hiện tại không chính xác.' });
+    }
+
+    // Update password
+    await db.query('UPDATE users SET password = $1 WHERE username = $2', [newPassword, username]);
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Lỗi đổi mật khẩu:', error);
+    res.status(500).json({ error: 'Lỗi hệ thống.' });
+  }
+});
+
 // Get menu
 app.get('/api/menu', async (req, res) => {
   try {

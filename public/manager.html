@@ -4233,6 +4233,144 @@
         background-position: 200% center;
       }
     }
+    
+    /* Profile Dropdown Custom Styling */
+    .profile-dropdown a:hover {
+      background-color: #f1f5f9 !important;
+      color: var(--primary) !important;
+    }
+
+    /* Change Password Modal Styling (UI/UX 4px border-radius standard) */
+    #change-password-modal .modal-content {
+      border-radius: 4px !important;
+      border: 1px solid #e2e8f0;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
+      overflow: hidden;
+      animation: modalFadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    
+    @keyframes modalFadeIn {
+      from { transform: scale(0.95); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+
+    #change-password-modal .modal-header {
+      padding: 18px 24px !important;
+      background-color: #ffffff;
+      border-bottom: 1px solid #f1f5f9 !important;
+    }
+
+    #change-password-modal .modal-title {
+      font-size: 15px !important;
+      font-weight: 600 !important;
+      color: #0f172a !important;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    #change-password-modal .btn-close {
+      color: #94a3b8;
+      font-size: 18px !important;
+      transition: color 0.15s ease;
+    }
+
+    #change-password-modal .btn-close:hover {
+      color: #475569;
+    }
+
+    #change-password-modal .modal-body {
+      padding: 24px !important;
+      gap: 16px !important;
+    }
+
+    #change-password-modal .text-input-container {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    #change-password-modal .text-input-label {
+      font-size: 12.5px !important;
+      font-weight: 550 !important;
+      color: #334155 !important;
+    }
+
+    #change-password-modal .text-input {
+      border-radius: 4px !important;
+      border: 1px solid #cbd5e1 !important;
+      padding: 10px 14px !important;
+      font-size: 14px !important;
+      color: #0f172a !important;
+      background-color: #ffffff !important;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease !important;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    #change-password-modal .text-input:focus {
+      outline: none !important;
+      border-color: var(--primary) !important;
+      box-shadow: 0 0 0 3px rgba(255, 90, 95, 0.15) !important;
+    }
+
+    #change-password-modal .error-banner {
+      border-radius: 4px !important;
+      padding: 12px 16px !important;
+      font-size: 13px !important;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px !important;
+    }
+
+    #change-password-modal .modal-footer {
+      padding: 16px 24px !important;
+      background-color: #f8fafc;
+      border-top: 1px solid #f1f5f9 !important;
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px !important;
+    }
+
+    #change-password-modal .btn {
+      border-radius: 4px !important;
+      padding: 10px 18px !important;
+      font-size: 13.5px !important;
+      font-weight: 600 !important;
+      transition: all 0.15s ease !important;
+      height: auto !important;
+    }
+
+    #change-password-modal .btn-secondary {
+      background-color: #ffffff !important;
+      border: 1px solid #cbd5e1 !important;
+      color: #475569 !important;
+    }
+
+    #change-password-modal .btn-secondary:hover {
+      background-color: #f8fafc !important;
+      border-color: #94a3b8 !important;
+      color: #0f172a !important;
+    }
+
+    #change-password-modal .btn-primary {
+      background-color: var(--primary) !important;
+      border: 1px solid var(--primary) !important;
+      color: #ffffff !important;
+    }
+
+    #change-password-modal .btn-primary:hover {
+      background-color: #e0314f !important;
+      border-color: #e0314f !important;
+      box-shadow: 0 4px 12px rgba(255, 90, 95, 0.2) !important;
+    }
+
+    #change-password-modal .btn-primary:disabled {
+      background-color: #fda4af !important;
+      border-color: #fda4af !important;
+      cursor: not-allowed !important;
+    }
   </style>
 </head>
 <body>
@@ -4364,13 +4502,19 @@
             </button>
           </div>
           <!-- Profile -->
-          <div class="topbar-profile">
+          <div class="topbar-profile" style="position: relative;" id="topbar-profile-container">
             <img class="profile-avatar" src="images/logo.png" alt="Logo" style="object-fit: cover;">
             <div class="profile-info">
               <span class="profile-name" style="display: flex; align-items: center; gap: 6px;">
                 Tấm Xưa
                 <span id="connection-dot" class="status-dot" style="width: 6px; height: 6px; display: inline-block;"></span>
               </span>
+            </div>
+            <!-- Dropdown Menu -->
+            <div class="profile-dropdown" id="profile-dropdown-menu" style="display: none; position: absolute; top: calc(100% + 8px); right: 0; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); min-width: 160px; z-index: 1000; padding: 6px 0; overflow: hidden;">
+              <a href="#" id="btn-change-password-trigger" style="display: flex; align-items: center; gap: 8px; padding: 10px 16px; color: #1e293b; text-decoration: none; font-size: 14px; font-weight: 500; transition: background 0.15s ease;">
+                🔑 Đổi mật khẩu
+              </a>
             </div>
           </div>
         </div>
@@ -4893,6 +5037,47 @@
           <button class="btn btn-secondary" onclick="closeTransactionDetailModal()">Đóng</button>
           <button class="btn btn-primary" id="btn-reprint-modal" style="background-color: var(--primary); color: white; display: flex; align-items: center; gap: 4px;">🖨️ In lại hóa đơn</button>
         </div>
+      </div>
+    </div>
+
+    <!-- MODAL: Change Password -->
+    <div class="modal-backdrop" id="change-password-modal" style="display: none;">
+      <div class="modal-content" style="max-width: 400px; padding: 0;">
+        <div class="modal-header">
+          <h3 class="modal-title">🔑 Đổi mật khẩu quản lý</h3>
+          <button type="button" class="btn-close" onclick="closeChangePasswordModal()" style="border: none; background: transparent; cursor: pointer;">&times;</button>
+        </div>
+        <form id="change-password-form" onsubmit="handleChangePassword(event)">
+          <div class="modal-body">
+            
+            <div class="error-banner" id="change-password-error-banner" style="display: none;">
+              <span id="change-password-error-message">Có lỗi xảy ra.</span>
+            </div>
+            
+            <div class="error-banner" id="change-password-success-banner" style="display: none; background-color:#dcfce7; border-color:#bbf7d0; color:#15803d;">
+              <span>Đổi mật khẩu thành công!</span>
+            </div>
+
+            <div class="text-input-container">
+              <label class="text-input-label" for="password-current">Mật khẩu hiện tại</label>
+              <input type="password" id="password-current" class="text-input" placeholder="Nhập mật khẩu hiện tại" required autocomplete="current-password">
+            </div>
+            
+            <div class="text-input-container">
+              <label class="text-input-label" for="password-new">Mật khẩu mới</label>
+              <input type="password" id="password-new" class="text-input" placeholder="Từ 4 ký tự trở lên" required autocomplete="new-password">
+            </div>
+            
+            <div class="text-input-container">
+              <label class="text-input-label" for="password-new-confirm">Xác nhận mật khẩu mới</label>
+              <input type="password" id="password-new-confirm" class="text-input" placeholder="Nhập lại mật khẩu mới" required autocomplete="new-password">
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="closeChangePasswordModal()">Hủy</button>
+            <button type="submit" class="btn btn-primary" id="btn-change-password-submit">Đổi mật khẩu</button>
+          </div>
+        </form>
       </div>
     </div>
 
