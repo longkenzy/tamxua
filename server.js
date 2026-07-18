@@ -988,23 +988,18 @@ function printDocxOnServer(printerName, templateName, templateData) {
       numItems = templateData.items.length;
     }
     
-    let pageHeight = 600; // default height in points
+    let pageHeight = 842; // default A4 height in points
     if (templateName === 'hoadonbep.docx') {
-      pageHeight = 180 + (numItems * 35) + 80;
-      if (pageHeight < 280) pageHeight = 280;
+      pageHeight = 380 + (numItems * 30);
+      if (pageHeight < 400) pageHeight = 400;
     } else {
-      pageHeight = 350 + (numItems * 35) + 150;
-      if (pageHeight < 450) pageHeight = 450;
+      pageHeight = 660 + (numItems * 30);
+      if (pageHeight < 700) pageHeight = 700;
     }
     
-    let psCommand = `$word = New-Object -ComObject Word.Application; $word.Visible = $false; try { $doc = $word.Documents.Open('${escapedTempFile}'); `;
-    psCommand += `$doc.PageSetup.LeftMargin = 10; `;
-    psCommand += `$doc.PageSetup.RightMargin = 10; `;
-    psCommand += `$doc.PageSetup.TopMargin = 10; `;
-    psCommand += `$doc.PageSetup.BottomMargin = 10; `;
-    psCommand += `$doc.PageSetup.PageWidth = 227; `;
+    let psCommand = `$word = New-Object -ComObject Word.Application; $word.Visible = $false; $word.DisplayAlerts = 0; try { $doc = $word.Documents.Open('${escapedTempFile}'); `;
+    psCommand += `$doc.PageSetup.Orientation = 0; `;
     psCommand += `$doc.PageSetup.PageHeight = ${pageHeight}; `;
-    psCommand += `foreach ($t in $doc.Tables) { $t.AutoFitBehavior(2) }; `;
     
     if (escapedPrinterName) {
       psCommand += `$word.ActivePrinter = '${escapedPrinterName}'; `;
