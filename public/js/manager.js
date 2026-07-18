@@ -8047,7 +8047,7 @@ function wrapTextIntoChunks(text, maxWidth) {
   return chunks.length > 0 ? chunks : [''];
 }
 
-function wrapAndCenter(text, width = 32) {
+function wrapAndCenter(text, width = 42) {
   if (!text) return '';
   const words = text.trim().split(/\s+/);
   const lines = [];
@@ -8077,9 +8077,9 @@ function wrapAndCenter(text, width = 32) {
   }).join('\n');
 }
 
-function formatKitchenTable(items, width = 32) {
-  const colNameWidth = 23;
+function formatKitchenTable(items, width = 42) {
   const colQtyWidth = 6;
+  const colNameWidth = width - colQtyWidth - 3;
   const border = '+' + '-'.repeat(colNameWidth) + '+' + '-'.repeat(colQtyWidth) + '+\n';
   
   let text = border;
@@ -8087,7 +8087,7 @@ function formatKitchenTable(items, width = 32) {
   text += border;
   
   items.forEach(item => {
-    const maxTextWidth = colNameWidth - 2; // 21 chars
+    const maxTextWidth = colNameWidth - 2;
     const nameChunks = wrapTextIntoChunks(item.name, maxTextWidth);
     
     const qtyStr = `x${item.quantity}`;
@@ -8109,10 +8109,10 @@ function formatKitchenTable(items, width = 32) {
   return text;
 }
 
-function formatReceiptTable(items, width = 32) {
-  const colNameWidth = 16;
-  const colQtyWidth = 4;
-  const colPriceWidth = 8;
+function formatReceiptTable(items, width = 42) {
+  const colQtyWidth = width > 36 ? 5 : 4;
+  const colPriceWidth = width > 36 ? 11 : 8;
+  const colNameWidth = width - colQtyWidth - colPriceWidth - 4;
   const border = '+' + '-'.repeat(colNameWidth) + '+' + '-'.repeat(colQtyWidth) + '+' + '-'.repeat(colPriceWidth) + '+\n';
   
   let text = border;
@@ -8120,7 +8120,7 @@ function formatReceiptTable(items, width = 32) {
   text += border;
   
   items.forEach(item => {
-    const maxTextWidth = colNameWidth - 2; // 14 chars
+    const maxTextWidth = colNameWidth - 2;
     const nameChunks = wrapTextIntoChunks(item.name, maxTextWidth);
     
     const qtyStr = `x${item.quantity}`;
@@ -8145,7 +8145,7 @@ function formatReceiptTable(items, width = 32) {
 }
 
 function formatPlainKitchenSlip(tableName, items, title) {
-  const width = 32;
+  const width = 42;
   const border = '-'.repeat(width) + '\n';
   const dateStr = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) + ' ' + new Date().toLocaleDateString('vi-VN');
   
@@ -8162,7 +8162,7 @@ function formatPlainKitchenSlip(tableName, items, title) {
 }
 
 function formatPlainReceipt(tableObj, orderItems, discountAmount, receivedAmount, timestamp, payMethod) {
-  const width = 32;
+  const width = 42;
   const border = '-'.repeat(width) + '\n';
   const subtotal = orderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   const finalTotal = Math.max(0, subtotal - discountAmount);
