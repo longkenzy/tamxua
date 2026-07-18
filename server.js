@@ -982,25 +982,7 @@ function printDocxOnServer(printerName, templateName, templateData) {
     const escapedPrinterName = printerName ? printerName.replace(/'/g, "''") : '';
     const escapedTempFile = tempFile.replace(/'/g, "''");
     
-    // Calculate dynamic page height in points to avoid wasting thermal paper
-    let numItems = 0;
-    if (templateData && Array.isArray(templateData.items)) {
-      numItems = templateData.items.length;
-    }
-    
-    let pageHeight = 842; // default A4 height in points
-    if (templateName === 'hoadonbep.docx') {
-      pageHeight = 380 + (numItems * 30);
-      if (pageHeight < 400) pageHeight = 400;
-    } else {
-      pageHeight = 660 + (numItems * 30);
-      if (pageHeight < 700) pageHeight = 700;
-    }
-    
     let psCommand = `$word = New-Object -ComObject Word.Application; $word.Visible = $false; $word.DisplayAlerts = 0; try { $doc = $word.Documents.Open('${escapedTempFile}'); `;
-    psCommand += `$doc.PageSetup.Orientation = 0; `;
-    psCommand += `$doc.PageSetup.PageHeight = ${pageHeight}; `;
-    
     if (escapedPrinterName) {
       psCommand += `$word.ActivePrinter = '${escapedPrinterName}'; `;
     }
