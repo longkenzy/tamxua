@@ -1826,7 +1826,8 @@ io.on('connection', async (socket) => {
               name: item.name,
               price: formatVNDShort(item.price),
               quantity: item.quantity,
-              total: formatVNDShort(item.price * item.quantity)
+              total: formatVNDShort(item.price * item.quantity),
+              notes: item.notes || ''
             }))
           };
           

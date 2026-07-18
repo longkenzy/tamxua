@@ -2199,7 +2199,8 @@ async function printReceipt(tableObj, orderItems, discountAmount, receivedAmount
           name: item.name,
           price: formatVNDShort(item.price),
           quantity: item.quantity,
-          total: formatVNDShort(item.price * item.quantity)
+          total: formatVNDShort(item.price * item.quantity),
+          notes: item.notes || ''
         }))
       };
 
@@ -2280,7 +2281,8 @@ async function printReceipt(tableObj, orderItems, discountAmount, receivedAmount
       name: item.name,
       price: formatVND(item.price),
       quantity: item.quantity,
-      total: formatVND(item.price * item.quantity)
+      total: formatVND(item.price * item.quantity),
+      notes: item.notes || ''
     }))
   };
 
