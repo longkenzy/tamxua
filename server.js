@@ -989,7 +989,7 @@ function printDocxOnServer(printerName, templateName, templateData) {
     psCommand += `$doc.PrintOut($false); $doc.Close(); } finally { $word.Quit(); }`;
     
     const { execFile } = require('child_process');
-    execFile('powershell', ['-NoProfile', '-Command', psCommand], { encoding: 'utf8' }, (err, stdout, stderr) => {
+    execFile('powershell', ['-NoProfile', '-Command', psCommand], { encoding: 'utf8', windowsHide: true }, (err, stdout, stderr) => {
       try { fs.unlinkSync(tempFile); } catch (e) {}
       
       if (err) {
@@ -1125,7 +1125,7 @@ app.get('/api/system-printers', requireAuth, (req, res) => {
     '-NoProfile',
     '-Command',
     '[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; Get-CimInstance Win32_Printer | Select-Object -ExpandProperty Name'
-  ], { encoding: 'utf8' }, (err, stdout, stderr) => {
+  ], { encoding: 'utf8', windowsHide: true }, (err, stdout, stderr) => {
     if (err) {
       console.error('Lỗi lấy danh sách máy in:', err, stderr);
       return res.status(500).json({ error: `Không thể quét danh sách máy in: ${err.message}` });
@@ -1189,7 +1189,7 @@ function printRawOnServer(printerType, sharedPath, ip, port, content) {
       try {
         fs.writeFileSync(tempFile, printContent, 'utf-8');
         const { execFile } = require('child_process');
-        execFile('cmd.exe', ['/c', 'copy', '/B', tempFile, sharedPath], (err, stdout, stderr) => {
+        execFile('cmd.exe', ['/c', 'copy', '/B', tempFile, sharedPath], { windowsHide: true }, (err, stdout, stderr) => {
           try { fs.unlinkSync(tempFile); } catch (e) {}
 
           if (err) {
@@ -1219,7 +1219,7 @@ function printRawOnServer(printerType, sharedPath, ip, port, content) {
           : `Get-Content -LiteralPath '${tempFile}' -Encoding utf8 | Out-Printer`;
         
         const { execFile } = require('child_process');
-        execFile('powershell', ['-NoProfile', '-Command', psCommand], { encoding: 'utf8' }, (err, stdout, stderr) => {
+        execFile('powershell', ['-NoProfile', '-Command', psCommand], { encoding: 'utf8', windowsHide: true }, (err, stdout, stderr) => {
           try { fs.unlinkSync(tempFile); } catch (e) {}
 
           if (err) {
