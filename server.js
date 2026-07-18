@@ -1068,8 +1068,12 @@ app.post('/api/print-docx', async (req, res) => {
 
 // Endpoint to fetch system printers on Windows
 app.get('/api/system-printers', requireAuth, (req, res) => {
-  const { exec } = require('child_process');
-  exec('powershell -NoProfile -Command "Get-CimInstance Win32_Printer | Select-Object -ExpandProperty Name"', (err, stdout, stderr) => {
+  const { execFile } = require('child_process');
+  execFile('powershell', [
+    '-NoProfile',
+    '-Command',
+    '[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; Get-CimInstance Win32_Printer | Select-Object -ExpandProperty Name'
+  ], { encoding: 'utf8' }, (err, stdout, stderr) => {
     if (err) {
       console.error('Lỗi lấy danh sách máy in:', err, stderr);
       return res.status(500).json({ error: `Không thể quét danh sách máy in: ${err.message}` });
@@ -1132,9 +1136,8 @@ function printRawOnServer(printerType, sharedPath, ip, port, content) {
 
       try {
         fs.writeFileSync(tempFile, printContent, 'utf-8');
-        const cmd = `copy /B "${tempFile}" "${sharedPath}"`;
-        const { exec } = require('child_process');
-        exec(cmd, (err, stdout, stderr) => {
+        const { execFile } = require('child_process');
+        execFile('cmd.exe', ['/c', 'copy', '/B', tempFile, sharedPath], (err, stdout, stderr) => {
           try { fs.unlinkSync(tempFile); } catch (e) {}
 
           if (err) {
@@ -1162,8 +1165,9 @@ function printRawOnServer(printerType, sharedPath, ip, port, content) {
         const psCommand = sharedPath
           ? `Get-Content -LiteralPath '${tempFile}' -Encoding utf8 | Out-Printer -Name '${sharedPath.replace(/'/g, "''")}'`
           : `Get-Content -LiteralPath '${tempFile}' -Encoding utf8 | Out-Printer`;
-        const { exec } = require('child_process');
-        exec(`powershell -NoProfile -Command "${psCommand}"`, (err, stdout, stderr) => {
+        
+        const { execFile } = require('child_process');
+        execFile('powershell', ['-NoProfile', '-Command', psCommand], { encoding: 'utf8' }, (err, stdout, stderr) => {
           try { fs.unlinkSync(tempFile); } catch (e) {}
 
           if (err) {
