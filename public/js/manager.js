@@ -2016,6 +2016,13 @@ async function printDocxSlip(printerId, tableName, items, title = 'HOÁ ĐƠN B�
   const type = localStorage.getItem(`printer_${printerId}_type`) || 'browser';
   const sharedPath = localStorage.getItem(`printer_${printerId}_shared`) || '';
 
+  let templateName = 'hoadonbep.docx';
+  if (title === 'HOÁ ĐƠN NƯỚC') {
+    templateName = 'hoadonnuoc.docx';
+  } else if (title === 'PHIẾU THÊM MÓN' || title === 'PHIẾU THÊM NƯỚC') {
+    templateName = 'hoadonthem.docx';
+  }
+
   if (type === 'system') {
     const orderTimeStr = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) + ' • ' + new Date().toLocaleDateString('vi-VN');
     const templateData = {
@@ -2033,7 +2040,7 @@ async function printDocxSlip(printerId, tableName, items, title = 'HOÁ ĐƠN B�
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           sharedPath: sharedPath,
-          template: 'hoadonbep.docx',
+          template: templateName,
           templateData: templateData
         })
       });
@@ -2053,7 +2060,7 @@ async function printDocxSlip(printerId, tableName, items, title = 'HOÁ ĐƠN B�
   const orderTimeStr = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) + ' • ' + new Date().toLocaleDateString('vi-VN');
   
   const templateData = {
-    template: 'hoadonbep.docx',
+    template: templateName,
     table_name: tableName,
     order_time: orderTimeStr,
     items: items.map(item => ({
