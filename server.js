@@ -1007,8 +1007,15 @@ app.post('/api/print-docx-silent', requireAuth, async (req, res) => {
   const templateName = template === 'hoadonbep.docx' ? 'hoadonbep.docx' : 'hoadon.docx';
   
   try {
-    const result = await printDocxOnServer(sharedPath, templateName, templateData);
-    res.json(result);
+    if (templateName === 'hoadonbep.docx') {
+      // In 2 bản cho hóa đơn bếp (1 bản chính, 1 bản copy)
+      await printDocxOnServer(sharedPath, templateName, templateData);
+      const result = await printDocxOnServer(sharedPath, templateName, templateData);
+      res.json(result);
+    } else {
+      const result = await printDocxOnServer(sharedPath, templateName, templateData);
+      res.json(result);
+    }
   } catch (error) {
     console.error('Silent print docx error:', error);
     res.status(500).json({ error: error.message });
@@ -1743,9 +1750,13 @@ io.on('connection', async (socket) => {
               notes: item.notes || ''
             }))
           };
+          // In 2 bản cho hóa đơn bếp (1 bản chính, 1 bản copy)
+          await printDocxOnServer(sharedPath, 'hoadonbep.docx', templateData);
           await printDocxOnServer(sharedPath, 'hoadonbep.docx', templateData);
         } else {
           const plainText = formatPlainKitchenSlipServer(data.tableName, data.items, data.title);
+          // In 2 bản cho hóa đơn bếp dạng thô (raw)
+          await printRawOnServer(type, sharedPath, printer ? printer.ip : '', printer ? printer.port : null, plainText);
           await printRawOnServer(type, sharedPath, printer ? printer.ip : '', printer ? printer.port : null, plainText);
         }
         
