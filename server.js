@@ -1004,11 +1004,7 @@ function printDocxOnServer(printerName, templateName, templateData) {
 // Endpoint to silently print docx using Word in the background
 app.post('/api/print-docx-silent', requireAuth, async (req, res) => {
   const { sharedPath, template, templateData } = req.body;
-  
-  let templateName = 'hoadon.docx';
-  if (['hoadonbep.docx', 'hoadonnuoc.docx', 'hoadonthem.docx'].includes(template)) {
-    templateName = template;
-  }
+  const templateName = template === 'hoadonbep.docx' ? 'hoadonbep.docx' : 'hoadon.docx';
   
   try {
     const result = await printDocxOnServer(sharedPath, templateName, templateData);
@@ -1023,11 +1019,7 @@ app.post('/api/print-docx-silent', requireAuth, async (req, res) => {
 app.post('/api/print-docx', async (req, res) => {
   try {
     const { template, ...templateData } = req.body;
-    
-    let templateName = 'hoadon.docx';
-    if (['hoadonbep.docx', 'hoadonnuoc.docx', 'hoadonthem.docx'].includes(template)) {
-      templateName = template;
-    }
+    const templateName = template === 'hoadonbep.docx' ? 'hoadonbep.docx' : 'hoadon.docx';
 
     const buf = generateDocxBuffer(templateName, templateData);
 
@@ -1751,13 +1743,7 @@ io.on('connection', async (socket) => {
               notes: item.notes || ''
             }))
           };
-          let templateName = 'hoadonbep.docx';
-          if (data.title === 'HOÁ ĐƠN NƯỚC') {
-            templateName = 'hoadonnuoc.docx';
-          } else if (data.title === 'PHIẾU THÊM MÓN' || data.title === 'PHIẾU THÊM NƯỚC') {
-            templateName = 'hoadonthem.docx';
-          }
-          await printDocxOnServer(sharedPath, templateName, templateData);
+          await printDocxOnServer(sharedPath, 'hoadonbep.docx', templateData);
         } else {
           const plainText = formatPlainKitchenSlipServer(data.tableName, data.items, data.title);
           await printRawOnServer(type, sharedPath, printer ? printer.ip : '', printer ? printer.port : null, plainText);
