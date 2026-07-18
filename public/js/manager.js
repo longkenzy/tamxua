@@ -2905,7 +2905,7 @@ function openTransactionDetail(txIdOrIndex) {
     reprintBtn.parentNode.replaceChild(newReprintBtn, reprintBtn);
     newReprintBtn.addEventListener('click', () => {
       const tableObj = { name: tx.tableName };
-      printReceipt(tableObj, tx.items, tx.discountAmount || 0, tx.receivedAmount, tx.id, tx.timestamp);
+      printReceipt(tableObj, tx.items, tx.discountAmount || 0, tx.receivedAmount, tx.id, tx.timestamp, tx.paymentMethod || null, true);
     });
   }
 
