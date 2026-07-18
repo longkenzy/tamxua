@@ -1920,9 +1920,9 @@ app.get('/api/system/apply-update', (req, res) => {
   sendProgress('START', 10, 'Bắt đầu quá trình cập nhật...');
   sendProgress('GIT_PULL_START', 20, 'Đang kéo mã nguồn mới nhất từ Git (git pull origin main)...');
   
-  exec('git pull origin main', async (pullErr, stdout, stderr) => {
+  exec('git fetch origin main && git reset --hard origin/main && git clean -fd', async (pullErr, stdout, stderr) => {
     if (pullErr) {
-      sendProgress('ERROR', 0, `Lỗi khi chạy git pull: ${pullErr.message}\n${stderr}`);
+      sendProgress('ERROR', 0, `Lỗi khi chạy cập nhật Git: ${pullErr.message}\n${stderr}`);
       return res.end();
     }
 
