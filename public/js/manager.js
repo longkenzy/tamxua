@@ -2017,23 +2017,31 @@ async function printDocxSlip(printerId, tableName, items, title = 'HOÁ ĐƠN B�
   const sharedPath = localStorage.getItem(`printer_${printerId}_shared`) || '';
 
   if (type === 'system') {
-    // Silent direct system print
-    const plainText = formatPlainKitchenSlip(tableName, items, title);
+    const orderTimeStr = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) + ' • ' + new Date().toLocaleDateString('vi-VN');
+    const templateData = {
+      table_name: tableName,
+      order_time: orderTimeStr,
+      items: items.map(item => ({
+        name: item.name,
+        quantity: item.quantity,
+        notes: item.notes || ''
+      }))
+    };
     try {
-      const response = await fetch('/api/print-raw', {
+      const response = await fetch('/api/print-docx-silent', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          printerType: 'system',
           sharedPath: sharedPath,
-          content: plainText
+          template: 'hoadonbep.docx',
+          templateData: templateData
         })
       });
       if (response.ok) {
-        showToast(`✅ Đã in trực tiếp ${title} cho ${tableName} thành công!`);
+        showToast(`✅ Đã in trực tiếp ${title} cho ${tableName} thành công qua Word!`);
       } else {
         const errData = await response.json();
-        showToast(`❌ Lỗi in trực tiếp: ${errData.error}`);
+        showToast(`❌ Lỗi in trực tiếp qua Word: ${errData.error}`);
       }
     } catch (err) {
       console.error('Silent print error:', err);
@@ -2158,23 +2166,58 @@ async function printReceipt(tableObj, orderItems, discountAmount, receivedAmount
     const sharedPath = localStorage.getItem('printer_receipt_default_shared') || '';
 
     if (type === 'system') {
-      // Silent direct system print for cashier receipt
-      const plainText = formatPlainReceipt(tableObj, orderItems, discountAmount, receivedAmount, timestamp, payMethod);
+      const subtotal = orderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+      const finalTotal = Math.max(0, subtotal - discountAmount);
+      const changeAmount = receivedAmount ? (receivedAmount - finalTotal) : 0;
+
+      const orderTimeStr = tableObj.updatedAt 
+        ? formatTime(tableObj.updatedAt).replace(' - ', ' • ') 
+        : (timestamp ? formatTime(timestamp).replace(' - ', ' • ') : formatTime(new Date().toISOString()).replace(' - ', ' • '));
+
+      const checkoutTimeStr = timestamp 
+        ? formatTime(timestamp).replace(' - ', ' • ') 
+        : formatTime(new Date().toISOString()).replace(' - ', ' • ');
+
+      let selectedPayMethod = payMethod || currentPaymentMethod;
+      if (tableObj && tableObj.paymentMethod) {
+        selectedPayMethod = tableObj.paymentMethod;
+      }
+      const payMethodLabel = selectedPayMethod === 'bank' ? 'Chuyển khoản' : 'Tiền mặt';
+
+      const templateData = {
+        table_name: tableObj.name,
+        order_time: orderTimeStr,
+        checkout_time: checkoutTimeStr,
+        subtotal: formatVNDShort(subtotal),
+        discount: discountAmount > 0 ? `-${formatVNDShort(discountAmount)}` : '0đ',
+        final_total: formatVNDShort(finalTotal),
+        received_amount: formatVNDShort(receivedAmount || finalTotal),
+        change_amount: formatVNDShort(Math.max(0, changeAmount)),
+        payment_method: payMethodLabel,
+        items: orderItems.map(item => ({
+          emoji: item.emoji || '🍽️',
+          name: item.name,
+          price: formatVNDShort(item.price),
+          quantity: item.quantity,
+          total: formatVNDShort(item.price * item.quantity)
+        }))
+      };
+
       try {
-        const response = await fetch('/api/print-raw', {
+        const response = await fetch('/api/print-docx-silent', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            printerType: 'system',
             sharedPath: sharedPath,
-            content: plainText
+            template: 'hoadon.docx',
+            templateData: templateData
           })
         });
         if (response.ok) {
-          showToast(`✅ Đã in trực tiếp hóa đơn thanh toán cho ${tableObj.name} thành công!`);
+          showToast(`✅ Đã in trực tiếp hóa đơn thanh toán cho ${tableObj.name} thành công qua Word!`);
         } else {
           const errData = await response.json();
-          showToast(`❌ Lỗi in trực tiếp hóa đơn: ${errData.error}`);
+          showToast(`❌ Lỗi in trực tiếp hóa đơn qua Word: ${errData.error}`);
         }
       } catch (err) {
         console.error('Silent print error:', err);

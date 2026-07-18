@@ -942,34 +942,86 @@ app.post('/api/checkout', async (req, res) => {
   }
 });
 
+// Helper to generate docx buffer from template and data
+function generateDocxBuffer(templateName, templateData) {
+  const templatePath = path.join(__dirname, 'templates', templateName);
+  if (!fs.existsSync(templatePath)) {
+    throw new Error(`Không tìm thấy file ${templateName} trong thư mục templates.`);
+  }
+  const content = fs.readFileSync(templatePath, 'binary');
+  const zip = new PizZip(content);
+  const doc = new Docxtemplater(zip, {
+    paragraphLoop: true,
+    linebreaks: true,
+  });
+  doc.render(templateData);
+  return doc.getZip().generate({
+    type: 'nodebuffer',
+    compression: 'DEFLATE',
+  });
+}
+
+// Silent direct system print using Word in the background
+function printDocxOnServer(printerName, templateName, templateData) {
+  return new Promise((resolve, reject) => {
+    const scratchDir = path.join(__dirname, 'scratch');
+    if (!fs.existsSync(scratchDir)) {
+      fs.mkdirSync(scratchDir, { recursive: true });
+    }
+    
+    const tempFile = path.join(scratchDir, `print_job_${Date.now()}.docx`);
+    
+    try {
+      const buf = generateDocxBuffer(templateName, templateData);
+      fs.writeFileSync(tempFile, buf);
+    } catch (e) {
+      return reject(e);
+    }
+
+    // Escape single quotes for PowerShell
+    const escapedPrinterName = printerName ? printerName.replace(/'/g, "''") : '';
+    const escapedTempFile = tempFile.replace(/'/g, "''");
+    
+    let psCommand = `$word = New-Object -ComObject Word.Application; $word.Visible = $false; try { $doc = $word.Documents.Open('${escapedTempFile}'); `;
+    if (escapedPrinterName) {
+      psCommand += `$word.ActivePrinter = '${escapedPrinterName}'; `;
+    }
+    psCommand += `$doc.PrintOut($false); $doc.Close(); } finally { $word.Quit(); }`;
+    
+    const { execFile } = require('child_process');
+    execFile('powershell', ['-NoProfile', '-Command', psCommand], { encoding: 'utf8' }, (err, stdout, stderr) => {
+      try { fs.unlinkSync(tempFile); } catch (e) {}
+      
+      if (err) {
+        console.error('Lỗi in DOCX qua Word:', err, stderr);
+        return reject(new Error(`Lỗi khi in qua Word: ${err.message}`));
+      }
+      resolve({ success: true, message: `Đã in file mẫu thành công qua Word` });
+    });
+  });
+}
+
+// Endpoint to silently print docx using Word in the background
+app.post('/api/print-docx-silent', requireAuth, async (req, res) => {
+  const { sharedPath, template, templateData } = req.body;
+  const templateName = template === 'hoadonbep.docx' ? 'hoadonbep.docx' : 'hoadon.docx';
+  
+  try {
+    const result = await printDocxOnServer(sharedPath, templateName, templateData);
+    res.json(result);
+  } catch (error) {
+    console.error('Silent print docx error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Generate and print Word docx invoice
 app.post('/api/print-docx', async (req, res) => {
   try {
     const { template, ...templateData } = req.body;
     const templateName = template === 'hoadonbep.docx' ? 'hoadonbep.docx' : 'hoadon.docx';
 
-    // Path to the docx template
-    const templatePath = path.join(__dirname, 'templates', templateName);
-    if (!fs.existsSync(templatePath)) {
-      return res.status(404).json({ error: `Không tìm thấy file ${templateName} trong thư mục templates.` });
-    }
-
-    // Load Word template file as binary
-    const content = fs.readFileSync(templatePath, 'binary');
-    const zip = new PizZip(content);
-    const doc = new Docxtemplater(zip, {
-      paragraphLoop: true,
-      linebreaks: true,
-    });
-
-    // Populate data
-    doc.render(templateData);
-
-    // Generate output buffer
-    const buf = doc.getZip().generate({
-      type: 'nodebuffer',
-      compression: 'DEFLATE',
-    });
+    const buf = generateDocxBuffer(templateName, templateData);
 
     // Convert populated DOCX buffer to HTML
     const htmlResult = await mammoth.convertToHtml({ buffer: buf });
@@ -1680,8 +1732,22 @@ io.on('connection', async (socket) => {
           sharedPath = '';
         }
 
-        const plainText = formatPlainKitchenSlipServer(data.tableName, data.items, data.title);
-        await printRawOnServer(type, sharedPath, printer ? printer.ip : '', printer ? printer.port : null, plainText);
+        if (type === 'system') {
+          const orderTimeStr = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) + ' • ' + new Date().toLocaleDateString('vi-VN');
+          const templateData = {
+            table_name: data.tableName,
+            order_time: orderTimeStr,
+            items: data.items.map(item => ({
+              name: item.name,
+              quantity: item.quantity,
+              notes: item.notes || ''
+            }))
+          };
+          await printDocxOnServer(sharedPath, 'hoadonbep.docx', templateData);
+        } else {
+          const plainText = formatPlainKitchenSlipServer(data.tableName, data.items, data.title);
+          await printRawOnServer(type, sharedPath, printer ? printer.ip : '', printer ? printer.port : null, plainText);
+        }
         
         // Broadcast to all clients that server has printed it successfully
         io.emit('print_kitchen_slip', {
@@ -1719,8 +1785,45 @@ io.on('connection', async (socket) => {
           sharedPath = '';
         }
 
-        const plainText = formatPlainReceiptServer(data.tableObj, data.orderItems, data.discountAmount, data.receivedAmount, data.timestamp, data.payMethod);
-        await printRawOnServer(type, sharedPath, printer ? printer.ip : '', printer ? printer.port : null, plainText);
+        if (type === 'system') {
+          const subtotal = data.orderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+          const finalTotal = Math.max(0, subtotal - data.discountAmount);
+          const changeAmount = data.receivedAmount ? (data.receivedAmount - finalTotal) : 0;
+          
+          const orderTimeStr = data.tableObj.updatedAt 
+            ? formatTimeServer(data.tableObj.updatedAt).replace(' - ', ' • ') 
+            : (data.timestamp ? formatTimeServer(data.timestamp).replace(' - ', ' • ') : formatTimeServer(new Date().toISOString()).replace(' - ', ' • '));
+
+          const checkoutTimeStr = data.timestamp 
+            ? formatTimeServer(data.timestamp).replace(' - ', ' • ') 
+            : formatTimeServer(new Date().toISOString()).replace(' - ', ' • ');
+
+          const payMethodLabel = data.payMethod === 'bank' ? 'Chuyển khoản' : 'Tiền mặt';
+
+          const templateData = {
+            table_name: data.tableObj.name,
+            order_time: orderTimeStr,
+            checkout_time: checkoutTimeStr,
+            subtotal: formatVNDShort(subtotal),
+            discount: data.discountAmount > 0 ? `-${formatVNDShort(data.discountAmount)}` : '0đ',
+            final_total: formatVNDShort(finalTotal),
+            received_amount: formatVNDShort(data.receivedAmount || finalTotal),
+            change_amount: formatVNDShort(Math.max(0, changeAmount)),
+            payment_method: payMethodLabel,
+            items: data.orderItems.map(item => ({
+              emoji: item.emoji || '🍽️',
+              name: item.name,
+              price: formatVNDShort(item.price),
+              quantity: item.quantity,
+              total: formatVNDShort(item.price * item.quantity)
+            }))
+          };
+          
+          await printDocxOnServer(sharedPath, 'hoadon.docx', templateData);
+        } else {
+          const plainText = formatPlainReceiptServer(data.tableObj, data.orderItems, data.discountAmount, data.receivedAmount, data.timestamp, data.payMethod);
+          await printRawOnServer(type, sharedPath, printer ? printer.ip : '', printer ? printer.port : null, plainText);
+        }
         
         io.emit('print_receipt', {
           ...data,
