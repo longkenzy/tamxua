@@ -15,7 +15,9 @@ let selectedTableId = null;
 let selectedTransactionId = null;
 let currentTab = 'reports'; // Default to Business Overview
 let currentDiscountAmount = 0; // Discount applied in checkout modal
+let checkoutItemDiscounts = {}; // Map of item ID to unit discount amount
 let currentPaymentMethod = 'cash'; // Payment method in checkout modal ('cash' or 'bank')
+let selectedCheckoutBank = null; // Currently selected bank account object in checkout modal
 let notificationAudioContext = null;
 let revenueChartInstance = null;
 let revenueBarChartInstance = null;
@@ -121,7 +123,8 @@ const menuItemIdInput = document.getElementById('menu-item-id-input');
 const menuItemNameInput = document.getElementById('menu-item-name-input');
 const menuItemPriceInput = document.getElementById('menu-item-price-input');
 const menuItemCategoryInput = document.getElementById('menu-item-category-input');
-const menuItemDescInput = document.getElementById('menu-item-desc-input');
+const menuItemTypeInput = document.getElementById('menu-item-type-input');
+const menuItemGroupInput = document.getElementById('menu-item-group-input');
 const menuItemEmojiInput = document.getElementById('menu-item-emoji-input');
 const menuItemImageInput = document.getElementById('menu-item-image-input');
 const menuItemImageUrlInput = document.getElementById('menu-item-image-url-input');
@@ -550,6 +553,7 @@ const tabs = {
   'invoices': { el: document.getElementById('tab-invoices'), view: document.getElementById('invoices-dashboard-view'), title: 'Lịch sử hóa đơn' },
   'menu-mgmt': { el: document.getElementById('subtab-item-list'), view: document.getElementById('menu-mgmt-dashboard-view'), title: 'Quản lý mặt hàng' },
   'menu-preview': { el: document.getElementById('subtab-menu-preview'), view: document.getElementById('menu-preview-dashboard-view'), title: 'Thực đơn' },
+  'selection-groups': { el: document.getElementById('subtab-selection-groups'), view: document.getElementById('selection-groups-dashboard-view'), title: 'Nhóm lựa chọn' },
   'staff': { el: document.getElementById('tab-staff'), view: document.getElementById('staff-dashboard-view'), title: 'Quản lý nhân viên' },
   'printers': { el: tabPrinters, view: printersDashboardView, title: 'Cấu hình máy in' }
 };
@@ -601,7 +605,7 @@ function switchTab(tabKey) {
   // Manage submenu items expansion & chevron rotation for Items dropdown
   const submenu = document.getElementById('submenu-items');
   const chevron = document.querySelector('#tab-items-toggle .dropdown-chevron-icon');
-  const isSubmenuTab = ['menu-mgmt', 'menu-preview'].includes(tabKey);
+  const isSubmenuTab = ['menu-mgmt', 'menu-preview', 'selection-groups'].includes(tabKey);
   if (submenu && chevron) {
     if (isSubmenuTab) {
       submenu.style.display = 'flex';
@@ -643,6 +647,8 @@ function switchTab(tabKey) {
     renderMenuMgmtGrid();
   } else if (tabKey === 'menu-preview') {
     loadMenuGroups();
+  } else if (tabKey === 'selection-groups') {
+    loadOptionGroups();
   } else if (tabKey === 'report-revenue') {
     loadRevenueReport();
   } else if (tabKey === 'report-items') {
@@ -934,26 +940,41 @@ function renderTables() {
       
       itemsDetailHtml = `
         <div class="table-card-items-list" style="margin-top: 8px; border-top: 1px solid var(--hairline-soft); padding-top: 8px; text-align: left; display: flex; flex-direction: column; gap: 4px;">
-          ${table.order.map(item => `
-            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 4px; line-height: 1.2; padding: 2px 0; font-size: 12px;">
-              <div style="display: flex; flex-direction: column; max-width: 70%;">
-                <span style="font-weight: 500; word-break: break-word;" title="${item.name}">
-                  ${item.emoji} ${item.name}
-                </span>
-                <span class="text-muted" style="font-size: 10px; margin-left: 14px;">
-                  SL: ${item.quantity}
+          ${table.order.map(item => {
+            const optionGroupsMap = {};
+            if (item.options && Array.isArray(item.options)) {
+              item.options.forEach(o => {
+                const gn = o.group_name || 'Lựa chọn';
+                if (!optionGroupsMap[gn]) optionGroupsMap[gn] = [];
+                optionGroupsMap[gn].push(o.name);
+              });
+            }
+            const optionsTextLines = Object.keys(optionGroupsMap).map(gn => {
+              return `<div style="font-size: 10px; color: var(--muted); margin-left: 14px; margin-top: 1px; line-height: 1.1;">${gn}: ${optionGroupsMap[gn].join(', ')}</div>`;
+            }).join('');
+            
+            return `
+              <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 4px; line-height: 1.2; padding: 2px 0; font-size: 12px;">
+                <div style="display: flex; flex-direction: column; max-width: 70%;">
+                  <span style="font-weight: 500; word-break: break-word;" title="${item.name}">
+                    ${item.emoji} ${item.name}
+                  </span>
+                  <span class="text-muted" style="font-size: 10px; margin-left: 14px;">
+                    SL: ${item.quantity}
+                  </span>
+                </div>
+                <span class="bold" style="flex-shrink: 0; font-size: 12px; color: var(--ink); align-self: flex-start;">
+                  ${formatVND(item.price * item.quantity)}
                 </span>
               </div>
-              <span class="bold" style="flex-shrink: 0; font-size: 12px; color: var(--ink); align-self: flex-start;">
-                ${formatVND(item.price * item.quantity)}
-              </span>
-            </div>
-            ${item.notes ? `
-              <div style="font-size: 10px; color: var(--primary-error-text); font-style: italic; margin-left: 14px; margin-bottom: 4px; line-height: 1.1;">
-                * ${item.notes}
-              </div>
-            ` : ''}
-          `).join('')}
+              ${optionsTextLines}
+              ${item.notes ? `
+                <div style="font-size: 10px; color: var(--primary-error-text); font-style: italic; margin-left: 14px; margin-bottom: 4px; line-height: 1.1;">
+                  * ${item.notes}
+                </div>
+              ` : ''}
+            `;
+          }).join('')}
         </div>
       `;
     }
@@ -1106,154 +1127,218 @@ function renderTableDetails(table) {
     <h4 class="bold" style="font-size: 15px; margin-top: var(--space-xs);">Danh sách món đã gọi (${itemsCount})</h4>
     
     <div class="panel-items-list">
-      ${table.order.map(item => `
-        <div class="panel-item-row">
-          <div>
-            <span class="panel-item-name">${item.emoji} ${item.name}</span>
-            <div class="panel-item-qty">Số lượng: ${item.quantity} × ${formatVND(item.price)}</div>
-            ${item.notes ? `<div class="panel-item-note">Ghi chú: ${item.notes}</div>` : ''}
+      ${table.order.map(item => {
+        const optionGroupsMap = {};
+        if (item.options && Array.isArray(item.options)) {
+          item.options.forEach(o => {
+            const gn = o.group_name || 'Lựa chọn';
+            if (!optionGroupsMap[gn]) optionGroupsMap[gn] = [];
+            optionGroupsMap[gn].push(o.name);
+          });
+        }
+        const optionsTextLines = Object.keys(optionGroupsMap).map(gn => {
+          return `<div class="panel-item-note" style="color: #64748b; margin-top: 2px;">${gn}: ${optionGroupsMap[gn].join(', ')}</div>`;
+        }).join('');
+        
+        return `
+          <div class="panel-item-row">
+            <div>
+              <span class="panel-item-name">${item.emoji} ${item.name}</span>
+              <div class="panel-item-qty">Số lượng: ${item.quantity} × ${formatVND(item.price)}</div>
+              ${optionsTextLines}
+              ${item.notes ? `<div class="panel-item-note">Ghi chú: ${item.notes}</div>` : ''}
+            </div>
+            <span class="panel-item-subtotal">${formatVND(item.price * item.quantity)}</span>
           </div>
-          <span class="panel-item-subtotal">${formatVND(item.price * item.quantity)}</span>
-        </div>
-      `).join('')}
+        `;
+      }).join('')}
     </div>
 
-    <div style="display: flex; gap: 6px; margin-top: 16px; animation: fadeInUp 0.4s ease-out;">
-      <button class="btn-delete-order-premium" id="btn-delete-order-direct">
-        Hủy đơn
-        <div class="star-1">
-          <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
-            <g id="Layer_x0020_1">
-              <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
-            </g>
-          </svg>
-        </div>
-        <div class="star-2">
-          <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
-            <g id="Layer_x0020_1">
-              <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
-            </g>
-          </svg>
-        </div>
-        <div class="star-3">
-          <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
-            <g id="Layer_x0020_1">
-              <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
-            </g>
-          </svg>
-        </div>
-        <div class="star-4">
-          <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
-            <g id="Layer_x0020_1">
-              <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
-            </g>
-          </svg>
-        </div>
-        <div class="star-5">
-          <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
-            <g id="Layer_x0020_1">
-              <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
-            </g>
-          </svg>
-        </div>
-        <div class="star-6">
-          <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
-            <g id="Layer_x0020_1">
-              <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
-            </g>
-          </svg>
-        </div>
-      </button>
-      <button class="btn-add-more-premium" id="btn-add-more-dishes">
-        Thêm món
-        <div class="star-1">
-          <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
-            <g id="Layer_x0020_1">
-              <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
-            </g>
-          </svg>
-        </div>
-        <div class="star-2">
-          <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
-            <g id="Layer_x0020_1">
-              <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
-            </g>
-          </svg>
-        </div>
-        <div class="star-3">
-          <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
-            <g id="Layer_x0020_1">
-              <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
-            </g>
-          </svg>
-        </div>
-        <div class="star-4">
-          <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
-            <g id="Layer_x0020_1">
-              <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
-            </g>
-          </svg>
-        </div>
-        <div class="star-5">
-          <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
-            <g id="Layer_x0020_1">
-              <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
-            </g>
-          </svg>
-        </div>
-        <div class="star-6">
-          <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
-            <g id="Layer_x0020_1">
-              <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
-            </g>
-          </svg>
-        </div>
-      </button>
-      <button class="btn-checkout-premium" id="btn-trigger-checkout">
-        Thanh toán & In đơn
-        <div class="star-1">
-          <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
-            <g id="Layer_x0020_1">
-              <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
-            </g>
-          </svg>
-        </div>
-        <div class="star-2">
-          <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
-            <g id="Layer_x0020_1">
-              <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
-            </g>
-          </svg>
-        </div>
-        <div class="star-3">
-          <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
-            <g id="Layer_x0020_1">
-              <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
-            </g>
-          </svg>
-        </div>
-        <div class="star-4">
-          <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
-            <g id="Layer_x0020_1">
-              <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
-            </g>
-          </svg>
-        </div>
-        <div class="star-5">
-          <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
-            <g id="Layer_x0020_1">
-              <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
-            </g>
-          </svg>
-        </div>
-        <div class="star-6">
-          <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
-            <g id="Layer_x0020_1">
-              <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
-            </g>
-          </svg>
-        </div>
-      </button>
+    <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 16px; animation: fadeInUp 0.4s ease-out;">
+      <div style="display: flex; gap: 6px; width: 100%;">
+        <button class="btn-delete-order-premium" id="btn-delete-order-direct">
+          Hủy đơn
+          <div class="star-1">
+            <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+              <g id="Layer_x0020_1">
+                <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+              </g>
+            </svg>
+          </div>
+          <div class="star-2">
+            <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+              <g id="Layer_x0020_1">
+                <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+              </g>
+            </svg>
+          </div>
+          <div class="star-3">
+            <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+              <g id="Layer_x0020_1">
+                <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+              </g>
+            </svg>
+          </div>
+          <div class="star-4">
+            <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+              <g id="Layer_x0020_1">
+                <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+              </g>
+            </svg>
+          </div>
+          <div class="star-5">
+            <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+              <g id="Layer_x0020_1">
+                <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+              </g>
+            </svg>
+          </div>
+          <div class="star-6">
+            <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+              <g id="Layer_x0020_1">
+                <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+              </g>
+            </svg>
+          </div>
+        </button>
+        <button class="btn-add-more-premium" id="btn-add-more-dishes">
+          Thêm món
+          <div class="star-1">
+            <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+              <g id="Layer_x0020_1">
+                <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+              </g>
+            </svg>
+          </div>
+          <div class="star-2">
+            <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+              <g id="Layer_x0020_1">
+                <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+              </g>
+            </svg>
+          </div>
+          <div class="star-3">
+            <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+              <g id="Layer_x0020_1">
+                <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+              </g>
+            </svg>
+          </div>
+          <div class="star-4">
+            <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+              <g id="Layer_x0020_1">
+                <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+              </g>
+            </svg>
+          </div>
+          <div class="star-5">
+            <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+              <g id="Layer_x0020_1">
+                <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+              </g>
+            </svg>
+          </div>
+          <div class="star-6">
+            <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+              <g id="Layer_x0020_1">
+                <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+              </g>
+            </svg>
+          </div>
+        </button>
+      </div>
+      <div style="display: flex; gap: 6px; width: 100%;">
+        <button class="btn-print-kitchen-premium" id="btn-print-kitchen-direct">
+          In lại phiếu bếp
+          <div class="star-1">
+            <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+              <g id="Layer_x0020_1">
+                <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+              </g>
+            </svg>
+          </div>
+          <div class="star-2">
+            <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+              <g id="Layer_x0020_1">
+                <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+              </g>
+            </svg>
+          </div>
+          <div class="star-3">
+            <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+              <g id="Layer_x0020_1">
+                <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+              </g>
+            </svg>
+          </div>
+          <div class="star-4">
+            <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+              <g id="Layer_x0020_1">
+                <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+              </g>
+            </svg>
+          </div>
+          <div class="star-5">
+            <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+              <g id="Layer_x0020_1">
+                <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+              </g>
+            </svg>
+          </div>
+          <div class="star-6">
+            <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+              <g id="Layer_x0020_1">
+                <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+              </g>
+            </svg>
+          </div>
+        </button>
+        <button class="btn-checkout-premium" id="btn-trigger-checkout" style="flex: 1.5;">
+          Thanh toán & In đơn
+          <div class="star-1">
+            <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+              <g id="Layer_x0020_1">
+                <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+              </g>
+            </svg>
+          </div>
+          <div class="star-2">
+            <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+              <g id="Layer_x0020_1">
+                <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+              </g>
+            </svg>
+          </div>
+          <div class="star-3">
+            <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+              <g id="Layer_x0020_1">
+                <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+              </g>
+            </svg>
+          </div>
+          <div class="star-4">
+            <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+              <g id="Layer_x0020_1">
+                <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+              </g>
+            </svg>
+          </div>
+          <div class="star-5">
+            <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+              <g id="Layer_x0020_1">
+                <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+              </g>
+            </svg>
+          </div>
+          <div class="star-6">
+            <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 784.11 815.53">
+              <g id="Layer_x0020_1">
+                <path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path>
+              </g>
+            </svg>
+          </div>
+        </button>
+      </div>
     </div>
   `;
 
@@ -1336,6 +1421,34 @@ function renderTableDetails(table) {
       btnTriggerCheckout.style.boxShadow = '0 4px 6px -1px rgba(0, 136, 255, 0.15)';
     };
     btnTriggerCheckout.addEventListener('click', () => openCheckoutModal(table));
+  }
+
+  const btnPrintKitchenDirect = document.getElementById('btn-print-kitchen-direct');
+  if (btnPrintKitchenDirect) {
+    btnPrintKitchenDirect.onmouseover = () => {
+      btnPrintKitchenDirect.style.transform = 'translateY(-2px)';
+      btnPrintKitchenDirect.style.boxShadow = '0 6px 12px -2px rgba(217, 119, 6, 0.15)';
+    };
+    btnPrintKitchenDirect.onmouseout = () => {
+      btnPrintKitchenDirect.style.transform = 'translateY(0)';
+      btnPrintKitchenDirect.style.boxShadow = '0 4px 6px -1px rgba(217, 119, 6, 0.05)';
+    };
+    btnPrintKitchenDirect.addEventListener('click', async () => {
+      btnPrintKitchenDirect.disabled = true;
+      try {
+        const kitchenItems = table.order.filter(item => !isDrinkItem(item, menuItems));
+        if (kitchenItems.length === 0) {
+          showToast('⚠️ Không có món ăn nào trong đơn để in phiếu bếp!');
+          return;
+        }
+        await printDocxSlip('kitchen_default', table.name, kitchenItems, 'HOÁ ĐƠN BẾP');
+      } catch (err) {
+        console.error("Lỗi khi in lại phiếu bếp:", err);
+        showToast("❌ Gặp lỗi khi in lại phiếu bếp.");
+      } finally {
+        btnPrintKitchenDirect.disabled = false;
+      }
+    });
   }
 }
 
@@ -1910,6 +2023,16 @@ function getOrderDifference(oldOrder, newCart) {
 // Helper to check if an item is a drink
 function isDrinkItem(item, menuList) {
   const menuItem = (menuList || []).find(m => m.id === item.id);
+  if (menuItem && menuItem.type) {
+    const typeLower = menuItem.type.toLowerCase();
+    if (typeLower === 'món uống' || typeLower === 'món nước' || typeLower.includes('uống') || typeLower.includes('nước')) {
+      return true;
+    }
+    if (typeLower === 'món ăn' || typeLower.includes('ăn')) {
+      return false;
+    }
+  }
+  
   const category = menuItem ? menuItem.category : '';
   
   if (category) {
@@ -2016,25 +2139,47 @@ async function printDocxSlip(printerId, tableName, items, title = 'HOÁ ĐƠN B�
   const type = localStorage.getItem(`printer_${printerId}_type`) || 'browser';
   const sharedPath = localStorage.getItem(`printer_${printerId}_shared`) || '';
 
+  let selectedTemplate = 'hoadonbep.docx';
+  if (title && (title.toUpperCase().includes('THÊM') || title.toUpperCase().includes('THEM'))) {
+    selectedTemplate = 'hoadonthem.docx';
+  } else if (printerId === 'kitchen_bar' || (title && (title.toUpperCase().includes('NƯỚC') || title.toUpperCase().includes('NUOC')))) {
+    selectedTemplate = 'hoadonnuoc.docx';
+  }
+
   if (type === 'system') {
     const orderTimeStr = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) + ' • ' + new Date().toLocaleDateString('vi-VN');
     const templateData = {
       table_name: tableName,
       order_time: orderTimeStr,
-      items: items.map(item => ({
-        name: item.name,
-        quantity: item.quantity,
-        notes: item.notes || ''
-      }))
+      items: items.map(item => {
+        const optionGroupsMap = {};
+        if (item.options && Array.isArray(item.options)) {
+          item.options.forEach(o => {
+            const gn = o.group_name || 'Lựa chọn';
+            if (!optionGroupsMap[gn]) optionGroupsMap[gn] = [];
+            optionGroupsMap[gn].push(o.name);
+          });
+        }
+        const optionsText = Object.keys(optionGroupsMap).map(gn => `${gn}: ${optionGroupsMap[gn].join(', ')}`).join('\n');
+        
+        return {
+          name: item.name,
+          quantity: item.quantity,
+          notes: item.notes || '',
+          options_text: optionsText
+        };
+      })
     };
+
     try {
       const response = await fetch('/api/print-docx-silent', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           sharedPath: sharedPath,
-          template: 'hoadonbep.docx',
-          templateData: templateData
+          template: selectedTemplate,
+          templateData: templateData,
+          printerId: printerId
         })
       });
       if (response.ok) {
@@ -2053,14 +2198,27 @@ async function printDocxSlip(printerId, tableName, items, title = 'HOÁ ĐƠN B�
   const orderTimeStr = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) + ' • ' + new Date().toLocaleDateString('vi-VN');
   
   const templateData = {
-    template: 'hoadonbep.docx',
+    template: selectedTemplate,
     table_name: tableName,
     order_time: orderTimeStr,
-    items: items.map(item => ({
-      name: item.name,
-      quantity: item.quantity,
-      notes: item.notes || ''
-    }))
+    items: items.map(item => {
+      const optionGroupsMap = {};
+      if (item.options && Array.isArray(item.options)) {
+        item.options.forEach(o => {
+          const gn = o.group_name || 'Lựa chọn';
+          if (!optionGroupsMap[gn]) optionGroupsMap[gn] = [];
+          optionGroupsMap[gn].push(o.name);
+        });
+      }
+      const optionsText = Object.keys(optionGroupsMap).map(gn => `${gn}: ${optionGroupsMap[gn].join(', ')}`).join('\n');
+      
+      return {
+        name: item.name,
+        quantity: item.quantity,
+        notes: item.notes || '',
+        options_text: optionsText
+      };
+    })
   };
 
   try {
@@ -2184,6 +2342,19 @@ async function printReceipt(tableObj, orderItems, discountAmount, receivedAmount
       }
       const payMethodLabel = selectedPayMethod === 'bank' ? 'Chuyển khoản' : 'Tiền mặt';
 
+      let txBankName = null;
+      let txAccountNumber = null;
+      let txAccountHolder = null;
+      if (tableObj && tableObj.bankName) {
+        txBankName = tableObj.bankName;
+        txAccountNumber = tableObj.accountNumber;
+        txAccountHolder = tableObj.accountHolder;
+      } else if (selectedCheckoutBank) {
+        txBankName = selectedCheckoutBank.bank_name;
+        txAccountNumber = selectedCheckoutBank.account_number;
+        txAccountHolder = selectedCheckoutBank.account_holder;
+      }
+
       const templateData = {
         table_name: tableObj.name,
         order_time: orderTimeStr,
@@ -2194,14 +2365,41 @@ async function printReceipt(tableObj, orderItems, discountAmount, receivedAmount
         received_amount: formatVNDShort(receivedAmount || finalTotal),
         change_amount: formatVNDShort(Math.max(0, changeAmount)),
         payment_method: payMethodLabel,
-        items: orderItems.map(item => ({
-          emoji: item.emoji || '🍽️',
-          name: item.name,
-          price: formatVNDShort(item.price),
-          quantity: item.quantity,
-          total: formatVNDShort(item.price * item.quantity),
-          notes: item.notes || ''
-        }))
+        bank_name: txBankName,
+        account_number: txAccountNumber,
+        account_holder: txAccountHolder,
+        items: orderItems.map(item => {
+          let itemDiscount = 0;
+          if (item.discount !== undefined && item.discount !== null) {
+            itemDiscount = item.discount;
+          } else if (checkoutItemDiscounts && checkoutItemDiscounts[item.id]) {
+            const disc = checkoutItemDiscounts[item.id];
+            if (disc.type === 'percent') {
+              itemDiscount = Math.round(item.price * disc.value / 100);
+            } else {
+              itemDiscount = disc.value;
+            }
+          }
+          const optionGroupsMap = {};
+          if (item.options && Array.isArray(item.options)) {
+            item.options.forEach(o => {
+              const gn = o.group_name || 'Lựa chọn';
+              if (!optionGroupsMap[gn]) optionGroupsMap[gn] = [];
+              optionGroupsMap[gn].push(o.name);
+            });
+          }
+          const optionsText = Object.keys(optionGroupsMap).map(gn => `${gn}: ${optionGroupsMap[gn].join(', ')}`).join('\n');
+
+          return {
+            emoji: item.emoji || '🍽️',
+            name: item.name + (itemDiscount > 0 ? ` (Giảm -${formatVNDShort(itemDiscount)})` : ''),
+            price: formatVNDShort(item.price),
+            quantity: item.quantity,
+            total: formatVNDShort((item.price - itemDiscount) * item.quantity),
+            notes: item.notes || '',
+            options_text: optionsText
+          };
+        })
       };
 
       try {
@@ -2266,6 +2464,19 @@ async function printReceipt(tableObj, orderItems, discountAmount, receivedAmount
   }
   const payMethodLabel = selectedPayMethod === 'bank' ? 'Chuyển khoản' : 'Tiền mặt';
 
+  let txBankName = null;
+  let txAccountNumber = null;
+  let txAccountHolder = null;
+  if (tableObj && tableObj.bankName) {
+    txBankName = tableObj.bankName;
+    txAccountNumber = tableObj.accountNumber;
+    txAccountHolder = tableObj.accountHolder;
+  } else if (selectedCheckoutBank) {
+    txBankName = selectedCheckoutBank.bank_name;
+    txAccountNumber = selectedCheckoutBank.account_number;
+    txAccountHolder = selectedCheckoutBank.account_holder;
+  }
+
   const templateData = {
     table_name: tableObj.name,
     order_time: orderTimeStr,
@@ -2276,14 +2487,41 @@ async function printReceipt(tableObj, orderItems, discountAmount, receivedAmount
     received_amount: formatVND(receivedAmount || finalTotal),
     change_amount: formatVND(Math.max(0, changeAmount)),
     payment_method: payMethodLabel,
-    items: orderItems.map(item => ({
-      emoji: item.emoji || '🍽️',
-      name: item.name,
-      price: formatVND(item.price),
-      quantity: item.quantity,
-      total: formatVND(item.price * item.quantity),
-      notes: item.notes || ''
-    }))
+    bank_name: txBankName,
+    account_number: txAccountNumber,
+    account_holder: txAccountHolder,
+    items: orderItems.map(item => {
+      let itemDiscount = 0;
+      if (item.discount !== undefined && item.discount !== null) {
+        itemDiscount = item.discount;
+      } else if (checkoutItemDiscounts && checkoutItemDiscounts[item.id]) {
+        const disc = checkoutItemDiscounts[item.id];
+        if (disc.type === 'percent') {
+          itemDiscount = Math.round(item.price * disc.value / 100);
+        } else {
+          itemDiscount = disc.value;
+        }
+      }
+      const optionGroupsMap = {};
+      if (item.options && Array.isArray(item.options)) {
+        item.options.forEach(o => {
+          const gn = o.group_name || 'Lựa chọn';
+          if (!optionGroupsMap[gn]) optionGroupsMap[gn] = [];
+          optionGroupsMap[gn].push(o.name);
+        });
+      }
+      const optionsText = Object.keys(optionGroupsMap).map(gn => `${gn}: ${optionGroupsMap[gn].join(', ')}`).join('\n');
+
+      return {
+        emoji: item.emoji || '🍽️',
+        name: item.name + (itemDiscount > 0 ? ` (Giảm -${formatVND(itemDiscount)})` : ''),
+        price: formatVND(item.price),
+        quantity: item.quantity,
+        total: formatVND((item.price - itemDiscount) * item.quantity),
+        notes: item.notes || '',
+        options_text: optionsText
+      };
+    })
   };
 
   showToast('🔄 Đang gửi dữ liệu in hóa đơn...');
@@ -2358,11 +2596,51 @@ async function printReceipt(tableObj, orderItems, discountAmount, receivedAmount
     }
     
     iframe.contentWindow.focus();
-    // Wait a brief moment to ensure DOM renders properly, then trigger print
-    setTimeout(() => {
-      iframe.contentWindow.print();
-      showToast('✅ Đã mở hộp thoại in hóa đơn!');
-    }, 300);
+
+    // Wait for all images to load before triggering print dialog (ensures QR code appears)
+    const images = doc.getElementsByTagName('img');
+    let loadedCount = 0;
+    const totalImages = images.length;
+
+    function triggerPrint() {
+      setTimeout(() => {
+        iframe.contentWindow.print();
+        showToast('✅ Đã mở hộp thoại in hóa đơn!');
+      }, 200);
+    }
+
+    if (totalImages === 0) {
+      triggerPrint();
+    } else {
+      let printTriggered = false;
+      const fallbackTimeout = setTimeout(() => {
+        if (!printTriggered) {
+          printTriggered = true;
+          triggerPrint();
+        }
+      }, 1500);
+
+      for (let i = 0; i < totalImages; i++) {
+        const img = images[i];
+        if (img.complete) {
+          loadedCount++;
+          if (loadedCount === totalImages && !printTriggered) {
+            clearTimeout(fallbackTimeout);
+            printTriggered = true;
+            triggerPrint();
+          }
+        } else {
+          img.onload = img.onerror = () => {
+            loadedCount++;
+            if (loadedCount === totalImages && !printTriggered) {
+              clearTimeout(fallbackTimeout);
+              printTriggered = true;
+              triggerPrint();
+            }
+          };
+        }
+      }
+    }
     
   } catch (error) {
     console.error('Lỗi xuất hóa đơn Word:', error);
@@ -2370,29 +2648,192 @@ async function printReceipt(tableObj, orderItems, discountAmount, receivedAmount
   }
 }
 
+// Active bank accounts list for current checkout session
+let checkoutActiveBanks = [];
+
 // Open Cash Calculation Modal
-function openCheckoutModal(table) {
+async function openCheckoutModal(table) {
   checkoutModalTitle.textContent = `Thanh toán - ${table.name}`;
+
+  const totalAmount = table.order.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  checkoutBillTotal.textContent = formatVND(totalAmount);
+  
+  // Load active bank account details from database
+  checkoutActiveBanks = [];
+  selectedCheckoutBank = null;
+  try {
+    const bankRes = await fetch('/api/bank-accounts/active');
+    if (bankRes.ok) {
+      checkoutActiveBanks = await bankRes.json();
+    }
+  } catch (err) {
+    console.error('Lỗi khi tải tài khoản ngân hàng nhận tiền:', err);
+  }
+
+  // Render bank selector buttons
+  const bankSelector = document.getElementById('checkout-bank-selector');
+  if (bankSelector) {
+    bankSelector.innerHTML = '';
+    
+    if (checkoutActiveBanks.length === 0) {
+      bankSelector.innerHTML = '<span style="color: var(--primary-error-text); font-size: 12px; font-weight: 600;">⚠️ Chưa kích hoạt tài khoản ngân hàng nào. Vui lòng cấu hình ở mục "Số tài khoản".</span>';
+    } else {
+      // Default select the first active bank account
+      selectedCheckoutBank = checkoutActiveBanks[0];
+      
+      checkoutActiveBanks.forEach((bank, idx) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'bank-select-btn' + (idx === 0 ? ' active' : '');
+        btn.textContent = `${bank.bank_name} (${bank.account_number.slice(-4)})`;
+        btn.onclick = () => {
+          bankSelector.querySelectorAll('.bank-select-btn').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          selectedCheckoutBank = bank;
+          updateCheckoutBankDetails();
+        };
+        bankSelector.appendChild(btn);
+      });
+    }
+  }
+
+  // Helper function to update the on-screen labels and QR code
+  function updateCheckoutBankDetails() {
+    const labelName = document.getElementById('bank-payment-name');
+    const labelHolder = document.getElementById('bank-payment-holder');
+    const labelNumber = document.getElementById('bank-payment-number');
+    const bankQrImage = document.getElementById('bank-qr-image');
+    
+    if (selectedCheckoutBank) {
+      if (labelName) labelName.textContent = selectedCheckoutBank.bank_name;
+      if (labelHolder) labelHolder.textContent = selectedCheckoutBank.account_holder;
+      if (labelNumber) labelNumber.textContent = selectedCheckoutBank.account_number;
+      
+      const finalToPay = Math.max(0, totalAmount - currentDiscountAmount);
+      const cleanTableName = table.name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D");
+      const description = `TAMXUA Thanh toan ${cleanTableName}`.replace(/[^a-zA-Z0-9 ]/g, "");
+      let bankSlug = getVietQrBankSlug(selectedCheckoutBank.bank_name);
+      const qrUrl = `https://img.vietqr.io/image/${bankSlug}-${selectedCheckoutBank.account_number}-compact.png?amount=${finalToPay}&addInfo=${encodeURIComponent(description)}&accountName=${encodeURIComponent(selectedCheckoutBank.account_holder)}`;
+      loadCheckoutQrImage(qrUrl);
+    } else {
+      if (labelName) labelName.textContent = '---';
+      if (labelHolder) labelHolder.textContent = '---';
+      if (labelNumber) labelNumber.textContent = '---';
+      if (bankQrImage) bankQrImage.src = '';
+      
+      const loadingOverlay = document.getElementById('bank-qr-loading');
+      const errorOverlay = document.getElementById('bank-qr-error');
+      if (loadingOverlay) loadingOverlay.style.display = 'none';
+      if (errorOverlay) errorOverlay.style.display = 'none';
+    }
+  }
+
+  // Initialize display labels
+  updateCheckoutBankDetails();
   
   // Render bill details in modal
   checkoutBillItemsBody.innerHTML = '';
+  checkoutItemDiscounts = {}; // Clear previous session item discounts
+
   table.order.forEach(item => {
+    // Initialize unit discount representation
+    checkoutItemDiscounts[item.id] = { value: 0, type: 'cash' };
+
+    const optionGroupsMap = {};
+    if (item.options && Array.isArray(item.options)) {
+      item.options.forEach(o => {
+        const gn = o.group_name || 'Lựa chọn';
+        if (!optionGroupsMap[gn]) optionGroupsMap[gn] = [];
+        optionGroupsMap[gn].push(o.name);
+      });
+    }
+    const optionsTextLines = Object.keys(optionGroupsMap).map(gn => {
+      return `<span class="checkout-item-note-badge" style="background-color: #e2e8f0; color: #475569; font-weight: 500; margin-top: 2px; display: inline-block;">${gn}: ${optionGroupsMap[gn].join(', ')}</span>`;
+    }).join('');
+
     const row = document.createElement('tr');
     row.innerHTML = `
-      <td>
-        <div class="checkout-item-details">
+      <td style="vertical-align: middle;">
+        <div class="checkout-item-details" style="display: flex; flex-direction: column;">
           <span class="checkout-item-name">${item.emoji} ${item.name}</span>
+          ${optionsTextLines}
           ${item.notes ? `<span class="checkout-item-note-badge">Ghi chú: ${item.notes}</span>` : ''}
         </div>
       </td>
       <td class="text-center bold" style="font-size: 15px; vertical-align: middle;">${item.quantity}</td>
-      <td class="text-right bold" style="vertical-align: middle;">${formatVND(item.price * item.quantity)}</td>
+      <td class="text-center" style="vertical-align: middle;">
+        <div style="display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 1px 2px rgba(0,0,0,0.05); border-radius: var(--rounded-sm); overflow: hidden;">
+          <input type="number" class="item-discount-value-input text-input" data-item-id="${item.id}" placeholder="0" min="0" value="0" style="padding: 2px 8px; height: 28px; border: 1.5px solid #cbd5e1; border-right: none; border-radius: 6px 0 0 6px; font-size: 13px; text-align: right; width: 75px; box-sizing: border-box; font-weight: 600; outline: none; transition: border-color 0.2s;">
+          <select class="item-discount-type-select text-input" data-item-id="${item.id}" style="padding: 2px 8px 2px 4px; height: 28px; border: 1.5px solid #cbd5e1; border-radius: 0 6px 6px 0; font-size: 13px; font-weight: 600; width: 45px; box-sizing: border-box; text-align: center; background-color: #f8fafc; cursor: pointer; outline: none; transition: border-color 0.2s; color: #475569;">
+            <option value="cash">đ</option>
+            <option value="percent">%</option>
+          </select>
+        </div>
+      </td>
+      <td class="text-right bold item-line-total" data-item-id="${item.id}" style="vertical-align: middle;">${formatVND(item.price * item.quantity)}</td>
     `;
     checkoutBillItemsBody.appendChild(row);
-  });
 
-  const totalAmount = table.order.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  checkoutBillTotal.textContent = formatVND(totalAmount);
+    // Bind event for item-level discount value and type changes
+    const valInput = row.querySelector('.item-discount-value-input');
+    const typeSelect = row.querySelector('.item-discount-type-select');
+
+    function handleDiscountChange() {
+      let val = parseFloat(valInput.value) || 0;
+      const type = typeSelect.value;
+      
+      if (type === 'percent') {
+        if (val > 100) {
+          val = 100;
+          valInput.value = 100;
+        }
+      } else {
+        if (val > item.price) {
+          val = item.price;
+          valInput.value = item.price;
+        }
+      }
+      if (val < 0) {
+        val = 0;
+        valInput.value = 0;
+      }
+      
+      checkoutItemDiscounts[item.id] = { value: val, type: type };
+
+      // Calculate absolute unit discount in VND
+      let discountPerUnit = 0;
+      if (type === 'percent') {
+        discountPerUnit = Math.round(item.price * val / 100);
+      } else {
+        discountPerUnit = val;
+      }
+
+      // Update line total display for this row
+      const lineTotalCell = row.querySelector('.item-line-total');
+      lineTotalCell.textContent = formatVND((item.price - discountPerUnit) * item.quantity);
+
+      // Recalculate totals
+      updateCheckoutCalculations();
+    }
+
+    // Focus / blur effects for active border styling
+    const highlightBorders = () => {
+      valInput.style.borderColor = 'var(--primary)';
+      typeSelect.style.borderColor = 'var(--primary)';
+    };
+    const resetBorders = () => {
+      valInput.style.borderColor = '#cbd5e1';
+      typeSelect.style.borderColor = '#cbd5e1';
+    };
+
+    valInput.addEventListener('focus', highlightBorders);
+    valInput.addEventListener('blur', resetBorders);
+    typeSelect.addEventListener('focus', highlightBorders);
+    typeSelect.addEventListener('blur', resetBorders);
+
+    valInput.addEventListener('input', handleDiscountChange);
+    typeSelect.addEventListener('change', handleDiscountChange);
+  });
 
   // Discount elements references
   const discountTypeInput = document.getElementById('checkout-discount-type');
@@ -2430,33 +2871,68 @@ function openCheckoutModal(table) {
 
   // Real-time calculation function
   function updateCheckoutCalculations() {
+    // 1. Calculate sum of item-level discounts
+    const itemDiscountsSum = table.order.reduce((sum, item) => {
+      const disc = checkoutItemDiscounts[item.id] || { value: 0, type: 'cash' };
+      let discountPerUnit = 0;
+      if (disc.type === 'percent') {
+        discountPerUnit = Math.round(item.price * disc.value / 100);
+      } else {
+        discountPerUnit = disc.value;
+      }
+      return sum + (discountPerUnit * item.quantity);
+    }, 0);
+
+    // 2. Base subtotal is totalAmount (sum of original prices)
+    const baseSubtotal = totalAmount;
+
+    // 3. Subtotal after item-level discounts
+    const subtotalAfterItemDiscounts = Math.max(0, baseSubtotal - itemDiscountsSum);
+
+    // 4. Calculate general bill discount
     const type = discountTypeInput.value;
     const value = parseFloat(discountValueInput.value) || 0;
     
+    let generalDiscountAmount = 0;
     if (type === 'none') {
       discountValueInput.disabled = true;
       discountValueInput.value = '0';
-      calcSummaryCard.style.display = 'none';
-      currentDiscountAmount = 0;
+      generalDiscountAmount = 0;
     } else {
       discountValueInput.disabled = false;
       if (type === 'percent') {
         let pct = Math.max(0, Math.min(100, value));
         if (value !== pct) discountValueInput.value = pct;
-        currentDiscountAmount = Math.round(totalAmount * pct / 100);
+        generalDiscountAmount = Math.round(subtotalAfterItemDiscounts * pct / 100);
       } else if (type === 'cash') {
-        let cashVal = Math.max(0, Math.min(totalAmount, value));
+        let cashVal = Math.max(0, Math.min(subtotalAfterItemDiscounts, value));
         if (value !== cashVal) discountValueInput.value = cashVal;
-        currentDiscountAmount = cashVal;
+        generalDiscountAmount = cashVal;
       }
-      
-      summarySubtotal.textContent = formatVND(totalAmount);
-      summaryDiscount.textContent = `-${formatVND(currentDiscountAmount)}`;
-      summaryFinalTotal.textContent = formatVND(totalAmount - currentDiscountAmount);
-      calcSummaryCard.style.display = 'flex';
     }
     
-    const finalToPay = Math.max(0, totalAmount - currentDiscountAmount);
+    // 5. Total discount applied is sum of item discounts + general discount
+    currentDiscountAmount = itemDiscountsSum + generalDiscountAmount;
+    const finalToPay = Math.max(0, baseSubtotal - currentDiscountAmount);
+    
+    if (currentDiscountAmount > 0) {
+      summarySubtotal.textContent = formatVND(baseSubtotal);
+
+      // Prepare detailed discount text
+      let discountText = '';
+      if (itemDiscountsSum > 0 && generalDiscountAmount > 0) {
+        discountText = `-${formatVND(currentDiscountAmount)} (Giảm món: ${formatVND(itemDiscountsSum)} + Giảm bill: ${formatVND(generalDiscountAmount)})`;
+      } else if (itemDiscountsSum > 0) {
+        discountText = `-${formatVND(itemDiscountsSum)} (Giảm món)`;
+      } else {
+        discountText = `-${formatVND(generalDiscountAmount)} (Giảm bill)`;
+      }
+      summaryDiscount.textContent = discountText;
+      summaryFinalTotal.textContent = formatVND(finalToPay);
+      calcSummaryCard.style.display = 'flex';
+    } else {
+      calcSummaryCard.style.display = 'none';
+    }
     
     if (currentPaymentMethod === 'bank') {
       // For Bank Transfer, received amount is exactly finalToPay, change is 0
@@ -2465,7 +2941,20 @@ function openCheckoutModal(table) {
       displayChangeAmount.className = 'change-value-v2';
       btnConfirmCheckoutPay.disabled = false;
       
-      // No QR code needed, just show transfer details in UI
+      // Dynamic VietQR code generation
+      const bankQrImage = document.getElementById('bank-qr-image');
+      const bankPaymentAmountText = document.getElementById('bank-payment-amount');
+      if (bankPaymentAmountText) {
+        bankPaymentAmountText.textContent = formatVND(finalToPay);
+      }
+      if (bankQrImage && selectedCheckoutBank) {
+        const cleanTableName = table.name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D");
+        const description = `TAMXUA Thanh toan ${cleanTableName}`.replace(/[^a-zA-Z0-9 ]/g, "");
+        
+        let bankSlug = getVietQrBankSlug(selectedCheckoutBank.bank_name);
+        const qrUrl = `https://img.vietqr.io/image/${bankSlug}-${selectedCheckoutBank.account_number}-compact.png?amount=${finalToPay}&addInfo=${encodeURIComponent(description)}&accountName=${encodeURIComponent(selectedCheckoutBank.account_holder)}`;
+        loadCheckoutQrImage(qrUrl);
+      }
     } else {
       // Cash payment
       const cash = parseFloat(inputReceivedCash.value) || 0;
@@ -2539,8 +3028,27 @@ btnConfirmCheckoutPay.addEventListener('click', async () => {
   const cash = parseFloat(inputReceivedCash.value) || 0;
   if (!selectedTableId) return;
 
+  const table = tables.find(t => t.id === selectedTableId);
+  if (!table || !table.order) {
+    showToast('⚠️ Không tìm thấy thông tin đơn hàng.');
+    return;
+  }
+
   btnConfirmCheckoutPay.disabled = true;
   btnConfirmCheckoutPay.textContent = 'Đang thanh toán...';
+
+  // Construct absolute unit-level discounts in VND to send to server
+  const absoluteItemDiscounts = {};
+  table.order.forEach(item => {
+    const disc = checkoutItemDiscounts[item.id] || { value: 0, type: 'cash' };
+    let discountPerUnit = 0;
+    if (disc.type === 'percent') {
+      discountPerUnit = Math.round(item.price * disc.value / 100);
+    } else {
+      discountPerUnit = disc.value;
+    }
+    absoluteItemDiscounts[item.id] = discountPerUnit;
+  });
 
   try {
     const response = await fetch('/api/checkout', {
@@ -2552,7 +3060,8 @@ btnConfirmCheckoutPay.addEventListener('click', async () => {
         tableId: selectedTableId,
         receivedAmount: cash,
         discountAmount: currentDiscountAmount,
-        paymentMethod: currentPaymentMethod
+        paymentMethod: currentPaymentMethod,
+        itemDiscounts: absoluteItemDiscounts
       })
     });
     
@@ -2860,16 +3369,31 @@ function openTransactionDetail(txIdOrIndex) {
       
       <div style="margin-top: 8px; font-weight: 700; color: #475569; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px;">Danh sách món ăn</div>
       <div style="display: flex; flex-direction: column; gap: 8px; max-height: 180px; overflow-y: auto; padding: 4px 0;">
-        ${tx.items.map(item => `
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <div style="display: flex; flex-direction: column; text-align: left;">
-              <span style="font-weight: 600; color: #0f172a;">${item.emoji} ${item.name}</span>
-              <span style="font-size: 11px; color: #64748b;">SL: ${item.quantity} × ${formatVND(item.price)}</span>
-              ${item.notes ? `<span style="font-size: 11px; color: #ef4444; font-style: italic;">Ghi chú: ${item.notes}</span>` : ''}
+        ${tx.items.map(item => {
+          const optionGroupsMap = {};
+          if (item.options && Array.isArray(item.options)) {
+            item.options.forEach(o => {
+              const gn = o.group_name || 'Lựa chọn';
+              if (!optionGroupsMap[gn]) optionGroupsMap[gn] = [];
+              optionGroupsMap[gn].push(o.name);
+            });
+          }
+          const optionsTextLines = Object.keys(optionGroupsMap).map(gn => {
+            return `<span style="font-size: 11px; color: #64748b;">${gn}: ${optionGroupsMap[gn].join(', ')}</span>`;
+          }).join('');
+          
+          return `
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <div style="display: flex; flex-direction: column; text-align: left;">
+                <span style="font-weight: 600; color: #0f172a;">${item.emoji} ${item.name}</span>
+                <span style="font-size: 11px; color: #64748b;">SL: ${item.quantity} × ${formatVND(item.price)}</span>
+                ${optionsTextLines}
+                ${item.notes ? `<span style="font-size: 11px; color: #ef4444; font-style: italic;">Ghi chú: ${item.notes}</span>` : ''}
+              </div>
+              <span style="font-weight: 700; color: #0f172a;">${formatVND(item.price * item.quantity)}</span>
             </div>
-            <span style="font-weight: 700; color: #0f172a;">${formatVND(item.price * item.quantity)}</span>
-          </div>
-        `).join('')}
+          `;
+        }).join('')}
       </div>
 
       <div style="border-top: 1px dashed #cbd5e1; margin: 8px 0;"></div>
@@ -2906,7 +3430,12 @@ function openTransactionDetail(txIdOrIndex) {
     const newReprintBtn = reprintBtn.cloneNode(true);
     reprintBtn.parentNode.replaceChild(newReprintBtn, reprintBtn);
     newReprintBtn.addEventListener('click', () => {
-      const tableObj = { name: tx.tableName };
+      const tableObj = { 
+        name: tx.tableName,
+        bankName: tx.bankName,
+        accountNumber: tx.accountNumber,
+        accountHolder: tx.accountHolder
+      };
       printReceipt(tableObj, tx.items, tx.discountAmount || 0, tx.receivedAmount, tx.id, tx.timestamp, tx.paymentMethod || null, true);
     });
   }
@@ -4689,9 +5218,9 @@ function renderMenuMgmtGrid() {
       <tr style="background-color: var(--canvas); border-bottom: 1px solid var(--hairline); font-weight: 600;">
         <th style="padding: 14px 16px; color: var(--ink-soft); width: 60px; text-align: center;">STT</th>
         <th style="padding: 14px 16px; color: var(--ink-soft); width: 80px;">Hình ảnh</th>
-        <th style="padding: 14px 16px; color: var(--ink-soft); width: 250px;">Tên món</th>
-        <th style="padding: 14px 16px; color: var(--ink-soft); width: 140px; text-align: right;">Giá bán</th>
-        <th style="padding: 14px 16px; color: var(--ink-soft);">Mô tả</th>
+        <th style="padding: 14px 16px; color: var(--ink-soft); width: 220px;">Tên món</th>
+        <th style="padding: 14px 16px; color: var(--ink-soft); width: 120px;">Phân loại</th>
+        <th style="padding: 14px 16px; color: var(--ink-soft); width: 120px; text-align: right;">Giá bán</th>
         <th style="padding: 14px 16px; color: var(--ink-soft); width: 100px; text-align: center;">Hành động</th>
       </tr>
     </thead>
@@ -4722,8 +5251,8 @@ function renderMenuMgmtGrid() {
       <td style="padding: 12px 16px; vertical-align: middle; text-align: center; color: var(--ink-soft); font-weight: 500;">${index + 1}</td>
       <td style="padding: 12px 16px; vertical-align: middle;">${photoHtml}</td>
       <td style="padding: 12px 16px; vertical-align: middle; font-weight: 600; color: var(--ink);">${item.name}</td>
+      <td style="padding: 12px 16px; vertical-align: middle; font-weight: 500; color: var(--ink-soft);">${item.type || 'Món ăn'}</td>
       <td style="padding: 12px 16px; vertical-align: middle; text-align: right; font-weight: 700; color: var(--primary);">${formatVND(item.price)}</td>
-      <td style="padding: 12px 16px; vertical-align: middle; color: var(--muted); max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${item.description || '<span style="color: #cbd5e1; font-style: italic;">Chưa có mô tả</span>'}</td>
       <td style="padding: 12px 16px; vertical-align: middle; text-align: center;">
         <button class="btn btn-secondary btn-pill btn-edit-menu-item" style="height: 30px; padding: 0 12px; font-size: 12px; border-color: var(--ink-soft); font-weight: 500;">Sửa</button>
       </td>
@@ -4736,6 +5265,17 @@ function renderMenuMgmtGrid() {
 
 // Modal Form management
 function openMenuItemModal(item = null) {
+  // Populate menu group select options dynamically from global menuGroups
+  menuItemGroupInput.innerHTML = '<option value="">-- Chưa phân thực đơn --</option>';
+  if (Array.isArray(menuGroups)) {
+    menuGroups.forEach(g => {
+      const opt = document.createElement('option');
+      opt.value = g.id;
+      opt.textContent = g.name;
+      menuItemGroupInput.appendChild(opt);
+    });
+  }
+
   // If item is null: Create Mode. Otherwise: Edit Mode
   if (item) {
     menuItemModalTitle.textContent = 'Chỉnh sửa món ăn';
@@ -4743,9 +5283,28 @@ function openMenuItemModal(item = null) {
     menuItemIdInput.value = item.id;
     menuItemNameInput.value = item.name;
     menuItemPriceInput.value = item.price;
-    menuItemCategoryInput.value = item.category;
-    menuItemDescInput.value = item.description || '';
+    
+    // Ensure the option exists in the native select so we can set its value correctly
+    let categoryOptExists = false;
+    Array.from(menuItemCategoryInput.options).forEach(opt => {
+      if (opt.value === item.category) categoryOptExists = true;
+    });
+    if (!categoryOptExists && item.category) {
+      const opt = document.createElement('option');
+      opt.value = item.category;
+      opt.textContent = item.category;
+      menuItemCategoryInput.appendChild(opt);
+    }
+    menuItemCategoryInput.value = item.category || 'main';
+
     menuItemEmojiInput.value = item.emoji || '🍽️';
+    
+    // Set classification type select
+    menuItemTypeInput.value = item.type || 'Món ăn';
+
+    // Find and set current menu group from global menuGroups list
+    const foundGroup = (menuGroups || []).find(g => (g.items || []).some(itemInGroup => itemInGroup.id === item.id));
+    menuItemGroupInput.value = foundGroup ? foundGroup.id : '';
 
     // Update visual preview for edit mode
     menuItemEmojiPreview.style.display = 'none';
@@ -4767,6 +5326,8 @@ function openMenuItemModal(item = null) {
     menuItemIdInput.value = '';
     menuItemForm.reset();
     menuItemCategoryInput.value = 'main';
+    menuItemTypeInput.value = 'Món ăn';
+    menuItemGroupInput.value = '';
     menuItemEmojiInput.value = '🍽️';
     menuItemImageUrlInput.value = '';
 
@@ -4837,10 +5398,12 @@ menuItemForm.addEventListener('submit', async (e) => {
   const name = menuItemNameInput.value.trim();
   const price = menuItemPriceInput.value;
   const category = menuItemCategoryInput.value;
-  const description = menuItemDescInput.value.trim();
   const emoji = menuItemEmojiInput.value.trim();
   const imageFile = menuItemImageInput.files[0];
   const imageUrlLink = menuItemImageUrlInput.value.trim();
+  
+  const type = menuItemTypeInput.value;
+  const menuGroupId = menuItemGroupInput.value;
   
   if (!name || !price || !category) return;
   
@@ -4853,8 +5416,11 @@ menuItemForm.addEventListener('submit', async (e) => {
   formData.append('name', name);
   formData.append('price', price);
   formData.append('category', category);
-  formData.append('description', description);
   formData.append('emoji', emoji);
+  formData.append('type', type);
+  if (menuGroupId) {
+    formData.append('menuGroupId', menuGroupId);
+  }
   
   const isImageEmpty = menuItemImagePreview.src.includes('images/logo.png');
   if (imageFile) {
@@ -5789,11 +6355,11 @@ function editMenuGroup(id) {
 
 // Download template Excel file
 function downloadExcelTemplate() {
-  // Column names in Vietnamese: tên mặt hàng, giá bán, thực đơn, mô tả, hình ảnh (link)
+  // Column names in Vietnamese: tên mặt hàng, giá bán, thực đơn, phân loại, hình ảnh (link)
   const data = [
-    { "Tên mặt hàng": "Cơm tấm đặc biệt", "Giá bán": 85000, "Thực đơn": "SƯỜN", "Mô tả": "Sườn, bì, chả và trứng ốp la lòng đào", "Hình ảnh (link)": "https://images.unsplash.com/photo-1541832676-9b763b0239ab?q=80&w=300" },
-    { "Tên mặt hàng": "Trà đá sả chanh", "Giá bán": 15000, "Thực đơn": "CANH VÀ TOPPING", "Mô tả": "Nước uống mát lạnh sảng khoái", "Hình ảnh (link)": "https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?q=80&w=300" },
-    { "Tên mặt hàng": "Món ăn theo thời giá", "Giá bán": "", "Thực đơn": "CƠM NHÀ TẤM XƯA", "Mô tả": "Tự nhập giá khi nhân viên order", "Hình ảnh (link)": "" }
+    { "Tên mặt hàng": "Cơm tấm đặc biệt", "Giá bán": 85000, "Thực đơn": "SƯỜN", "Phân loại": "Món ăn", "Hình ảnh (link)": "https://images.unsplash.com/photo-1541832676-9b763b0239ab?q=80&w=300" },
+    { "Tên mặt hàng": "Trà đá sả chanh", "Giá bán": 15000, "Thực đơn": "CANH VÀ TOPPING", "Phân loại": "món uống", "Hình ảnh (link)": "https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?q=80&w=300" },
+    { "Tên mặt hàng": "Món ăn theo thời giá", "Giá bán": "", "Thực đơn": "CƠM NHÀ TẤM XƯA", "Phân loại": "Món ăn", "Hình ảnh (link)": "" }
   ];
   
   if (typeof XLSX === 'undefined') {
@@ -5810,7 +6376,7 @@ function downloadExcelTemplate() {
     { wch: 30 }, // Tên mặt hàng
     { wch: 15 }, // Giá bán
     { wch: 20 }, // Thực đơn
-    { wch: 40 }, // Mô tả
+    { wch: 15 }, // Phân loại
     { wch: 40 }  // Hình ảnh (link)
   ];
   
@@ -5877,15 +6443,15 @@ function handleExcelImport(event) {
         const priceKey = Object.keys(row).find(k => k.trim().toLowerCase() === "giá bán");
         const categoryKey = Object.keys(row).find(k => {
           const keyLower = k.trim().toLowerCase();
-          return keyLower === "thực đơn" || keyLower === "phân loại" || keyLower === "nhóm";
+          return keyLower === "thực đơn" || keyLower === "nhóm";
         });
-        const descKey = Object.keys(row).find(k => k.trim().toLowerCase() === "mô tả");
+        const typeKey = Object.keys(row).find(k => k.trim().toLowerCase() === "phân loại");
         const imgKey = Object.keys(row).find(k => k.trim().toLowerCase().includes("hình ảnh") || k.trim().toLowerCase().includes("ảnh"));
         
         const name = nameKey ? String(row[nameKey]).trim() : "";
         const priceVal = priceKey ? row[priceKey] : null;
         const category = categoryKey ? String(row[categoryKey]).trim() : "main";
-        const description = descKey ? String(row[descKey]).trim() : "";
+        const type = typeKey ? String(row[typeKey]).trim() : "";
         const imageUrlLink = imgKey ? String(row[imgKey]).trim() : "";
         
         if (!name) {
@@ -5906,8 +6472,8 @@ function handleExcelImport(event) {
         itemsToImport.push({
           name,
           price,
-          description,
           category: category || "main",
+          type: type || null,
           emoji: "🍽️", // Default emoji
           imageUrlLink: imageUrlLink || null
         });
@@ -6002,6 +6568,8 @@ window.editMenuGroup = editMenuGroup;
 let reportRevenueHourlyChartInstance = null;
 let reportPaymentMethodChartInstance = null;
 let reportPaymentMethodActiveTab = 'revenue'; // 'revenue' or 'count'
+let reportBankAccountChartInstance = null;
+let reportBankAccountActiveTab = 'count'; // 'count' or 'revenue'
 
 function loadRevenueReport() {
   const timePreset = document.getElementById('report-time-preset').value;
@@ -6075,6 +6643,7 @@ function loadRevenueReport() {
   const kpiCards = document.getElementById('revenue-kpi-cards');
   const chartPanel = document.getElementById('revenue-chart-panel');
   const pmPanel = document.getElementById('payment-method-report-panel');
+  const baPanel = document.getElementById('bank-account-report-panel');
   const viewHeaderH2 = document.querySelector('#report-revenue-dashboard-view h2');
 
   // Calculate comparison data if present
@@ -6111,6 +6680,7 @@ function loadRevenueReport() {
     if (kpiCards) kpiCards.style.display = 'none';
     if (chartPanel) chartPanel.style.display = 'none';
     if (pmPanel) pmPanel.style.display = 'flex';
+    if (baPanel) baPanel.style.display = 'none';
 
     // Tính toán số liệu tiền mặt / chuyển khoản
     let cashRevenue = 0;
@@ -6262,12 +6832,189 @@ function loadRevenueReport() {
         </tr>
       `;
     }
+  } else if (reportTypeVal === 'bank-account') {
+    // Giao diện Báo cáo theo số tài khoản
+    if (viewHeaderH2) viewHeaderH2.textContent = 'BÁO CÁO THEO SỐ TÀI KHOẢN';
+    if (kpiCards) kpiCards.style.display = 'none';
+    if (chartPanel) chartPanel.style.display = 'none';
+    if (pmPanel) pmPanel.style.display = 'none';
+    if (baPanel) baPanel.style.display = 'flex';
+
+    // Calculate bank account stats from reportTxs
+    const bankAccountMap = {};
+
+    reportTxs.forEach(tx => {
+      if (tx.paymentMethod === 'bank') {
+        const key = tx.accountNumber || 'unspecified';
+        if (!bankAccountMap[key]) {
+          bankAccountMap[key] = {
+            bankName: tx.bankName || 'Ngân hàng',
+            accountNumber: tx.accountNumber || 'Chưa rõ',
+            accountHolder: tx.accountHolder || 'Chưa rõ',
+            count: 0,
+            revenue: 0
+          };
+        }
+        const net = tx.subtotal - (tx.discountAmount || 0);
+        bankAccountMap[key].count++;
+        bankAccountMap[key].revenue += net;
+      }
+    });
+
+    const prevBankAccountMap = {};
+    compareTxs.forEach(tx => {
+      if (tx.paymentMethod === 'bank') {
+        const key = tx.accountNumber || 'unspecified';
+        if (!prevBankAccountMap[key]) {
+          prevBankAccountMap[key] = {
+            count: 0,
+            revenue: 0
+          };
+        }
+        const net = tx.subtotal - (tx.discountAmount || 0);
+        prevBankAccountMap[key].count++;
+        prevBankAccountMap[key].revenue += net;
+      }
+    });
+
+    const isRev = false;
+    
+    // Sort bank accounts by value descending
+    const bankAccountsList = Object.values(bankAccountMap).sort((a, b) => {
+      return isRev ? b.revenue - a.revenue : b.count - a.count;
+    });
+
+    const chartLabels = bankAccountsList.map(item => `${item.bankName} - ${item.accountNumber} (${item.accountHolder})`);
+    const chartValues = bankAccountsList.map(item => isRev ? item.revenue : item.count);
+    
+    const colors = [
+      '#0084ff', '#ff6b8b', '#2ecc71', '#f1c40f', '#9b59b6', '#34495e', '#e67e22', '#1abc9c'
+    ];
+
+    // Render bank account horizontal bar chart
+    const baCanvas = document.getElementById('report-bank-account-chart');
+    if (baCanvas) {
+      const baCtx = baCanvas.getContext('2d');
+      if (reportBankAccountChartInstance) {
+        reportBankAccountChartInstance.destroy();
+      }
+
+      reportBankAccountChartInstance = new Chart(baCtx, {
+        type: 'bar',
+        data: {
+          labels: chartLabels,
+          datasets: [{
+            data: chartValues,
+            backgroundColor: colors.slice(0, chartLabels.length),
+            borderColor: colors.slice(0, chartLabels.length),
+            borderWidth: 1,
+            borderRadius: 4,
+            barPercentage: 0.5
+          }]
+        },
+        options: {
+          indexAxis: 'y',
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  const val = context.raw;
+                  return isRev ? ` Doanh thu: ${formatVND(val)}` : ` Hóa đơn: ${val}`;
+                }
+              }
+            }
+          },
+          scales: {
+            x: {
+              beginAtZero: true,
+              ticks: {
+                callback: function(value) {
+                  return isRev ? formatVND(value) : value;
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+
+    // Update Table body
+    const baTbody = document.getElementById('report-bank-account-table-body');
+    if (baTbody) {
+      if (bankAccountsList.length === 0) {
+        baTbody.innerHTML = `
+          <tr>
+            <td colspan="3" style="padding: 20px; text-align: center; color: var(--muted); font-style: italic;">
+              Không có dữ liệu giao dịch chuyển khoản trong khoảng thời gian này.
+            </td>
+          </tr>
+        `;
+      } else {
+        let totalCount = 0;
+        let totalRev = 0;
+        let prevTotalCount = 0;
+        let prevTotalRev = 0;
+
+        let rowsHtml = '';
+        bankAccountsList.forEach(item => {
+          const prevItem = prevBankAccountMap[item.accountNumber] || { count: 0, revenue: 0 };
+          totalCount += item.count;
+          totalRev += item.revenue;
+          prevTotalCount += prevItem.count;
+          prevTotalRev += prevItem.revenue;
+
+          rowsHtml += `
+            <tr style="border-bottom: 1px solid #e2e8f0; height: 44px;">
+              <td style="padding: 12px 16px; font-weight: 600;">
+                <div style="font-size: 13px; color: #1e293b;">${item.bankName} - ${item.accountNumber}</div>
+                <div style="font-size: 11px; color: #64748b; font-weight: normal;">Chủ TK: ${item.accountHolder}</div>
+              </td>
+              <td style="padding: 12px 16px; text-align: center; font-weight: 600; color: #1e293b;">
+                <div style="display: flex; align-items: center; justify-content: center;">
+                  ${getTrendHTML(item.count, prevItem.count)}
+                  <span>${item.count}</span>
+                </div>
+              </td>
+              <td style="padding: 12px 16px; text-align: right; font-weight: 600; color: #1e293b;">
+                <div style="display: flex; align-items: center; justify-content: flex-end;">
+                  ${getTrendHTML(item.revenue, prevItem.revenue)}
+                  <span>${formatVND(item.revenue)} đ</span>
+                </div>
+              </td>
+            </tr>
+          `;
+        });
+
+        rowsHtml += `
+          <tr style="background-color: #f8fafc; font-weight: 700; height: 44px; border-top: 2px solid #cbd5e1;">
+            <td style="padding: 12px 16px;">Tổng cộng</td>
+            <td style="padding: 12px 16px; text-align: center; color: #0066cc;">
+              <div style="display: flex; align-items: center; justify-content: center;">
+                ${getTrendHTML(totalCount, prevTotalCount)}
+                <span>${totalCount}</span>
+              </div>
+            </td>
+            <td style="padding: 12px 16px; text-align: right; color: #10b981;">
+              <div style="display: flex; align-items: center; justify-content: flex-end;">
+                ${getTrendHTML(totalRev, prevTotalRev)}
+                <span>${formatVND(totalRev)} đ</span>
+              </div>
+            </td>
+          </tr>
+        `;
+        baTbody.innerHTML = rowsHtml;
+      }
+    }
   } else {
     // 2. Giao diện Doanh thu tổng quan
     if (viewHeaderH2) viewHeaderH2.textContent = 'DOANH THU TỔNG QUAN';
     if (kpiCards) kpiCards.style.display = 'grid';
     if (chartPanel) chartPanel.style.display = 'block';
     if (pmPanel) pmPanel.style.display = 'none';
+    if (baPanel) baPanel.style.display = 'none';
 
     // Biểu đồ theo giờ
     const hourlyData = Array(24).fill(0);
@@ -7152,6 +7899,142 @@ async function exportRevenueReportToExcel(filteredTxs, totalRevenue, totalDiscou
       const a = document.createElement('a');
       a.href = url;
       a.download = `Bao_cao_phuong_thuc_thanh_toan_${new Date().toISOString().slice(0,10)}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } else if (reportTypeVal === 'bank-account') {
+      // BÁO CÁO THEO SỐ TÀI KHOẢN
+      const workbook = XLSX.utils.book_new();
+      const sheet = {};
+      sheet['!ref'] = 'A1:F25';
+
+      // Tiêu đề
+      sheet['A1'] = { t: 's', v: 'TẤM XƯA', s: { font: { name: 'Arial', sz: 14, bold: true, color: { rgb: '0F172A' } } } };
+      sheet['A2'] = { t: 's', v: 'Thời gian xuất', s: { font: { name: 'Arial', sz: 9, italic: true, color: { rgb: '64748B' } } } };
+      sheet['B2'] = { t: 's', v: formattedCurrentTime, s: { font: { name: 'Arial', sz: 9, bold: true, color: { rgb: '334155' } } } };
+      sheet['A3'] = { t: 's', v: 'Người xuất', s: { font: { name: 'Arial', sz: 9, italic: true, color: { rgb: '64748B' } } } };
+      sheet['B3'] = { t: 's', v: 'HỘ KINH DOANH THANH BÌNH', s: { font: { name: 'Arial', sz: 9, bold: true, color: { rgb: '334155' } } } };
+      sheet['A5'] = { t: 's', v: 'BÁO CÁO DOANH THU THEO SỐ TÀI KHOẢN', s: { font: { name: 'Arial', sz: 14, bold: true, color: { rgb: '0F172A' } } } };
+      sheet['A7'] = { t: 's', v: 'Chi tiết giao dịch theo số tài khoản', s: { font: { name: 'Arial', sz: 11, bold: true, color: { rgb: '334155' } } } };
+      sheet['A8'] = { t: 's', v: `Từ ngày ${startDateStr} đến ngày ${endDateStr}`, s: { font: { name: 'Arial', sz: 10, italic: true, color: { rgb: '475569' } } } };
+
+      // Headers (r = 9)
+      const baHeaders = [
+        'STT', 'Ngân hàng', 'Số tài khoản', 'Chủ tài khoản', 'Số lượng hóa đơn', 'Doanh thu (đ)'
+      ];
+      baHeaders.forEach((h, c) => {
+        sheet[XLSX.utils.encode_cell({ r: 9, c })] = { t: 's', v: h, s: styles.header };
+      });
+
+      // Gom dữ liệu theo tài khoản
+      const bankAccountMap = {};
+      filteredTxs.forEach(tx => {
+        if (tx.paymentMethod === 'bank') {
+          const key = tx.accountNumber || 'unspecified';
+          if (!bankAccountMap[key]) {
+            bankAccountMap[key] = {
+              bankName: tx.bankName || 'Ngân hàng',
+              accountNumber: tx.accountNumber || 'Chưa rõ',
+              accountHolder: tx.accountHolder || 'Chưa rõ',
+              count: 0,
+              revenue: 0
+            };
+          }
+          const net = tx.subtotal - (tx.discountAmount || 0);
+          bankAccountMap[key].count++;
+          bankAccountMap[key].revenue += net;
+        }
+      });
+
+      const bankAccountsList = Object.values(bankAccountMap).sort((a, b) => b.count - a.count);
+
+      let currentRow = 10;
+      let stt = 1;
+      let totalCountSum = 0;
+      let totalRevenueSum = 0;
+
+      const getColAlignBA = (c) => {
+        if (c === 0 || c === 4) return 'center';
+        if (c === 5) return 'right';
+        return 'left';
+      };
+
+      bankAccountsList.forEach(item => {
+        const r = currentRow;
+        totalCountSum += item.count;
+        totalRevenueSum += item.revenue;
+
+        const rowValues = [
+          stt,
+          item.bankName,
+          item.accountNumber,
+          item.accountHolder,
+          item.count,
+          item.revenue
+        ];
+
+        for (let c = 0; c < 6; c++) {
+          const cellAddr = XLSX.utils.encode_cell({ r, c });
+          const val = rowValues[c];
+          const newCell = {
+            t: (typeof val === 'number') ? 'n' : 's',
+            v: val,
+            s: styles.data(getColAlignBA(c))
+          };
+          if (c === 5) newCell.z = '#,##0';
+          sheet[cellAddr] = newCell;
+        }
+
+        currentRow++;
+        stt++;
+      });
+
+      // Dòng trống
+      currentRow++;
+
+      // Dòng tổng
+      const r = currentRow;
+      const summaryValues = [
+        'Tổng',
+        '',
+        '',
+        '',
+        totalCountSum,
+        totalRevenueSum
+      ];
+
+      for (let c = 0; c < 6; c++) {
+        const cellAddr = XLSX.utils.encode_cell({ r, c });
+        const val = summaryValues[c];
+        const newCell = {
+          t: (typeof val === 'number') ? 'n' : 's',
+          v: val,
+          s: styles.summary(getColAlignBA(c))
+        };
+        if (c === 5) newCell.z = '#,##0';
+        sheet[cellAddr] = newCell;
+      }
+
+      // Column widths
+      sheet['!cols'] = [
+        { wch: 6 },   // STT
+        { wch: 20 },  // Ngân hàng
+        { wch: 20 },  // Số tài khoản
+        { wch: 25 },  // Chủ tài khoản
+        { wch: 18 },  // Số lượng hóa đơn
+        { wch: 20 }   // Doanh thu (đ)
+      ];
+
+      sheet['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: currentRow, c: 5 } });
+      XLSX.utils.book_append_sheet(workbook, sheet, 'Báo cáo theo số tài khoản');
+
+      const outBuf = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+      const blob = new Blob([outBuf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Bao_cao_theo_so_tai_khoan_${new Date().toISOString().slice(0,10)}.xlsx`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -8996,6 +9879,14 @@ if (profileContainer && dropdownMenu) {
       return;
     }
     
+    // If clicking the bank account trigger link, prevent default and close dropdown
+    if (e.target.closest('#btn-bank-account-trigger')) {
+      e.preventDefault();
+      dropdownMenu.style.display = 'none';
+      openBankAccountsModal();
+      return;
+    }
+    
     // Toggle dropdown
     const isVisible = dropdownMenu.style.display === 'block';
     dropdownMenu.style.display = isVisible ? 'none' : 'block';
@@ -9095,3 +9986,628 @@ window.handleChangePassword = async function(event) {
     submitBtn.textContent = 'Đổi mật khẩu';
   }
 };
+
+// Bank Accounts Modal configuration logic
+window.openBankAccountsModal = function() {
+  const modal = document.getElementById('bank-accounts-modal');
+  if (modal) {
+    modal.style.display = 'flex';
+    document.getElementById('add-bank-account-form').reset();
+    renderBankAccountsList();
+  }
+};
+
+window.closeBankAccountsModal = function() {
+  const modal = document.getElementById('bank-accounts-modal');
+  if (modal) {
+    modal.style.display = 'none';
+  }
+};
+
+async function renderBankAccountsList() {
+  const listContainer = document.getElementById('bank-accounts-list');
+  if (!listContainer) return;
+  
+  try {
+    const response = await fetch('/api/bank-accounts');
+    if (!response.ok) throw new Error('Không thể tải danh sách tài khoản');
+    const accounts = await response.json();
+    
+    listContainer.innerHTML = '';
+    
+    if (accounts.length === 0) {
+      listContainer.innerHTML = '<div class="text-center text-muted" style="padding: 12px; font-size: 13px;">Chưa có tài khoản ngân hàng nào.</div>';
+      return;
+    }
+    
+    accounts.forEach(acc => {
+      const card = document.createElement('div');
+      card.className = 'bank-account-card';
+      card.style.cssText = 'border: 1px solid var(--hairline); padding: 14px 18px; border-radius: var(--rounded-md); display: flex; justify-content: space-between; align-items: center; background: #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.02);';
+      
+      const details = document.createElement('div');
+      details.innerHTML = `
+        <div style="font-weight: 700; font-size: 14px; color: var(--ink); display: flex; align-items: center; gap: 8px;">
+          ${acc.bank_name} - ${acc.account_number}
+        </div>
+        <div style="font-size: 12px; color: var(--muted); margin-top: 4px;">Chủ TK: ${acc.account_holder}</div>
+      `;
+      
+      const actions = document.createElement('div');
+      actions.style.cssText = 'display: flex; gap: 8px; align-items: center;';
+      
+      const activeBtn = document.createElement('button');
+      if (acc.is_active) {
+        activeBtn.textContent = '🟢 Đang dùng';
+        activeBtn.className = 'btn btn-sm btn-success';
+        activeBtn.style.cssText = 'font-size: 11px; padding: 4px 10px; border-radius: var(--rounded-md); background-color: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; cursor: pointer;';
+        activeBtn.onclick = () => toggleBankAccount(acc.id, false);
+      } else {
+        activeBtn.textContent = '⚪ Kích hoạt';
+        activeBtn.className = 'btn btn-sm btn-secondary';
+        activeBtn.style.cssText = 'font-size: 11px; padding: 4px 10px; border-radius: var(--rounded-md); border-color: var(--hairline); cursor: pointer;';
+        activeBtn.onclick = () => toggleBankAccount(acc.id, true);
+      }
+      actions.appendChild(activeBtn);
+      
+      const deleteBtn = document.createElement('button');
+      deleteBtn.textContent = 'Xóa';
+      deleteBtn.className = 'btn btn-sm btn-danger';
+      deleteBtn.style.cssText = 'font-size: 11px; padding: 4px 10px; border-radius: var(--rounded-md); background-color: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; cursor: pointer;';
+      deleteBtn.onclick = () => deleteBankAccount(acc.id);
+      actions.appendChild(deleteBtn);
+      
+      card.appendChild(details);
+      card.appendChild(actions);
+      listContainer.appendChild(card);
+    });
+  } catch (error) {
+    console.error('Lỗi render tài khoản ngân hàng:', error);
+    listContainer.innerHTML = `<div class="text-center text-error" style="padding: 12px; font-size: 13px; color: var(--primary-error-text);">${error.message}</div>`;
+  }
+}
+
+window.toggleBankAccount = async function(id, isActive) {
+  try {
+    const response = await fetch(`/api/bank-accounts/${id}/active`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ is_active: isActive })
+    });
+    if (response.ok) {
+      showToast(isActive ? '✅ Đã kích hoạt tài khoản ngân hàng!' : '⚪ Đã tạm ngưng tài khoản ngân hàng!');
+      renderBankAccountsList();
+    } else {
+      const err = await response.json();
+      alert(`Lỗi: ${err.error}`);
+    }
+  } catch (error) {
+    console.error('Lỗi thay đổi trạng thái tài khoản:', error);
+    alert('Không thể kết nối máy chủ.');
+  }
+};
+
+window.deleteBankAccount = async function(id) {
+  if (!confirm('Bạn có chắc chắn muốn xóa tài khoản ngân hàng này không?')) return;
+  try {
+    const response = await fetch(`/api/bank-accounts/${id}`, {
+      method: 'DELETE'
+    });
+    if (response.ok) {
+      showToast('🗑️ Đã xóa tài khoản ngân hàng thành công!');
+      renderBankAccountsList();
+    } else {
+      const err = await response.json();
+      alert(`Lỗi: ${err.error}`);
+    }
+  } catch (error) {
+    console.error('Lỗi xóa tài khoản:', error);
+    alert('Không thể kết nối máy chủ.');
+  }
+};
+
+window.handleAddBankAccount = async function(event) {
+  event.preventDefault();
+  const bankName = document.getElementById('bank-input-name').value;
+  const accountNumber = document.getElementById('bank-input-number').value;
+  const accountHolder = document.getElementById('bank-input-holder').value.toUpperCase();
+  
+  try {
+    const response = await fetch('/api/bank-accounts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        bank_name: bankName,
+        account_number: accountNumber,
+        account_holder: accountHolder
+      })
+    });
+    
+    if (response.ok) {
+      showToast('✅ Thêm tài khoản ngân hàng mới thành công!');
+      document.getElementById('add-bank-account-form').reset();
+      renderBankAccountsList();
+    } else {
+      const err = await response.json();
+      alert(`Lỗi: ${err.error}`);
+    }
+  } catch (error) {
+    console.error('Lỗi thêm tài khoản:', error);
+    alert('Không thể kết nối máy chủ.');
+  }
+};
+
+// Helper to normalize bank names to VietQR official slugs
+function getVietQrBankSlug(bankName) {
+  const name = bankName.toUpperCase().trim();
+  if (name.includes('TPBANK') || name.includes('TP BANK') || name.includes('TIEN PHONG') || name.includes('TIÊN PHONG')) return 'TPB';
+  if (name.includes('VCB') || name.includes('VIETCOMBANK')) return 'VCB';
+  if (name.includes('TCB') || name.includes('TECHCOMBANK')) return 'TCB';
+  if (name.includes('BIDV') || name.includes('ĐẦU TƯ')) return 'BIDV';
+  if (name.includes('MB') || name.includes('MILITARY') || name.includes('QUÂN ĐỘI')) return 'MB';
+  if (name.includes('CTG') || name.includes('VIETINBANK') || name.includes('VIETIN')) return 'CTG';
+  if (name.includes('ACB') || name.includes('Á CHÂU')) return 'ACB';
+  if (name.includes('VPBANK') || name.includes('VPB') || name.includes('THỊNH VƯỢNG')) return 'VPB';
+  if (name.includes('SACOMBANK') || name.includes('STB')) return 'STB';
+  if (name.includes('AGRIBANK') || name.includes('VBA') || name.includes('NÔNG NGHIỆP')) return 'VBA';
+  if (name.includes('SHB')) return 'SHB';
+  if (name.includes('HDBANK') || name.includes('HDB')) return 'HDB';
+  if (name.includes('VIB')) return 'VIB';
+  if (name.includes('MSB')) return 'MSB';
+  if (name.includes('SCB')) return 'SCB';
+  if (name.includes('OCB')) return 'OCB';
+  if (name.includes('LPB') || name.includes('LIENVIET')) return 'LPB';
+  if (name.includes('TPB')) return 'TPB';
+  
+  return name.replace(/\s+BANK/g, '').replace(/\s+/g, '');
+}
+
+// Set QR image source and handle loading animation
+function loadCheckoutQrImage(qrUrl) {
+  const bankQrImage = document.getElementById('bank-qr-image');
+  const loadingOverlay = document.getElementById('bank-qr-loading');
+  const errorOverlay = document.getElementById('bank-qr-error');
+  
+  if (!bankQrImage) return;
+  
+  // Show loading, hide image & error
+  if (loadingOverlay) loadingOverlay.style.display = 'flex';
+  if (errorOverlay) errorOverlay.style.display = 'none';
+  bankQrImage.style.opacity = '0';
+  
+  // Bind handlers
+  bankQrImage.onload = () => {
+    if (loadingOverlay) loadingOverlay.style.display = 'none';
+    if (errorOverlay) errorOverlay.style.display = 'none';
+    bankQrImage.style.opacity = '1';
+  };
+  
+  bankQrImage.onerror = () => {
+    if (loadingOverlay) loadingOverlay.style.display = 'none';
+    if (errorOverlay) errorOverlay.style.display = 'flex';
+    bankQrImage.style.opacity = '0';
+  };
+  
+  // Set source to trigger loading
+  bankQrImage.src = qrUrl;
+}
+
+// ==========================================
+// OPTION GROUPS (NHÓM LỰA CHỌN) MANAGEMENT
+// ==========================================
+
+// DOM Elements
+const btnCreateSelectionGroup = document.getElementById('btn-create-selection-group');
+const btnBackSelectionGroups = document.getElementById('btn-back-selection-groups');
+const selectionGroupsListContainer = document.getElementById('selection-groups-list-container');
+const selectionGroupModal = document.getElementById('selection-group-modal');
+const btnCloseSelectionGroupModal = document.getElementById('btn-close-selection-group-modal');
+const selectionGroupsTableBody = document.getElementById('selection-groups-table-body');
+const selectionGroupNameInput = document.getElementById('selection-group-name-input');
+const selectionMinInput = document.getElementById('selection-min-input');
+const selectionMaxInput = document.getElementById('selection-max-input');
+const selectionAllowMultiple = document.getElementById('selection-allow-multiple');
+const selectionOptionsRowsContainer = document.getElementById('selection-options-rows-container');
+const btnAddOptionRow = document.getElementById('btn-add-option-row');
+const btnSaveSelectionGroup = document.getElementById('btn-save-selection-group');
+const btnCancelSelectionGroup = document.getElementById('btn-cancel-selection-group');
+const btnSelectLinkedItems = document.getElementById('btn-select-linked-items');
+const linkedItemsBadgeContainer = document.getElementById('linked-items-badge-container');
+const selectionGroupFormTitle = document.getElementById('selection-group-form-title');
+const selectionGroupSearchInput = document.getElementById('selection-group-search-input');
+const btnSearchSelectionGroups = document.getElementById('btn-search-selection-groups');
+
+const selectionGroupItemsModal = document.getElementById('selection-group-items-modal');
+const btnCloseSelectionGroupItemsModal = document.getElementById('btn-close-selection-group-items-modal');
+const btnCancelSelectionGroupItems = document.getElementById('btn-cancel-selection-group-items');
+const btnConfirmSelectionGroupItems = document.getElementById('btn-confirm-selection-group-items');
+const selectionGroupItemsSearchInput = document.getElementById('selection-group-items-search-input');
+const selectionGroupItemsChecklist = document.getElementById('selection-group-items-checklist');
+
+// State
+let optionGroups = [];
+let currentEditingOptionGroupId = null;
+let selectedLinkedMenuItemIds = [];
+let tempSelectedLinkedMenuItemIds = [];
+
+// API Loading
+async function loadOptionGroups() {
+  try {
+    const res = await fetch('/api/option-groups');
+    optionGroups = await res.json();
+    renderOptionGroups();
+  } catch (err) {
+    console.error('Lỗi tải nhóm lựa chọn:', err);
+    showToast('❌ Không thể tải danh sách nhóm lựa chọn.');
+  }
+}
+
+// Rendering option groups table list
+function renderOptionGroups(filterQuery = '') {
+  if (!selectionGroupsTableBody) return;
+  selectionGroupsTableBody.innerHTML = '';
+  
+  const query = filterQuery.toLowerCase().trim();
+  const filtered = optionGroups.filter(og => 
+    og.name.toLowerCase().includes(query) || 
+    (Array.isArray(og.options) && og.options.some(opt => opt && opt.name && opt.name.toLowerCase().includes(query)))
+  );
+  
+  if (filtered.length === 0) {
+    selectionGroupsTableBody.innerHTML = `
+      <tr>
+        <td colspan="5" style="text-align: center; padding: 24px; color: var(--muted);">Không tìm thấy nhóm lựa chọn nào.</td>
+      </tr>
+    `;
+    return;
+  }
+  
+  filtered.forEach(og => {
+    const tr = document.createElement('tr');
+    tr.style.borderBottom = '1px solid var(--hairline-soft)';
+    tr.style.height = '48px';
+    
+    const optionsText = Array.isArray(og.options) ? og.options.map(o => o ? o.name : '').filter(Boolean).join('; ') : '';
+    
+    tr.innerHTML = `
+      <td style="padding: 12px 16px; text-align: center;">
+        <input type="checkbox" class="select-selection-group" data-id="${og.id}" style="cursor: pointer;">
+      </td>
+      <td style="padding: 12px 16px;">
+        <span class="edit-selection-group-link" style="color: #0066cc; font-weight: 600; cursor: pointer; text-decoration: none;">${og.name}</span>
+      </td>
+      <td style="padding: 12px 16px; color: #475569;">${optionsText}</td>
+      <td style="padding: 12px 16px; text-align: center; font-weight: 600; color: #475569;">${og.linked_items_count}</td>
+      <td style="padding: 12px 16px; text-align: center;">
+        <div style="display: flex; gap: 8px; justify-content: center;">
+          <button class="btn-edit-og" style="background: none; border: none; color: #0066cc; font-weight: 600; cursor: pointer; font-size: 13px;">Sửa</button>
+          <button class="btn-delete-og" style="background: none; border: none; color: var(--primary-error-text); font-weight: 600; cursor: pointer; font-size: 13px;">Xóa</button>
+        </div>
+      </td>
+    `;
+    
+    tr.querySelector('.edit-selection-group-link').onclick = () => openOptionGroupForm(og);
+    tr.querySelector('.btn-edit-og').onclick = () => openOptionGroupForm(og);
+    tr.querySelector('.btn-delete-og').onclick = () => deleteOptionGroup(og.id, og.name);
+    
+    selectionGroupsTableBody.appendChild(tr);
+  });
+}
+
+// Add empty or existing option item row
+function addOptionRow(name = '', price = 0, cost = 0, isDefault = false) {
+  if (!selectionOptionsRowsContainer) return;
+  const rowsCount = selectionOptionsRowsContainer.children.length;
+  
+  const row = document.createElement('div');
+  row.className = 'selection-option-row';
+  row.style.cssText = 'display: flex; align-items: center; gap: 12px; border-bottom: 1px solid #f1f5f9; padding-bottom: 12px; margin-top: 8px;';
+  row.innerHTML = `
+    <div style="flex: 2;">
+      <label class="opt-label" style="font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 4px; display: block;">Lựa chọn ${rowsCount + 1}</label>
+      <input type="text" class="text-input opt-name" placeholder="Lựa chọn ${rowsCount + 1}" value="${name}" style="width: 100%; height: 34px; padding: 6px 12px; box-sizing: border-box;" required autocomplete="off">
+    </div>
+    <div style="display: flex; align-items: center; gap: 6px; margin-top: 20px; user-select: none;">
+      <input type="checkbox" class="opt-default" ${isDefault ? 'checked' : ''} style="cursor: pointer;">
+      <label class="opt-default-label" style="font-size: 12px; font-weight: 600; cursor: pointer;">Chọn mặc định</label>
+    </div>
+    <div style="flex: 1;">
+      <label style="font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 4px; display: block;">Giá bán</label>
+      <input type="number" class="text-input opt-price" value="${price}" style="width: 100%; height: 34px; text-align: right; padding: 6px 12px; box-sizing: border-box;">
+    </div>
+    <button type="button" class="btn-delete-row" style="background: transparent; border: none; font-size: 18px; color: red; margin-top: 20px; cursor: pointer;">&times;</button>
+  `;
+  
+  // Bind click label checkbox behavior
+  row.querySelector('.opt-default-label').onclick = () => {
+    const chk = row.querySelector('.opt-default');
+    chk.checked = !chk.checked;
+  };
+  
+  row.querySelector('.btn-delete-row').onclick = () => {
+    row.remove();
+    reindexOptionRows();
+  };
+  
+  selectionOptionsRowsContainer.appendChild(row);
+}
+
+function reindexOptionRows() {
+  if (!selectionOptionsRowsContainer) return;
+  Array.from(selectionOptionsRowsContainer.children).forEach((row, i) => {
+    const label = row.querySelector('.opt-label');
+    const input = row.querySelector('.opt-name');
+    if (label) label.textContent = `Lựa chọn ${i + 1}`;
+    if (input) input.placeholder = `Lựa chọn ${i + 1}`;
+  });
+}
+
+// Render selected items badges
+function renderLinkedItemsBadges() {
+  if (!linkedItemsBadgeContainer) return;
+  linkedItemsBadgeContainer.innerHTML = '';
+  if (selectedLinkedMenuItemIds.length === 0) {
+    linkedItemsBadgeContainer.innerHTML = `<span style="font-size: 12px; color: var(--muted);">Chưa chọn mặt hàng nào.</span>`;
+    return;
+  }
+  
+  selectedLinkedMenuItemIds.forEach(id => {
+    const menuItem = (menuItems || []).find(m => m.id === id);
+    const name = menuItem ? menuItem.name : id;
+    
+    const badge = document.createElement('span');
+    badge.style.cssText = 'font-size: 12px; background: #e6f0fa; color: #0066cc; font-weight: 600; padding: 4px 10px; border-radius: 12px; display: inline-flex; align-items: center; gap: 4px; margin: 2px;';
+    badge.innerHTML = `
+      <span>${name}</span>
+      <span class="remove-badge" style="cursor: pointer; font-weight: 800; color: #64748b;">&times;</span>
+    `;
+    badge.querySelector('.remove-badge').onclick = () => {
+      selectedLinkedMenuItemIds = selectedLinkedMenuItemIds.filter(itemId => itemId !== id);
+      renderLinkedItemsBadges();
+    };
+    linkedItemsBadgeContainer.appendChild(badge);
+  });
+}
+
+// Open creation/edition form
+function openOptionGroupForm(og = null) {
+  if (!selectionGroupModal) return;
+  selectionGroupModal.style.display = 'flex';
+  selectionOptionsRowsContainer.innerHTML = '';
+  
+  if (og) {
+    currentEditingOptionGroupId = og.id;
+    selectionGroupFormTitle.textContent = og.name;
+    selectionGroupNameInput.value = og.name;
+    selectionMinInput.value = og.min_select;
+    selectionMaxInput.value = og.max_select === null ? '' : og.max_select;
+    selectionAllowMultiple.checked = og.allow_multiple;
+    selectedLinkedMenuItemIds = [];
+    renderLinkedItemsBadges();
+    
+    // Fetch full detail for linked items and options
+    fetch(`/api/option-groups/${og.id}`)
+      .then(res => res.json())
+      .then(data => {
+        selectedLinkedMenuItemIds = data.linkedMenuItemIds || [];
+        renderLinkedItemsBadges();
+        
+        selectionOptionsRowsContainer.innerHTML = '';
+        if (Array.isArray(data.options)) {
+          data.options.forEach(opt => addOptionRow(opt.name, opt.price, opt.cost, opt.is_default));
+        }
+        if (selectionOptionsRowsContainer.children.length === 0) {
+          addOptionRow('', 0, 0, false);
+        }
+      });
+  } else {
+    currentEditingOptionGroupId = null;
+    selectionGroupFormTitle.textContent = 'Thêm nhóm lựa chọn';
+    selectionGroupNameInput.value = '';
+    selectionMinInput.value = '0';
+    selectionMaxInput.value = '';
+    selectionAllowMultiple.checked = false;
+    selectedLinkedMenuItemIds = [];
+    renderLinkedItemsBadges();
+    
+    addOptionRow('', 0, 0, false);
+  }
+}
+
+function closeOptionGroupForm() {
+  if (selectionGroupModal) selectionGroupModal.style.display = 'none';
+  currentEditingOptionGroupId = null;
+}
+
+// Save Option Group
+async function saveOptionGroup() {
+  const name = selectionGroupNameInput.value.trim();
+  if (!name) {
+    showToast('⚠️ Vui lòng nhập tên bộ lựa chọn.');
+    return;
+  }
+  
+  const optionRows = Array.from(selectionOptionsRowsContainer.children);
+  const options = [];
+  
+  for (const row of optionRows) {
+    const optName = row.querySelector('.opt-name').value.trim();
+    if (!optName) continue;
+    
+    const price = parseInt(row.querySelector('.opt-price').value) || 0;
+    const cost = 0;
+    const isDefault = row.querySelector('.opt-default').checked;
+    
+    options.push({ name: optName, price, cost, is_default: isDefault });
+  }
+  
+  if (options.length === 0) {
+    showToast('⚠️ Vui lòng thêm ít nhất một lựa chọn có tên.');
+    return;
+  }
+  
+  const min_select = parseInt(selectionMinInput.value) || 0;
+  const max_select = selectionMaxInput.value ? parseInt(selectionMaxInput.value) : null;
+  const allow_multiple = selectionAllowMultiple.checked;
+  
+  const payload = {
+    name,
+    min_select,
+    max_select,
+    allow_multiple,
+    options,
+    linkedMenuItemIds: selectedLinkedMenuItemIds
+  };
+  
+  const url = currentEditingOptionGroupId 
+    ? `/api/option-groups/${currentEditingOptionGroupId}` 
+    : '/api/option-groups';
+  
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(currentEditingOptionGroupId ? '✅ Cập nhật nhóm lựa chọn thành công!' : '✅ Tạo nhóm lựa chọn thành công!');
+      closeOptionGroupForm();
+      loadOptionGroups();
+    } else {
+      showToast(`❌ Lỗi: ${data.error || 'Vui lòng thử lại.'}`);
+    }
+  } catch (err) {
+    console.error(err);
+    showToast('❌ Không thể kết nối tới máy chủ.');
+  }
+}
+
+// Delete Option Group
+async function deleteOptionGroup(id, name) {
+  if (!confirm(`Bạn có chắc chắn muốn xóa nhóm lựa chọn "${name}" không?`)) return;
+  try {
+    const res = await fetch(`/api/option-groups/${id}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (data.success) {
+      showToast('✅ Xóa nhóm lựa chọn thành công!');
+      loadOptionGroups();
+    } else {
+      showToast(`❌ Lỗi: ${data.error || 'Vui lòng thử lại.'}`);
+    }
+  } catch (err) {
+    console.error(err);
+    showToast('❌ Không thể kết nối tới máy chủ.');
+  }
+}
+
+// Linked Items Modal Selection functions
+function openLinkedItemsModal() {
+  if (!selectionGroupItemsModal) return;
+  tempSelectedLinkedMenuItemIds = [...selectedLinkedMenuItemIds];
+  renderLinkedItemsChecklist();
+  selectionGroupItemsModal.style.display = 'flex';
+}
+
+function closeLinkedItemsModal() {
+  if (selectionGroupItemsModal) selectionGroupItemsModal.style.display = 'none';
+}
+
+function renderLinkedItemsChecklist(filterQuery = '') {
+  if (!selectionGroupItemsChecklist) return;
+  selectionGroupItemsChecklist.innerHTML = '';
+  const query = filterQuery.toLowerCase().trim();
+  
+  const filtered = (menuItems || []).filter(item => 
+    item.name.toLowerCase().includes(query)
+  );
+  
+  if (filtered.length === 0) {
+    selectionGroupItemsChecklist.innerHTML = `<div style="text-align: center; color: var(--muted); padding: 12px;">Không tìm thấy mặt hàng nào.</div>`;
+    return;
+  }
+  
+  filtered.forEach(item => {
+    const label = document.createElement('label');
+    label.style.cssText = 'display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 6px 0; font-size: 13px; font-weight: 500;';
+    
+    const isChecked = tempSelectedLinkedMenuItemIds.includes(item.id);
+    
+    label.innerHTML = `
+      <input type="checkbox" value="${item.id}" ${isChecked ? 'checked' : ''} style="cursor: pointer;">
+      <span>${item.name} (${formatVND(item.price)})</span>
+    `;
+    
+    label.querySelector('input').onclick = (e) => {
+      if (e.target.checked) {
+        if (!tempSelectedLinkedMenuItemIds.includes(item.id)) {
+          tempSelectedLinkedMenuItemIds.push(item.id);
+        }
+      } else {
+        tempSelectedLinkedMenuItemIds = tempSelectedLinkedMenuItemIds.filter(id => id !== item.id);
+      }
+    };
+    
+    selectionGroupItemsChecklist.appendChild(label);
+  });
+}
+
+// Bind Button Listeners
+if (btnCreateSelectionGroup) {
+  btnCreateSelectionGroup.addEventListener('click', () => openOptionGroupForm(null));
+}
+
+if (btnCloseSelectionGroupModal) {
+  btnCloseSelectionGroupModal.addEventListener('click', closeOptionGroupForm);
+}
+
+if (btnCancelSelectionGroup) {
+  btnCancelSelectionGroup.addEventListener('click', closeOptionGroupForm);
+}
+
+if (btnSaveSelectionGroup) {
+  btnSaveSelectionGroup.addEventListener('click', saveOptionGroup);
+}
+
+if (btnAddOptionRow) {
+  btnAddOptionRow.addEventListener('click', () => addOptionRow('', 0, 0, false));
+}
+
+if (btnSelectLinkedItems) {
+  btnSelectLinkedItems.addEventListener('click', openLinkedItemsModal);
+}
+
+if (btnCloseSelectionGroupItemsModal) {
+  btnCloseSelectionGroupItemsModal.addEventListener('click', closeLinkedItemsModal);
+}
+
+if (btnCancelSelectionGroupItems) {
+  btnCancelSelectionGroupItems.addEventListener('click', closeLinkedItemsModal);
+}
+
+if (btnConfirmSelectionGroupItems) {
+  btnConfirmSelectionGroupItems.addEventListener('click', () => {
+    selectedLinkedMenuItemIds = [...tempSelectedLinkedMenuItemIds];
+    renderLinkedItemsBadges();
+    closeLinkedItemsModal();
+  });
+}
+
+if (selectionGroupItemsSearchInput) {
+  selectionGroupItemsSearchInput.addEventListener('input', (e) => {
+    renderLinkedItemsChecklist(e.target.value);
+  });
+}
+
+// Table Search actions
+if (btnSearchSelectionGroups && selectionGroupSearchInput) {
+  btnSearchSelectionGroups.addEventListener('click', () => {
+    renderOptionGroups(selectionGroupSearchInput.value);
+  });
+  selectionGroupSearchInput.addEventListener('keyup', (e) => {
+    if (e.key === 'Enter') {
+      renderOptionGroups(selectionGroupSearchInput.value);
+    }
+  });
+}
+

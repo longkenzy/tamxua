@@ -14,6 +14,7 @@ let activeCategory = 'all';
 let searchQuery = '';
 let activeTab = 'orders'; // Default tab
 let menuGroups = [];
+let optionGroups = [];
 let activeGroupIndex = 0;
 let isScrollingFromClick = false;
 let scrollTimeout = null;
@@ -69,10 +70,11 @@ function formatVND(amount) {
 // Initial Fetch
 async function init() {
   try {
-    const [menuRes, tablesRes, groupsRes] = await Promise.all([
+    const [menuRes, tablesRes, groupsRes, optionGroupsRes] = await Promise.all([
       fetch('/api/menu'),
       fetch('/api/tables'),
-      fetch('/api/menu-groups').catch(() => null)
+      fetch('/api/menu-groups').catch(() => null),
+      fetch('/api/option-groups').catch(() => null)
     ]);
     
     if (menuRes.status === 401 || tablesRes.status === 401) {
@@ -87,6 +89,12 @@ async function init() {
       menuGroups = await groupsRes.json();
     } else {
       menuGroups = [];
+    }
+    
+    if (optionGroupsRes && optionGroupsRes.ok) {
+      optionGroups = await optionGroupsRes.json();
+    } else {
+      optionGroups = [];
     }
     
     // Pre-render menu items so they are ready instantly on order click
@@ -779,6 +787,115 @@ function openCustomModal(item) {
   }
   customModalDesc.textContent = item.description || '';
   
+  // Render linked option groups
+  const optionsContainer = document.getElementById('custom-item-options-container');
+  if (optionsContainer) {
+    optionsContainer.innerHTML = '';
+    const linkedGroups = optionGroups.filter(og => 
+      og.linked_menu_item_ids && og.linked_menu_item_ids.includes(item.id)
+    );
+    
+    if (linkedGroups.length > 0) {
+      linkedGroups.forEach(og => {
+        const groupDiv = document.createElement('div');
+        groupDiv.className = 'option-group-select-block';
+        groupDiv.style.cssText = 'text-align: left; position: relative; margin-bottom: 12px;';
+        
+        // Title label
+        const label = document.createElement('label');
+        label.style.cssText = 'font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 4px; display: block;';
+        
+        let constraintText = '';
+        if (og.min_select > 0) {
+          constraintText = ` (Yêu cầu chọn tối thiểu ${og.min_select})`;
+        } else if (og.max_select) {
+          constraintText = ` (Tối đa ${og.max_select})`;
+        }
+        label.textContent = `${og.name}${constraintText}`;
+        groupDiv.appendChild(label);
+        
+        // Custom select trigger
+        const trigger = document.createElement('div');
+        trigger.className = 'custom-opt-select-trigger';
+        trigger.style.cssText = 'display: flex; justify-content: space-between; align-items: center; width: 100%; height: 38px; border: 1px solid #cbd5e1; border-radius: 6px; padding: 0 12px; background: #ffffff; cursor: pointer; user-select: none; box-sizing: border-box;';
+        
+        const defaultOpts = og.options.filter(o => o.is_default);
+        const initialText = defaultOpts.length > 0
+          ? defaultOpts.map(o => o.name).join(', ')
+          : 'Chọn lựa chọn...';
+          
+        trigger.innerHTML = `
+          <span class="selected-text" style="font-size: 13px; font-weight: 600; color: #1e293b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 90%;">${initialText}</span>
+          <span class="chevron" style="font-size: 10px; color: #64748b; transition: transform 0.2s;">▼</span>
+        `;
+        groupDiv.appendChild(trigger);
+        
+        // Custom select panel
+        const panel = document.createElement('div');
+        panel.className = 'custom-opt-select-panel';
+        panel.style.cssText = 'display: none; border: 1px solid #cbd5e1; border-top: none; border-radius: 0 0 6px 6px; padding: 12px; background: #ffffff; margin-top: -2px; max-height: 180px; overflow-y: auto; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); z-index: 10; position: relative;';
+        
+        og.options.forEach(opt => {
+          const rowLabel = document.createElement('label');
+          rowLabel.style.cssText = 'display: flex; align-items: center; justify-content: space-between; gap: 8px; cursor: pointer; font-size: 13px; font-weight: 500; color: #334155; margin: 0; padding: 6px 0; user-select: none; border-bottom: 1px solid #f1f5f9;';
+          
+          const inputType = og.max_select === 1 ? 'radio' : 'checkbox';
+          const inputName = `opt-group-${og.id}`;
+          
+          rowLabel.innerHTML = `
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <input type="${inputType}" name="${inputName}" class="select-option-input" data-group-id="${og.id}" data-opt-id="${opt.id}" data-opt-name="${opt.name}" ${opt.is_default ? 'checked' : ''} style="cursor: pointer;">
+              <span>${opt.name}</span>
+            </div>
+            <span style="font-size: 12px; color: #ff6600; font-weight: 600;">${opt.price > 0 ? '+' + formatVND(opt.price) : 'Miễn phí'}</span>
+          `;
+          
+          rowLabel.addEventListener('click', (e) => {
+            e.stopPropagation();
+          });
+          
+          panel.appendChild(rowLabel);
+        });
+        
+        groupDiv.appendChild(panel);
+        
+        // Toggle action
+        trigger.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const isOpen = panel.style.display === 'block';
+          
+          document.querySelectorAll('.custom-opt-select-panel').forEach(p => p.style.display = 'none');
+          document.querySelectorAll('.custom-opt-select-trigger').forEach(t => {
+            t.style.borderRadius = '6px';
+            const ch = t.querySelector('.chevron');
+            if (ch) ch.style.transform = 'none';
+          });
+          
+          if (!isOpen) {
+            panel.style.display = 'block';
+            trigger.style.borderRadius = '6px 6px 0 0';
+            const ch = trigger.querySelector('.chevron');
+            if (ch) ch.style.transform = 'rotate(180deg)';
+          }
+        });
+        
+        panel.addEventListener('change', () => {
+          const checkedInputs = Array.from(panel.querySelectorAll('.select-option-input:checked'));
+          const selectedNames = checkedInputs.map(i => i.getAttribute('data-opt-name'));
+          const textEl = trigger.querySelector('.selected-text');
+          
+          if (selectedNames.length > 0) {
+            textEl.textContent = selectedNames.join(', ');
+          } else {
+            textEl.textContent = 'Chọn lựa chọn...';
+          }
+        });
+        
+        optionsContainer.appendChild(groupDiv);
+      });
+    }
+  }
+  
   customItemModal.style.display = 'flex';
 }
 
@@ -900,9 +1017,14 @@ function renderCartItems() {
     div.style.padding = '8px 0';
     div.style.borderBottom = '1px dashed #cbd5e1';
     
+    const optionsText = item.options && item.options.length > 0
+      ? item.options.map(o => `+ ${o.name}`).join(', ')
+      : '';
+      
     div.innerHTML = `
       <div style="display: flex; flex-direction: column; gap: 4px; max-width: 60%; text-align: left;">
         <span style="font-weight: 700; color: #1e293b; font-size: 14px;">${item.name}</span>
+        ${optionsText ? `<span style="font-size: 12px; color: #64748b; font-weight: 500;">${optionsText}</span>` : ''}
         ${item.notes ? `<span style="font-size: 11px; color: #ef4444; font-style: italic;">* Ghi chú: ${item.notes}</span>` : ''}
       </div>
       <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 8px;">
@@ -995,10 +1117,15 @@ function updateFloatingCartBar() {
 
             const itemImg = item.image ? `images/${item.image}` : (item.emoji ? `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 100 100'><text y='0.9em' font-size='90'>${item.emoji}</text></svg>` : 'images/default-food.png');
 
+            const optionsText = item.options && item.options.length > 0
+              ? item.options.map(o => `+ ${o.name}`).join(', ')
+              : '';
+
             itemCard.innerHTML = `
               <img src="${itemImg}" style="width: 52px; height: 52px; object-fit: cover; border-radius: 8px; background-color: #f1f5f9;" onerror="this.src='images/default-food.png'">
               <div style="flex: 1; display: flex; flex-direction: column; text-align: left;">
                 <span style="font-size: 13px; font-weight: 700; color: #1e293b; line-height: 1.3;">${item.name}</span>
+                ${optionsText ? `<span style="font-size: 12px; color: #64748b; font-weight: 500;">${optionsText}</span>` : ''}
                 <span style="font-size: 13px; font-weight: 700; color: #024ad8; margin-top: 4px;">${formatVND(item.price)}</span>
                 <span style="font-size: 12px; color: #0066cc; cursor: pointer; text-decoration: underline; margin-top: 4px; display: inline-block; width: fit-content;" onclick="openItemNotesEdit(${index})">${item.notes ? `Ghi chú: ${item.notes}` : 'Ghi chú'}</span>
               </div>
@@ -1147,28 +1274,29 @@ if (categoryStripContainer) {
   });
 }
 
-// Search input
-menuSearchInput.addEventListener('input', (e) => {
-  searchQuery = e.target.value;
-  isMenuFiltered = true;
-  renderMenuItems();
-});
+// Search input with clear button
+const btnClearMenuSearch = document.getElementById('btn-clear-menu-search');
 
-// Search Drawer Toggle
-const btnSearchMenuToggle = document.getElementById('btn-search-menu-toggle');
-const menuSearchDrawer = document.getElementById('menu-search-drawer');
-if (btnSearchMenuToggle && menuSearchDrawer) {
-  btnSearchMenuToggle.addEventListener('click', () => {
-    const isHidden = menuSearchDrawer.style.display === 'none';
-    menuSearchDrawer.style.display = isHidden ? 'block' : 'none';
-    if (isHidden) {
-      menuSearchInput.focus();
-    } else {
-      menuSearchInput.value = '';
-      searchQuery = '';
-      isMenuFiltered = false;
-      renderMenuItems();
+if (menuSearchInput) {
+  menuSearchInput.addEventListener('input', (e) => {
+    searchQuery = e.target.value;
+    isMenuFiltered = searchQuery.trim().length > 0;
+    renderMenuItems();
+    
+    if (btnClearMenuSearch) {
+      btnClearMenuSearch.style.display = searchQuery.length > 0 ? 'block' : 'none';
     }
+  });
+}
+
+if (btnClearMenuSearch && menuSearchInput) {
+  btnClearMenuSearch.addEventListener('click', () => {
+    menuSearchInput.value = '';
+    searchQuery = '';
+    isMenuFiltered = false;
+    renderMenuItems();
+    btnClearMenuSearch.style.display = 'none';
+    menuSearchInput.focus();
   });
 }
 
@@ -1217,10 +1345,50 @@ btnAddToCartConfirm.addEventListener('click', () => {
   
   const notes = customItemNotes.value.trim();
   
+  // Collect selected options
+  const selectedOptions = [];
+  let optionPriceSum = 0;
+  
+  const inputs = document.querySelectorAll('.select-option-input:checked');
+  inputs.forEach(input => {
+    const groupId = parseInt(input.getAttribute('data-group-id'));
+    const optId = parseInt(input.getAttribute('data-opt-id'));
+    
+    const group = optionGroups.find(og => og.id === groupId);
+    if (group && Array.isArray(group.options)) {
+      const opt = group.options.find(o => o.id === optId);
+      if (opt) {
+        selectedOptions.push({
+          id: opt.id,
+          name: opt.name,
+          price: opt.price,
+          group_name: group.name,
+          group_id: group.id
+        });
+        optionPriceSum += opt.price;
+      }
+    }
+  });
+  
+  // Validate min_select constraints
+  const linkedGroups = optionGroups.filter(og => 
+    og.linked_menu_item_ids && og.linked_menu_item_ids.includes(activeItem.id)
+  );
+  
+  for (const og of linkedGroups) {
+    if (og.min_select > 0) {
+      const groupSelections = selectedOptions.filter(o => o.group_id === og.id);
+      if (groupSelections.length < og.min_select) {
+        alert(`⚠️ Vui lòng chọn tối thiểu ${og.min_select} lựa chọn cho nhóm "${og.name}".`);
+        return;
+      }
+    }
+  }
+  
   let price = activeItem.price;
   if (price === 0) {
     const inputPrice = prompt(`Mặt hàng "${activeItem.name}" chưa có giá bán.\nVui lòng nhập giá bán của sản phẩm này (VNĐ):`, "");
-    if (inputPrice === null) return; // Nhân viên bấm Hủy
+    if (inputPrice === null) return;
     const parsedPrice = parseInt(inputPrice.replace(/[^0-9]/g, ''));
     if (isNaN(parsedPrice) || parsedPrice < 0) {
       alert('⚠️ Giá bán nhập vào không hợp lệ!');
@@ -1229,10 +1397,20 @@ btnAddToCartConfirm.addEventListener('click', () => {
     price = parsedPrice;
   }
   
-  // Kiểm tra xem món ăn có cùng ID, ghi chú và giá bán đã tồn tại trong giỏ chưa
-  const existingIndex = cart.findIndex(
-    item => item.id === activeItem.id && item.notes === notes && item.price === price
-  );
+  price += optionPriceSum;
+  
+  // Compare options too for duplicate detection
+  const existingIndex = cart.findIndex(item => {
+    if (item.id !== activeItem.id || item.notes !== notes || item.price !== price) return false;
+    
+    const o1 = item.options || [];
+    const o2 = selectedOptions;
+    if (o1.length !== o2.length) return false;
+    
+    const o1Ids = o1.map(o => o.id).sort().join(',');
+    const o2Ids = o2.map(o => o.id).sort().join(',');
+    return o1Ids === o2Ids;
+  });
   
   if (existingIndex !== -1) {
     cart[existingIndex].quantity += currentQuantity;
@@ -1243,7 +1421,8 @@ btnAddToCartConfirm.addEventListener('click', () => {
       price: price,
       emoji: activeItem.emoji || '🍽️',
       quantity: currentQuantity,
-      notes: notes
+      notes: notes,
+      options: selectedOptions
     });
   }
   
@@ -1288,6 +1467,16 @@ function getOrderDifference(oldOrder, newCart) {
 // Helper to check if an item is a drink
 function isDrinkItem(item, menuList) {
   const menuItem = (menuList || []).find(m => m.id === item.id);
+  if (menuItem && menuItem.type) {
+    const typeLower = menuItem.type.toLowerCase();
+    if (typeLower === 'món uống' || typeLower === 'món nước' || typeLower.includes('uống') || typeLower.includes('nước')) {
+      return true;
+    }
+    if (typeLower === 'món ăn' || typeLower.includes('ăn')) {
+      return false;
+    }
+  }
+  
   const category = menuItem ? menuItem.category : '';
   
   if (category) {
@@ -1978,12 +2167,19 @@ function renderCheckoutOrders() {
             ${itemsCount} món • Tạm tính: <span style="font-weight:700; color:var(--sapo-orange);">${formatVND(totalAmount)}</span>
           </div>
         </div>
-        <button class="btn btn-primary" style="height: 30px; padding: 0 12px; font-size: 12px; font-weight: 700; border-radius: 8px;" onclick="openCheckoutModal(${table.id})">Thanh toán</button>
+        <button class="btn btn-secondary" style="height: 30px; padding: 0 12px; font-size: 12px; font-weight: 700; border-radius: 8px; background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; cursor: pointer;" onclick="openOrderDetailsViewFromCard(${table.id})">Chi tiết</button>
       </div>
     `;
     container.appendChild(card);
   });
 }
+
+window.openOrderDetailsViewFromCard = (tableId) => {
+  const table = tables.find(t => t.id === tableId);
+  if (table) {
+    openOrderDetailsView(table);
+  }
+};
 
 window.openCheckoutModal = (tableId) => {
   activeCheckoutTableId = tableId;
@@ -2366,9 +2562,16 @@ function renderOrderDetailsItems() {
     const topRow = document.createElement('div');
     topRow.style.cssText = 'display: flex; justify-content: space-between; align-items: flex-start;';
     
+    const optionsText = item.options && item.options.length > 0
+      ? item.options.map(o => `+ ${o.name}`).join(', ')
+      : '';
+      
     let detailHtml = '';
+    if (optionsText) {
+      detailHtml += `<div style="font-size: 12px; color: #64748b; margin-top: 2px;">Lựa chọn: ${optionsText}</div>`;
+    }
     if (item.notes) {
-      detailHtml = `<div style="font-size: 12px; color: #64748b; margin-top: 2px;">Ghi chú: ${item.notes}</div>`;
+      detailHtml += `<div style="font-size: 12px; color: #ef4444; margin-top: 2px; font-style: italic;">* Ghi chú: ${item.notes}</div>`;
     }
     
     // Add badge for added items
@@ -3231,6 +3434,16 @@ async function syncPrinterSettingsFromServer() {
     console.error('Lỗi đồng bộ cấu hình máy in:', err);
   }
 }
+
+// Close option select panels when clicking outside
+document.addEventListener('click', () => {
+  document.querySelectorAll('.custom-opt-select-panel').forEach(p => p.style.display = 'none');
+  document.querySelectorAll('.custom-opt-select-trigger').forEach(t => {
+    t.style.borderRadius = '6px';
+    const chev = t.querySelector('.chevron');
+    if (chev) chev.style.transform = 'none';
+  });
+});
 
 // App initialization
 loadEmployeeProfile();

@@ -155,11 +155,20 @@ async function seedData() {
             changeAmount = 0;
           }
 
+          let txBankName = null;
+          let txAccountNumber = null;
+          let txAccountHolder = null;
+          if (paymentMethod === 'bank') {
+            txBankName = 'MB BANK';
+            txAccountNumber = '25103456789';
+            txAccountHolder = 'HUYNH THANH LONG';
+          }
+
           // Insert Transaction
           await client.query(`
-            INSERT INTO transactions (id, table_id, table_name, subtotal, received_amount, change_amount, discount_amount, payment_method, timestamp)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-          `, [txId, table.id, table.name, subtotal, receivedAmount, changeAmount, discount, paymentMethod, txDate]);
+            INSERT INTO transactions (id, table_id, table_name, subtotal, received_amount, change_amount, discount_amount, payment_method, bank_name, account_number, account_holder, timestamp)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+          `, [txId, table.id, table.name, subtotal, receivedAmount, changeAmount, discount, paymentMethod, txBankName, txAccountNumber, txAccountHolder, txDate]);
 
           // Insert Transaction Items
           for (const item of itemsToInsert) {

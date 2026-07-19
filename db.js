@@ -93,6 +93,11 @@ async function setupDatabase() {
       ALTER TABLE menu ALTER COLUMN image_url TYPE TEXT
     `);
 
+    // Add type column if not exists
+    await client.query(`
+      ALTER TABLE menu ADD COLUMN IF NOT EXISTS type VARCHAR(50) DEFAULT 'Món ăn'
+    `);
+
     // 3. Create tables table
     await client.query(`
       CREATE TABLE IF NOT EXISTS tables (
@@ -119,6 +124,9 @@ async function setupDatabase() {
     await client.query(`
       ALTER TABLE order_items ADD COLUMN IF NOT EXISTS price INT DEFAULT 0
     `);
+    await client.query(`
+      ALTER TABLE order_items ADD COLUMN IF NOT EXISTS options JSONB DEFAULT '[]'::jsonb
+    `);
 
     // 5. Create transactions table
     await client.query(`
@@ -144,6 +152,17 @@ async function setupDatabase() {
       ALTER TABLE transactions ADD COLUMN IF NOT EXISTS payment_method VARCHAR(50) DEFAULT 'cash'
     `);
 
+    // Add bank account columns if not exists
+    await client.query(`
+      ALTER TABLE transactions ADD COLUMN IF NOT EXISTS bank_name VARCHAR(100)
+    `);
+    await client.query(`
+      ALTER TABLE transactions ADD COLUMN IF NOT EXISTS account_number VARCHAR(50)
+    `);
+    await client.query(`
+      ALTER TABLE transactions ADD COLUMN IF NOT EXISTS account_holder VARCHAR(100)
+    `);
+
     // 6. Create transaction_items table
     await client.query(`
       CREATE TABLE IF NOT EXISTS transaction_items (
@@ -155,6 +174,14 @@ async function setupDatabase() {
         quantity INT NOT NULL,
         notes TEXT
       )
+    `);
+    
+    // Add discount column if not exists
+    await client.query(`
+      ALTER TABLE transaction_items ADD COLUMN IF NOT EXISTS discount INT DEFAULT 0
+    `);
+    await client.query(`
+      ALTER TABLE transaction_items ADD COLUMN IF NOT EXISTS options JSONB DEFAULT '[]'::jsonb
     `);
 
     // 7. Create menu_groups table
@@ -207,6 +234,36 @@ async function setupDatabase() {
       )
     `);
 
+    // 11. Create option_groups, option_items, and option_group_menu_items tables
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS option_groups (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(100) NOT NULL,
+        min_select INT DEFAULT 0,
+        max_select INT,
+        allow_multiple BOOLEAN DEFAULT FALSE
+      )
+    `);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS option_items (
+        id SERIAL PRIMARY KEY,
+        option_group_id INT REFERENCES option_groups(id) ON DELETE CASCADE,
+        name VARCHAR(100) NOT NULL,
+        price INT DEFAULT 0,
+        cost INT DEFAULT 0,
+        is_default BOOLEAN DEFAULT FALSE
+      )
+    `);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS option_group_menu_items (
+        option_group_id INT REFERENCES option_groups(id) ON DELETE CASCADE,
+        menu_item_id VARCHAR(50) REFERENCES menu(id) ON DELETE CASCADE,
+        PRIMARY KEY (option_group_id, menu_item_id)
+      )
+    `);
+
     // Seed default printer settings
     const printersCount = await client.query('SELECT COUNT(*) FROM printer_settings');
     if (parseInt(printersCount.rows[0].count) === 0) {
@@ -217,6 +274,27 @@ async function setupDatabase() {
         ('receipt_default', true, 'browser', '')
       `);
       console.log('Seeded default printer settings.');
+    }
+
+    // 11. Create bank_accounts table
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS bank_accounts (
+        id SERIAL PRIMARY KEY,
+        account_number VARCHAR(50) NOT NULL,
+        bank_name VARCHAR(100) NOT NULL,
+        account_holder VARCHAR(100) NOT NULL,
+        is_active BOOLEAN DEFAULT false
+      )
+    `);
+
+    // Seed default bank account if empty
+    const bankAccountsCount = await client.query('SELECT COUNT(*) FROM bank_accounts');
+    if (parseInt(bankAccountsCount.rows[0].count) === 0) {
+      await client.query(`
+        INSERT INTO bank_accounts (account_number, bank_name, account_holder, is_active)
+        VALUES ('25103456789', 'MB BANK', 'HUYNH THANH LONG', true)
+      `);
+      console.log('Seeded default bank account.');
     }
 
     await client.query('COMMIT');

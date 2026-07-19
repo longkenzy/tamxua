@@ -83,7 +83,8 @@ async function getTablesWithOrders() {
                  'price', COALESCE(oi.price, m.price, 0),
                  'emoji', m.emoji,
                  'quantity', oi.quantity,
-                 'notes', COALESCE(oi.notes, '')
+                 'notes', COALESCE(oi.notes, ''),
+                 'options', COALESCE(oi.options, '[]'::jsonb)
                )
              ) FILTER (WHERE oi.id IS NOT NULL),
              '[]'::json
@@ -110,7 +111,9 @@ async function getTransactionsWithItems() {
     SELECT tx.id, tx.table_id as "tableId", tx.table_name as "tableName", 
            tx.subtotal, tx.received_amount as "receivedAmount", 
            tx.change_amount as "changeAmount", tx.discount_amount as "discountAmount", 
-           tx.payment_method as "paymentMethod", tx.timestamp,
+           tx.payment_method as "paymentMethod", 
+           tx.bank_name as "bankName", tx.account_number as "accountNumber", tx.account_holder as "accountHolder",
+           tx.timestamp,
            COALESCE(
              json_agg(
                json_build_object(
@@ -118,14 +121,16 @@ async function getTransactionsWithItems() {
                  'emoji', ti.emoji,
                  'price', ti.price,
                  'quantity', ti.quantity,
-                 'notes', COALESCE(ti.notes, '')
+                 'notes', COALESCE(ti.notes, ''),
+                 'discount', COALESCE(ti.discount, 0),
+                 'options', COALESCE(ti.options, '[]'::jsonb)
                )
              ) FILTER (WHERE ti.id IS NOT NULL),
              '[]'::json
            ) as items
     FROM transactions tx
     LEFT JOIN transaction_items ti ON tx.id = ti.transaction_id
-    GROUP BY tx.id, tx.table_id, tx.table_name, tx.subtotal, tx.received_amount, tx.change_amount, tx.discount_amount, tx.payment_method, tx.timestamp
+    GROUP BY tx.id, tx.table_id, tx.table_name, tx.subtotal, tx.received_amount, tx.change_amount, tx.discount_amount, tx.payment_method, tx.bank_name, tx.account_number, tx.account_holder, tx.timestamp
     ORDER BY tx.timestamp DESC;
   `);
 
@@ -138,6 +143,9 @@ async function getTransactionsWithItems() {
     changeAmount: row.changeAmount,
     discountAmount: row.discountAmount || 0,
     paymentMethod: row.paymentMethod || 'cash',
+    bankName: row.bankName,
+    accountNumber: row.accountNumber,
+    accountHolder: row.accountHolder,
     timestamp: row.timestamp ? row.timestamp.toISOString() : '',
     items: row.items
   }));
@@ -159,9 +167,9 @@ app.post('/api/login', async (req, res) => {
       return res.status(401).json({ error: 'Tên tài khoản hoặc mật khẩu không chính xác.' });
     }
 
-    // Set signed cookies for session
-    res.cookie('role', user.role, { signed: true, httpOnly: true, maxAge: 24 * 60 * 60 * 1000 }); // 1 day
-    res.cookie('username', user.username, { signed: true, httpOnly: true, maxAge: 24 * 60 * 60 * 1000 });
+    // Set signed cookies for session (expire in 365 days for local restaurant usage convenience)
+    res.cookie('role', user.role, { signed: true, httpOnly: true, maxAge: 365 * 24 * 60 * 60 * 1000 });
+    res.cookie('username', user.username, { signed: true, httpOnly: true, maxAge: 365 * 24 * 60 * 60 * 1000 });
 
     res.json({ success: true, role: user.role, username: user.username });
   } catch (error) {
@@ -326,7 +334,7 @@ app.post('/api/menu-import', requireManager, async (req, res) => {
     await client.query('BEGIN');
 
     for (const item of items) {
-      const { name, price, description, category, emoji, imageUrlLink } = item;
+      const { name, price, description, category, emoji, imageUrlLink, type } = item;
       if (!name || price === undefined || price === null) {
         throw new Error('Tên món ăn và giá bán là bắt buộc cho tất cả mặt hàng.');
       }
@@ -342,11 +350,12 @@ app.post('/api/menu-import', requireManager, async (req, res) => {
       const finalEmoji = emoji ? emoji.trim() : '🍽️';
       const finalDesc = description ? description.trim() : '';
       const finalImg = imageUrlLink ? imageUrlLink.trim() : null;
+      const finalType = type ? type.trim() : ((finalCategory.toLowerCase().includes('nước') || finalCategory.toLowerCase().includes('uống') || finalCategory.toLowerCase() === 'drink' || name.toLowerCase().includes('nước') || name.toLowerCase().includes('trà') || name.toLowerCase().includes('bia') || name.toLowerCase().includes('cà phê') || name.toLowerCase().includes('cafe') || name.toLowerCase().includes('sinh tố')) ? 'món uống' : 'Món ăn');
 
       await client.query(`
-        INSERT INTO menu (id, name, price, category, emoji, description, image_url)
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
-      `, [id, name.trim(), cleanPrice, finalCategory, finalEmoji, finalDesc, finalImg]);
+        INSERT INTO menu (id, name, price, category, emoji, description, image_url, type)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      `, [id, name.trim(), cleanPrice, finalCategory, finalEmoji, finalDesc, finalImg, finalType]);
 
       // Tự động tìm hoặc tạo nhóm thực đơn (menu_groups) và liên kết món ăn vào nhóm đó
       if (finalCategory) {
@@ -410,7 +419,7 @@ app.post('/api/menu-import', requireManager, async (req, res) => {
 
 // Create new food/drink menu item
 app.post('/api/menu', requireManager, upload.single('image'), async (req, res) => {
-  const { name, price, category, emoji, description, imageUrlLink } = req.body;
+  const { name, price, category, emoji, description, imageUrlLink, type, menuGroupId } = req.body;
   if (!name || !price || !category) {
     return res.status(400).json({ error: 'Tên món ăn, phân loại và giá tiền là bắt buộc.' });
   }
@@ -423,35 +432,55 @@ app.post('/api/menu', requireManager, upload.single('image'), async (req, res) =
     imageUrl = imageUrlLink.trim();
   }
 
+  const client = await db.pool.connect();
   try {
-    await db.query(`
-      INSERT INTO menu (id, name, price, category, emoji, description, image_url)
-      VALUES ($1, $2, $3, $4, $5, $6, $7)
-    `, [id, name, parseInt(price), category, emoji || '🍽️', description || '', imageUrl]);
+    await client.query('BEGIN');
+
+    await client.query(`
+      INSERT INTO menu (id, name, price, category, emoji, description, image_url, type)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    `, [id, name, parseInt(price), category, emoji || '🍽️', description || '', imageUrl, type || 'Món ăn']);
+
+    if (menuGroupId) {
+      await client.query(`
+        INSERT INTO menu_group_items (menu_group_id, item_id)
+        VALUES ($1, $2)
+      `, [parseInt(menuGroupId), id]);
+    }
+
+    await client.query('COMMIT');
 
     // Broadcast updated menu to all clients
     const menuRes = await db.query('SELECT * FROM menu ORDER BY category, id');
     io.emit('menu_updated', menuRes.rows);
+    io.emit('menu_groups_updated');
 
     res.json({ success: true, id });
   } catch (error) {
+    await client.query('ROLLBACK');
     console.error('Lỗi thêm món ăn:', error);
     res.status(500).json({ error: 'Lỗi hệ thống.' });
+  } finally {
+    client.release();
   }
 });
 
 app.post('/api/menu/:id', requireManager, upload.single('image'), async (req, res) => {
   const { id } = req.params;
   const cleanId = id.trim();
-  const { name, price, category, emoji, description, imageUrlLink, removeImage } = req.body;
+  const { name, price, category, emoji, description, imageUrlLink, removeImage, type, menuGroupId } = req.body;
   if (!name || !price || !category) {
     return res.status(400).json({ error: 'Tên món ăn, phân loại và giá tiền là bắt buộc.' });
   }
 
+  const client = await db.pool.connect();
   try {
-    const checkMenu = await db.query('SELECT image_url FROM menu WHERE TRIM(id) = $1', [cleanId]);
+    await client.query('BEGIN');
+
+    const checkMenu = await client.query('SELECT image_url FROM menu WHERE TRIM(id) = $1', [cleanId]);
     const existingItem = checkMenu.rows[0];
     if (!existingItem) {
+      await client.query('ROLLBACK');
       return res.status(404).json({ error: 'Không tìm thấy món ăn.' });
     }
 
@@ -464,20 +493,35 @@ app.post('/api/menu/:id', requireManager, upload.single('image'), async (req, re
       imageUrl = null;
     }
 
-    await db.query(`
+    await client.query(`
       UPDATE menu 
-      SET name = $1, price = $2, category = $3, emoji = $4, description = $5, image_url = $6
-      WHERE TRIM(id) = $7
-    `, [name, parseInt(price), category, emoji || '🍽️', description || '', imageUrl, cleanId]);
+      SET name = $1, price = $2, category = $3, emoji = $4, description = $5, image_url = $6, type = $7
+      WHERE TRIM(id) = $8
+    `, [name, parseInt(price), category, emoji || '🍽️', description || '', imageUrl, type || 'Món ăn', cleanId]);
+
+    // Update group mappings: delete existing and insert new
+    await client.query('DELETE FROM menu_group_items WHERE item_id = $1', [cleanId]);
+    if (menuGroupId) {
+      await client.query(`
+        INSERT INTO menu_group_items (menu_group_id, item_id)
+        VALUES ($1, $2)
+      `, [parseInt(menuGroupId), cleanId]);
+    }
+
+    await client.query('COMMIT');
 
     // Broadcast updated menu to all clients
     const menuRes = await db.query('SELECT * FROM menu ORDER BY category, id');
     io.emit('menu_updated', menuRes.rows);
+    io.emit('menu_groups_updated');
 
     res.json({ success: true });
   } catch (error) {
+    await client.query('ROLLBACK');
     console.error('Lỗi cập nhật món ăn:', error);
     res.status(500).json({ error: 'Lỗi hệ thống.' });
+  } finally {
+    client.release();
   }
 });
 
@@ -531,6 +575,169 @@ app.delete('/api/menu/:id', requireManager, async (req, res) => {
     res.json({ success: true });
   } catch (error) {
     console.error('Lỗi xóa món ăn:', error);
+    res.status(500).json({ error: 'Lỗi hệ thống.' });
+  }
+});
+
+// Option Groups Endpoints
+app.get('/api/option-groups', async (req, res) => {
+  try {
+    const query = `
+      SELECT 
+        og.id,
+        og.name,
+        og.min_select,
+        og.max_select,
+        og.allow_multiple,
+        COALESCE(
+          json_agg(
+            DISTINCT jsonb_build_object(
+              'id', oi.id,
+              'name', oi.name,
+              'price', oi.price,
+              'cost', oi.cost,
+              'is_default', oi.is_default
+            )
+          ) FILTER (WHERE oi.id IS NOT NULL),
+          '[]'
+        ) AS options,
+        COUNT(DISTINCT ogmi.menu_item_id)::int AS linked_items_count,
+        COALESCE(
+          json_agg(DISTINCT ogmi.menu_item_id) FILTER (WHERE ogmi.menu_item_id IS NOT NULL),
+          '[]'
+        ) AS linked_menu_item_ids
+      FROM option_groups og
+      LEFT JOIN option_items oi ON og.id = oi.option_group_id
+      LEFT JOIN option_group_menu_items ogmi ON og.id = ogmi.option_group_id
+      GROUP BY og.id
+      ORDER BY og.name
+    `;
+    const result = await db.query(query);
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Lỗi hệ thống.' });
+  }
+});
+
+app.get('/api/option-groups/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const ogRes = await db.query('SELECT * FROM option_groups WHERE id = $1', [id]);
+    if (ogRes.rows.length === 0) {
+      return res.status(404).json({ error: 'Không tìm thấy nhóm lựa chọn.' });
+    }
+    const itemsRes = await db.query('SELECT * FROM option_items WHERE option_group_id = $1 ORDER BY id', [id]);
+    const linkedRes = await db.query('SELECT menu_item_id FROM option_group_menu_items WHERE option_group_id = $1', [id]);
+    res.json({
+      ...ogRes.rows[0],
+      options: itemsRes.rows,
+      linkedMenuItemIds: linkedRes.rows.map(r => r.menu_item_id)
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Lỗi hệ thống.' });
+  }
+});
+
+app.post('/api/option-groups', requireManager, async (req, res) => {
+  const { name, min_select, max_select, allow_multiple, options, linkedMenuItemIds } = req.body;
+  if (!name || !Array.isArray(options)) {
+    return res.status(400).json({ error: 'Tên nhóm và danh sách các lựa chọn là bắt buộc.' });
+  }
+  const client = await db.pool.connect();
+  try {
+    await client.query('BEGIN');
+    
+    const ogRes = await client.query(`
+      INSERT INTO option_groups (name, min_select, max_select, allow_multiple)
+      VALUES ($1, $2, $3, $4)
+      RETURNING id
+    `, [name.trim(), parseInt(min_select) || 0, max_select ? parseInt(max_select) : null, !!allow_multiple]);
+    const ogId = ogRes.rows[0].id;
+    
+    for (const opt of options) {
+      if (!opt.name || !opt.name.trim()) continue;
+      await client.query(`
+        INSERT INTO option_items (option_group_id, name, price, cost, is_default)
+        VALUES ($1, $2, $3, $4, $5)
+      `, [ogId, opt.name.trim(), parseInt(opt.price) || 0, parseInt(opt.cost) || 0, !!opt.is_default]);
+    }
+    
+    if (Array.isArray(linkedMenuItemIds)) {
+      for (const itemId of linkedMenuItemIds) {
+        await client.query(`
+          INSERT INTO option_group_menu_items (option_group_id, menu_item_id)
+          VALUES ($1, $2)
+        `, [ogId, itemId]);
+      }
+    }
+    
+    await client.query('COMMIT');
+    res.json({ success: true, id: ogId });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error(err);
+    res.status(500).json({ error: 'Lỗi hệ thống.' });
+  } finally {
+    client.release();
+  }
+});
+
+app.post('/api/option-groups/:id', requireManager, async (req, res) => {
+  const { id } = req.params;
+  const { name, min_select, max_select, allow_multiple, options, linkedMenuItemIds } = req.body;
+  if (!name || !Array.isArray(options)) {
+    return res.status(400).json({ error: 'Tên nhóm và danh sách các lựa chọn là bắt buộc.' });
+  }
+  const client = await db.pool.connect();
+  try {
+    await client.query('BEGIN');
+    
+    await client.query(`
+      UPDATE option_groups
+      SET name = $1, min_select = $2, max_select = $3, allow_multiple = $4
+      WHERE id = $5
+    `, [name.trim(), parseInt(min_select) || 0, max_select ? parseInt(max_select) : null, !!allow_multiple, id]);
+    
+    await client.query('DELETE FROM option_items WHERE option_group_id = $1', [id]);
+    await client.query('DELETE FROM option_group_menu_items WHERE option_group_id = $1', [id]);
+    
+    for (const opt of options) {
+      if (!opt.name || !opt.name.trim()) continue;
+      await client.query(`
+        INSERT INTO option_items (option_group_id, name, price, cost, is_default)
+        VALUES ($1, $2, $3, $4, $5)
+      `, [id, opt.name.trim(), parseInt(opt.price) || 0, parseInt(opt.cost) || 0, !!opt.is_default]);
+    }
+    
+    if (Array.isArray(linkedMenuItemIds)) {
+      for (const itemId of linkedMenuItemIds) {
+        await client.query(`
+          INSERT INTO option_group_menu_items (option_group_id, menu_item_id)
+          VALUES ($1, $2)
+        `, [id, itemId]);
+      }
+    }
+    
+    await client.query('COMMIT');
+    res.json({ success: true });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error(err);
+    res.status(500).json({ error: 'Lỗi hệ thống.' });
+  } finally {
+    client.release();
+  }
+});
+
+app.delete('/api/option-groups/:id', requireManager, async (req, res) => {
+  const { id } = req.params;
+  try {
+    await db.query('DELETE FROM option_groups WHERE id = $1', [id]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
     res.status(500).json({ error: 'Lỗi hệ thống.' });
   }
 });
@@ -663,6 +870,87 @@ app.delete('/api/menu-groups/:id', requireManager, async (req, res) => {
     res.json({ success: true });
   } catch (error) {
     console.error('Lỗi xóa nhóm thực đơn:', error);
+    res.status(500).json({ error: 'Lỗi hệ thống.' });
+  }
+});
+
+// Bank Accounts management APIs
+app.get('/api/bank-accounts', requireAuth, async (req, res) => {
+  try {
+    const result = await db.query('SELECT * FROM bank_accounts ORDER BY id ASC');
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Lỗi lấy danh sách tài khoản ngân hàng:', error);
+    res.status(500).json({ error: 'Lỗi hệ thống.' });
+  }
+});
+
+app.get('/api/bank-accounts/active', async (req, res) => {
+  try {
+    const result = await db.query('SELECT * FROM bank_accounts WHERE is_active = true ORDER BY id ASC');
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Lỗi lấy tài khoản ngân hàng hoạt động:', error);
+    res.status(500).json({ error: 'Lỗi hệ thống.' });
+  }
+});
+
+app.post('/api/bank-accounts', requireAuth, async (req, res) => {
+  const { account_number, bank_name, account_holder } = req.body;
+  if (!account_number || !account_number.trim() || !bank_name || !bank_name.trim() || !account_holder || !account_holder.trim()) {
+    return res.status(400).json({ error: 'Thông tin tài khoản không được để trống.' });
+  }
+  try {
+    const countRes = await db.query('SELECT COUNT(*) FROM bank_accounts');
+    const isActive = parseInt(countRes.rows[0].count) === 0;
+
+    const insertRes = await db.query(
+      'INSERT INTO bank_accounts (account_number, bank_name, account_holder, is_active) VALUES ($1, $2, $3, $4) RETURNING *',
+      [account_number.trim(), bank_name.trim(), account_holder.trim(), isActive]
+    );
+    res.json(insertRes.rows[0]);
+  } catch (error) {
+    console.error('Lỗi thêm tài khoản ngân hàng:', error);
+    res.status(500).json({ error: 'Lỗi hệ thống.' });
+  }
+});
+
+app.put('/api/bank-accounts/:id/active', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  const { is_active } = req.body;
+  try {
+    const updateRes = await db.query('UPDATE bank_accounts SET is_active = $1 WHERE id = $2 RETURNING *', [!!is_active, parseInt(id)]);
+    if (updateRes.rows.length > 0) {
+      res.json(updateRes.rows[0]);
+    } else {
+      res.status(404).json({ error: 'Không tìm thấy tài khoản ngân hàng.' });
+    }
+  } catch (error) {
+    console.error('Lỗi thay đổi trạng thái tài khoản ngân hàng:', error);
+    res.status(500).json({ error: 'Lỗi hệ thống.' });
+  }
+});
+
+app.delete('/api/bank-accounts/:id', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  try {
+    const checkRes = await db.query('SELECT is_active FROM bank_accounts WHERE id = $1', [parseInt(id)]);
+    if (checkRes.rows.length === 0) {
+      return res.status(404).json({ error: 'Không tìm thấy tài khoản ngân hàng.' });
+    }
+    const wasActive = checkRes.rows[0].is_active;
+
+    await db.query('DELETE FROM bank_accounts WHERE id = $1', [parseInt(id)]);
+
+    if (wasActive) {
+      const nextAcc = await db.query('SELECT id FROM bank_accounts LIMIT 1');
+      if (nextAcc.rows.length > 0) {
+        await db.query('UPDATE bank_accounts SET is_active = true WHERE id = $1', [nextAcc.rows[0].id]);
+      }
+    }
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Lỗi xóa tài khoản ngân hàng:', error);
     res.status(500).json({ error: 'Lỗi hệ thống.' });
   }
 });
@@ -828,9 +1116,9 @@ app.post('/api/order', async (req, res) => {
       for (const item of items) {
         if (item.quantity > 0) {
           await client.query(`
-            INSERT INTO order_items (table_id, menu_id, quantity, price, notes)
-            VALUES ($1, $2, $3, $4, $5)
-          `, [tableId, item.id, parseInt(item.quantity || 1), parseInt(item.price || 0), item.notes || '']);
+            INSERT INTO order_items (table_id, menu_id, quantity, price, notes, options)
+            VALUES ($1, $2, $3, $4, $5, $6)
+          `, [tableId, item.id, parseInt(item.quantity || 1), parseInt(item.price || 0), item.notes || '', JSON.stringify(item.options || [])]);
         }
       }
     }
@@ -858,7 +1146,7 @@ app.post('/api/order', async (req, res) => {
 
 // Checkout table
 app.post('/api/checkout', async (req, res) => {
-  const { tableId, receivedAmount, discountAmount, paymentMethod } = req.body;
+  const { tableId, receivedAmount, discountAmount, paymentMethod, itemDiscounts, bank_name, account_number, account_holder } = req.body;
   if (!tableId || receivedAmount === undefined || receivedAmount === null) {
     return res.status(400).json({ error: 'Thiếu thông tin thanh toán.' });
   }
@@ -877,7 +1165,8 @@ app.post('/api/checkout', async (req, res) => {
     // Get order items join menu
     const itemsRes = await client.query(`
       SELECT oi.id, oi.table_id, oi.menu_id, oi.quantity, oi.notes, 
-             m.name, COALESCE(oi.price, m.price, 0) as price, m.emoji 
+             m.name, COALESCE(oi.price, m.price, 0) as price, m.emoji,
+             oi.options
       FROM order_items oi
       JOIN menu m ON oi.menu_id = m.id
       WHERE oi.table_id = $1
@@ -899,18 +1188,32 @@ app.post('/api/checkout', async (req, res) => {
 
     const txId = `TX-${Date.now()}`;
 
+    let txBankName = bank_name || null;
+    let txAccountNumber = account_number || null;
+    let txAccountHolder = account_holder || null;
+
+    if (paymentMethod === 'bank' && !txAccountNumber) {
+      const activeBankRes = await client.query('SELECT * FROM bank_accounts WHERE is_active = true LIMIT 1');
+      if (activeBankRes.rows.length > 0) {
+        txBankName = activeBankRes.rows[0].bank_name;
+        txAccountNumber = activeBankRes.rows[0].account_number;
+        txAccountHolder = activeBankRes.rows[0].account_holder;
+      }
+    }
+
     // 1. Create Transaction
     await client.query(`
-      INSERT INTO transactions (id, table_id, table_name, subtotal, received_amount, change_amount, discount_amount, payment_method, timestamp)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
-    `, [txId, table.id, table.name, subtotal, parseFloat(receivedAmount), changeAmount, discount, paymentMethod || 'cash']);
+      INSERT INTO transactions (id, table_id, table_name, subtotal, received_amount, change_amount, discount_amount, payment_method, bank_name, account_number, account_holder, timestamp)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW())
+    `, [txId, table.id, table.name, subtotal, parseFloat(receivedAmount), changeAmount, discount, paymentMethod || 'cash', txBankName, txAccountNumber, txAccountHolder]);
 
     // 2. Create Transaction Items
     for (const item of orderItems) {
+      const itemDiscount = parseInt((itemDiscounts && itemDiscounts[item.menu_id]) || 0);
       await client.query(`
-        INSERT INTO transaction_items (transaction_id, name, emoji, price, quantity, notes)
-        VALUES ($1, $2, $3, $4, $5, $6)
-      `, [txId, item.name, item.emoji, item.price, item.quantity, item.notes || '']);
+        INSERT INTO transaction_items (transaction_id, name, emoji, price, quantity, notes, discount, options)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      `, [txId, item.name, item.emoji, item.price, item.quantity, item.notes || '', itemDiscount, JSON.stringify(item.options || [])]);
     }
 
     // 3. Clear Table orders
@@ -1003,14 +1306,16 @@ function printDocxOnServer(printerName, templateName, templateData) {
 
 // Endpoint to silently print docx using Word in the background
 app.post('/api/print-docx-silent', requireAuth, async (req, res) => {
-  const { sharedPath, template, templateData } = req.body;
-  const templateName = template === 'hoadonbep.docx' ? 'hoadonbep.docx' : 'hoadon.docx';
+  const { sharedPath, template, templateData, printerId } = req.body;
+  const templateName = (template === 'hoadonbep.docx' || template === 'hoadonthem.docx' || template === 'hoadonnuoc.docx') ? template : 'hoadon.docx';
   
   try {
-    if (templateName === 'hoadonbep.docx') {
-      // In 2 bản cho hóa đơn bếp (1 bản chính, 1 bản copy)
-      await printDocxOnServer(sharedPath, templateName, templateData);
+    if (templateName === 'hoadonbep.docx' || templateName === 'hoadonthem.docx' || templateName === 'hoadonnuoc.docx') {
+      // In 2 bản cho hóa đơn bếp, nước (kitchen_bar) thì in 1 bản
       const result = await printDocxOnServer(sharedPath, templateName, templateData);
+      if (printerId !== 'kitchen_bar') {
+        await printDocxOnServer(sharedPath, templateName, templateData);
+      }
       res.json(result);
     } else {
       const result = await printDocxOnServer(sharedPath, templateName, templateData);
@@ -1026,13 +1331,54 @@ app.post('/api/print-docx-silent', requireAuth, async (req, res) => {
 app.post('/api/print-docx', async (req, res) => {
   try {
     const { template, ...templateData } = req.body;
-    const templateName = template === 'hoadonbep.docx' ? 'hoadonbep.docx' : 'hoadon.docx';
+    const templateName = (template === 'hoadonbep.docx' || template === 'hoadonnuoc.docx' || template === 'hoadonthem.docx') ? template : 'hoadon.docx';
 
     const buf = generateDocxBuffer(templateName, templateData);
 
     // Convert populated DOCX buffer to HTML
     const htmlResult = await mammoth.convertToHtml({ buffer: buf });
     const bodyHtml = htmlResult.value;
+
+    let qrHtml = '';
+    const isBankPayment = templateData.payment_method && 
+      (templateData.payment_method.toString().toLowerCase() === 'chuyển khoản' || 
+       templateData.payment_method.toString().toLowerCase() === 'bank');
+
+    if (isBankPayment) {
+      // Fetch active bank account from database or use selected bank account details
+      let activeBank = { account_number: '25103456789', bank_name: 'MB BANK', account_holder: 'HUYNH THANH LONG' };
+      if (templateData.bank_name && templateData.account_number && templateData.account_holder) {
+        activeBank = {
+          bank_name: templateData.bank_name,
+          account_number: templateData.account_number,
+          account_holder: templateData.account_holder
+        };
+      } else {
+        try {
+          const activeBankRes = await db.query('SELECT * FROM bank_accounts WHERE is_active = true LIMIT 1');
+          if (activeBankRes.rows.length > 0) {
+            activeBank = activeBankRes.rows[0];
+          }
+        } catch (err) {
+          console.error('Error loading active bank account:', err);
+        }
+      }
+
+      const numericAmount = parseInt(templateData.final_total.replace(/[^\d]/g, '')) || 0;
+      const cleanTableName = (templateData.table_name || 'Ban').normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D");
+      const description = `TAMXUA Thanh toan ${cleanTableName}`.replace(/[^a-zA-Z0-9 ]/g, "");
+      
+      let bankSlug = getVietQrBankSlug(activeBank.bank_name);
+      const qrUrl = `https://img.vietqr.io/image/${bankSlug}-${activeBank.account_number}-compact.png?amount=${numericAmount}&addInfo=${encodeURIComponent(description)}&accountName=${encodeURIComponent(activeBank.account_holder)}`;
+      
+      qrHtml = `
+        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; margin-top: 15px; border-top: 1px dashed #000; padding-top: 10px;">
+          <p style="font-weight: bold; margin-bottom: 5px; text-align: center;">MÃ QR THANH TOÁN (CHUYỂN KHOẢN)</p>
+          <img src="${qrUrl}" style="width: 240px; height: 240px; display: block; margin: 5px auto; object-fit: contain;" />
+          <p style="font-size: 11px; margin-top: 3px; font-style: italic; text-align: center; color: #555;">Quét để tự động điền thông tin & số tiền</p>
+        </div>
+      `;
+    }
 
     // Wrap with print styling optimized for thermal K80 paper
     const styledHtml = `
@@ -1113,6 +1459,7 @@ app.post('/api/print-docx', async (req, res) => {
         </head>
         <body>
           ${bodyHtml}
+          ${qrHtml}
         </body>
       </html>
     `;
@@ -1589,6 +1936,23 @@ function formatKitchenTable(items, width = 42) {
       text += '|' + padLeftRight(` ${nameChunks[i]}`, colNameWidth) + '|' + ' '.repeat(colQtyWidth) + '|\n';
     }
     
+    // Group and format options for printing
+    const optionGroupsMap = {};
+    if (item.options && Array.isArray(item.options)) {
+      item.options.forEach(o => {
+        const gn = o.group_name || 'Lựa chọn';
+        if (!optionGroupsMap[gn]) optionGroupsMap[gn] = [];
+        optionGroupsMap[gn].push(o.name);
+      });
+    }
+    Object.keys(optionGroupsMap).forEach(gn => {
+      const line = ` + ${gn}: ${optionGroupsMap[gn].join(', ')}`;
+      const optionChunks = wrapTextIntoChunks(line, maxTextWidth);
+      optionChunks.forEach(chunk => {
+        text += '|' + padLeftRight(` ${chunk}`, colNameWidth) + '|' + ' '.repeat(colQtyWidth) + '|\n';
+      });
+    });
+
     if (item.notes) {
       const noteChunks = wrapTextIntoChunks(`*Ghi chú: ${item.notes}`, maxTextWidth);
       noteChunks.forEach(chunk => {
@@ -1624,6 +1988,23 @@ function formatReceiptTable(items, width = 42) {
       text += '|' + padLeftRight(` ${nameChunks[i]}`, colNameWidth) + '|' + ' '.repeat(colQtyWidth) + '|' + ' '.repeat(colPriceWidth) + '|\n';
     }
     
+    // Group and format options for printing
+    const optionGroupsMap = {};
+    if (item.options && Array.isArray(item.options)) {
+      item.options.forEach(o => {
+        const gn = o.group_name || 'Lựa chọn';
+        if (!optionGroupsMap[gn]) optionGroupsMap[gn] = [];
+        optionGroupsMap[gn].push(o.name);
+      });
+    }
+    Object.keys(optionGroupsMap).forEach(gn => {
+      const line = ` + ${gn}: ${optionGroupsMap[gn].join(', ')}`;
+      const optionChunks = wrapTextIntoChunks(line, maxTextWidth);
+      optionChunks.forEach(chunk => {
+        text += '|' + padLeftRight(` ${chunk}`, colNameWidth) + '|' + ' '.repeat(colQtyWidth) + '|' + ' '.repeat(colPriceWidth) + '|\n';
+      });
+    });
+
     if (item.notes) {
       const noteChunks = wrapTextIntoChunks(`*Ghi chú: ${item.notes}`, maxTextWidth);
       noteChunks.forEach(chunk => {
@@ -1744,20 +2125,45 @@ io.on('connection', async (socket) => {
           const templateData = {
             table_name: data.tableName,
             order_time: orderTimeStr,
-            items: data.items.map(item => ({
-              name: item.name,
-              quantity: item.quantity,
-              notes: item.notes || ''
-            }))
+            items: data.items.map(item => {
+              const optionGroupsMap = {};
+              if (item.options && Array.isArray(item.options)) {
+                item.options.forEach(o => {
+                  const gn = o.group_name || 'Lựa chọn';
+                  if (!optionGroupsMap[gn]) optionGroupsMap[gn] = [];
+                  optionGroupsMap[gn].push(o.name);
+                });
+              }
+              const optionsText = Object.keys(optionGroupsMap).map(gn => `${gn}: ${optionGroupsMap[gn].join(', ')}`).join('\n');
+              
+              return {
+                name: item.name,
+                quantity: item.quantity,
+                notes: item.notes || '',
+                options_text: optionsText
+              };
+            })
           };
-          // In 2 bản cho hóa đơn bếp (1 bản chính, 1 bản copy)
-          await printDocxOnServer(sharedPath, 'hoadonbep.docx', templateData);
-          await printDocxOnServer(sharedPath, 'hoadonbep.docx', templateData);
+          
+          let selectedTemplate = 'hoadonbep.docx';
+          if (data.title && (data.title.toUpperCase().includes('THÊM') || data.title.toUpperCase().includes('THEM'))) {
+            selectedTemplate = 'hoadonthem.docx';
+          } else if (data.printerId === 'kitchen_bar' || (data.title && (data.title.toUpperCase().includes('NƯỚC') || data.title.toUpperCase().includes('NUOC')))) {
+            selectedTemplate = 'hoadonnuoc.docx';
+          }
+          
+          // In 2 bản cho hóa đơn bếp, nước (kitchen_bar) thì in 1 bản
+          await printDocxOnServer(sharedPath, selectedTemplate, templateData);
+          if (data.printerId !== 'kitchen_bar') {
+            await printDocxOnServer(sharedPath, selectedTemplate, templateData);
+          }
         } else {
           const plainText = formatPlainKitchenSlipServer(data.tableName, data.items, data.title);
-          // In 2 bản cho hóa đơn bếp dạng thô (raw)
+          // In 2 bản cho hóa đơn bếp dạng thô (raw), nước (kitchen_bar) thì in 1 bản
           await printRawOnServer(type, sharedPath, printer ? printer.ip : '', printer ? printer.port : null, plainText);
-          await printRawOnServer(type, sharedPath, printer ? printer.ip : '', printer ? printer.port : null, plainText);
+          if (data.printerId !== 'kitchen_bar') {
+            await printRawOnServer(type, sharedPath, printer ? printer.ip : '', printer ? printer.port : null, plainText);
+          }
         }
         
         // Broadcast to all clients that server has printed it successfully
@@ -1821,14 +2227,27 @@ io.on('connection', async (socket) => {
             received_amount: formatVNDShort(data.receivedAmount || finalTotal),
             change_amount: formatVNDShort(Math.max(0, changeAmount)),
             payment_method: payMethodLabel,
-            items: data.orderItems.map(item => ({
-              emoji: item.emoji || '🍽️',
-              name: item.name,
-              price: formatVNDShort(item.price),
-              quantity: item.quantity,
-              total: formatVNDShort(item.price * item.quantity),
-              notes: item.notes || ''
-            }))
+            items: data.orderItems.map(item => {
+              const optionGroupsMap = {};
+              if (item.options && Array.isArray(item.options)) {
+                item.options.forEach(o => {
+                  const gn = o.group_name || 'Lựa chọn';
+                  if (!optionGroupsMap[gn]) optionGroupsMap[gn] = [];
+                  optionGroupsMap[gn].push(o.name);
+                });
+              }
+              const optionsText = Object.keys(optionGroupsMap).map(gn => `${gn}: ${optionGroupsMap[gn].join(', ')}`).join('\n');
+              
+              return {
+                emoji: item.emoji || '🍽️',
+                name: item.name,
+                price: formatVNDShort(item.price),
+                quantity: item.quantity,
+                total: formatVNDShort(item.price * item.quantity),
+                notes: item.notes || '',
+                options_text: optionsText
+              };
+            })
           };
           
           await printDocxOnServer(sharedPath, 'hoadon.docx', templateData);
@@ -2000,3 +2419,27 @@ if (!process.env.VERCEL) {
 }
 
 module.exports = app;
+
+function getVietQrBankSlug(bankName) {
+  const name = bankName.toUpperCase().trim();
+  if (name.includes('TPBANK') || name.includes('TP BANK') || name.includes('TIEN PHONG') || name.includes('TIÊN PHONG')) return 'TPB';
+  if (name.includes('VCB') || name.includes('VIETCOMBANK')) return 'VCB';
+  if (name.includes('TCB') || name.includes('TECHCOMBANK')) return 'TCB';
+  if (name.includes('BIDV') || name.includes('ĐẦU TƯ')) return 'BIDV';
+  if (name.includes('MB') || name.includes('MILITARY') || name.includes('QUÂN ĐỘI')) return 'MB';
+  if (name.includes('CTG') || name.includes('VIETINBANK') || name.includes('VIETIN')) return 'CTG';
+  if (name.includes('ACB') || name.includes('Á CHÂU')) return 'ACB';
+  if (name.includes('VPBANK') || name.includes('VPB') || name.includes('THỊNH VƯỢNG')) return 'VPB';
+  if (name.includes('SACOMBANK') || name.includes('STB')) return 'STB';
+  if (name.includes('AGRIBANK') || name.includes('VBA') || name.includes('NÔNG NGHIỆP')) return 'VBA';
+  if (name.includes('SHB')) return 'SHB';
+  if (name.includes('HDBANK') || name.includes('HDB')) return 'HDB';
+  if (name.includes('VIB')) return 'VIB';
+  if (name.includes('MSB')) return 'MSB';
+  if (name.includes('SCB')) return 'SCB';
+  if (name.includes('OCB')) return 'OCB';
+  if (name.includes('LPB') || name.includes('LIENVIET')) return 'LPB';
+  if (name.includes('TPB')) return 'TPB';
+  
+  return name.replace(/\s+BANK/g, '').replace(/\s+/g, '');
+}

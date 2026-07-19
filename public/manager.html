@@ -577,9 +577,9 @@
     /* Redesigned Checkout Modal */
     .checkout-split-container {
       display: grid;
-      grid-template-columns: 1.1fr 0.9fr;
+      grid-template-columns: 1.25fr 0.75fr;
       gap: 24px;
-      min-height: 450px;
+      min-height: 600px;
     }
 
     @media (max-width: 768px) {
@@ -614,7 +614,7 @@
 
     .checkout-bill-scroll {
       flex: 1;
-      max-height: 380px;
+      max-height: 520px;
       overflow-y: auto;
       padding-right: 8px;
     }
@@ -837,6 +837,29 @@
       border: 1px solid var(--hairline);
       border-radius: var(--rounded-md);
       background-color: var(--canvas);
+    }
+    .bank-select-btn {
+      padding: 6px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      border: 1px solid var(--hairline);
+      border-radius: var(--rounded-md);
+      background-color: #ffffff;
+      color: var(--ink);
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .bank-select-btn.active {
+      border-color: var(--primary) !important;
+      background-color: #fff1f2 !important;
+      color: var(--primary) !important;
+    }
+    .bank-select-btn:hover:not(.active) {
+      background-color: #f8fafc;
+      border-color: var(--border-strong);
+    }
+    @keyframes qr-spin {
+      to { transform: rotate(360deg); }
     }
 
     .qr-code-placeholder {
@@ -3518,6 +3541,171 @@
       fill: #bfdbfe;
     }
 
+    /* Premium Print Kitchen Button - Amber Outline, Solid on Hover */
+    .btn-print-kitchen-premium {
+      position: relative;
+      background: transparent;
+      font-size: 12px;
+      font-weight: 700;
+      color: #d97706; /* amber-600 */
+      border: 2px solid #d97706;
+      border-radius: 4px;
+      box-shadow: 0 4px 6px -1px rgba(217, 119, 6, 0.05);
+      transition: all 0.3s ease-in-out;
+      cursor: pointer;
+      height: 42px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      white-space: nowrap;
+      flex: 1.2;
+      overflow: visible;
+      z-index: 1;
+    }
+
+    .btn-print-kitchen-premium .star-1 {
+      position: absolute;
+      top: 20%;
+      left: 20%;
+      width: 14px;
+      height: auto;
+      filter: drop-shadow(0 0 0 #fde68a);
+      z-index: -5;
+      opacity: 0;
+      transition: all 0.3s ease;
+      transform: scale(0);
+    }
+
+    .btn-print-kitchen-premium .star-2 {
+      position: absolute;
+      top: 20%;
+      left: 20%;
+      width: 15px;
+      height: auto;
+      filter: drop-shadow(0 0 0 #fde68a);
+      z-index: -5;
+      opacity: 0;
+      transition: all 0.3s ease;
+      transform: scale(0);
+    }
+
+    .btn-print-kitchen-premium .star-3 {
+      position: absolute;
+      top: 20%;
+      left: 20%;
+      width: 16px;
+      height: auto;
+      filter: drop-shadow(0 0 0 #fde68a);
+      z-index: -5;
+      opacity: 0;
+      transition: all 0.3s ease;
+      transform: scale(0);
+    }
+
+    .btn-print-kitchen-premium .star-4 {
+      position: absolute;
+      top: 20%;
+      left: 20%;
+      width: 12px;
+      height: auto;
+      filter: drop-shadow(0 0 0 #fde68a);
+      z-index: -5;
+      opacity: 0;
+      transition: all 0.3s ease;
+      transform: scale(0);
+    }
+
+    .btn-print-kitchen-premium .star-5 {
+      position: absolute;
+      top: 20%;
+      left: 20%;
+      width: 13px;
+      height: auto;
+      filter: drop-shadow(0 0 0 #fde68a);
+      z-index: -5;
+      opacity: 0;
+      transition: all 0.3s ease;
+      transform: scale(0);
+    }
+
+    .btn-print-kitchen-premium .star-6 {
+      position: absolute;
+      top: 20%;
+      left: 20%;
+      width: 10px;
+      height: auto;
+      filter: drop-shadow(0 0 0 #fde68a);
+      z-index: -5;
+      opacity: 0;
+      transition: all 0.3s ease;
+      transform: scale(0);
+    }
+
+    .btn-print-kitchen-premium:hover {
+      background: #d97706;
+      color: #ffffff;
+      box-shadow: 0 0 15px rgba(217, 119, 6, 0.3);
+    }
+
+    .btn-print-kitchen-premium:hover .star-1 {
+      top: -60%;
+      left: -25%;
+      filter: drop-shadow(0 0 6px #fde68a);
+      z-index: 2;
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .btn-print-kitchen-premium:hover .star-2 {
+      top: -20%;
+      left: 15%;
+      filter: drop-shadow(0 0 6px #fde68a);
+      z-index: 2;
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .btn-print-kitchen-premium:hover .star-3 {
+      top: 60%;
+      left: 20%;
+      filter: drop-shadow(0 0 6px #fde68a);
+      z-index: 2;
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .btn-print-kitchen-premium:hover .star-4 {
+      top: 40%;
+      left: 75%;
+      filter: drop-shadow(0 0 6px #fde68a);
+      z-index: 2;
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .btn-print-kitchen-premium:hover .star-5 {
+      top: -60%;
+      left: 75%;
+      filter: drop-shadow(0 0 6px #fde68a);
+      z-index: 2;
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .btn-print-kitchen-premium:hover .star-6 {
+      top: -40%;
+      left: 45%;
+      filter: drop-shadow(0 0 6px #fde68a);
+      z-index: 2;
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .btn-print-kitchen-premium .fil0 {
+      fill: #fde68a;
+    }
+
     /* 2. Confirm Payment Button (Xác nhận thanh toán) - Solid Blue, Outline on Hover */
     .btn-checkout-confirm-premium {
       position: relative;
@@ -4451,6 +4639,7 @@
           <div class="sidebar-submenu" id="submenu-items" style="display: none; flex-direction: column; background-color: rgba(0, 0, 0, 0.15); padding: 4px 0 4px 8px; width: 100%;">
             <div id="subtab-item-list" class="sidebar-submenu-item active" style="padding: 10px 16px; font-size: 13px; font-weight: 500; color: #94a3b8; cursor: pointer; border-radius: var(--rounded-sm); margin: 2px 8px; transition: all 0.2s;">Quản lý mặt hàng</div>
             <div id="subtab-menu-preview" class="sidebar-submenu-item" style="padding: 10px 16px; font-size: 13px; font-weight: 500; color: #94a3b8; cursor: pointer; border-radius: var(--rounded-sm); margin: 2px 8px; transition: all 0.2s;">Thực đơn</div>
+            <div id="subtab-selection-groups" class="sidebar-submenu-item" style="padding: 10px 16px; font-size: 13px; font-weight: 500; color: #94a3b8; cursor: pointer; border-radius: var(--rounded-sm); margin: 2px 8px; transition: all 0.2s;">Nhóm lựa chọn</div>
           </div>
         </div>
 
@@ -4514,6 +4703,9 @@
             <div class="profile-dropdown" id="profile-dropdown-menu" style="display: none; position: absolute; top: calc(100% + 8px); right: 0; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); min-width: 160px; z-index: 1000; padding: 6px 0; overflow: hidden;">
               <a href="#" id="btn-change-password-trigger" style="display: flex; align-items: center; gap: 8px; padding: 10px 16px; color: #1e293b; text-decoration: none; font-size: 14px; font-weight: 500; transition: background 0.15s ease;">
                 🔑 Đổi mật khẩu
+              </a>
+              <a href="#" id="btn-bank-account-trigger" style="display: flex; align-items: center; gap: 8px; padding: 10px 16px; color: #1e293b; text-decoration: none; font-size: 14px; font-weight: 500; transition: background 0.15s ease; border-top: 1px solid #f1f5f9;">
+                💳 Số tài khoản
               </a>
             </div>
           </div>
@@ -5081,6 +5273,48 @@
       </div>
     </div>
 
+    <!-- MODAL: Cấu hình tài khoản ngân hàng -->
+    <div class="modal-backdrop" id="bank-accounts-modal" style="display: none;">
+      <div class="modal-content" style="max-width: 550px; padding: 0;">
+        <div class="modal-header" style="background-color: var(--surface-soft); border-bottom: 1px solid var(--hairline-soft); padding: 16px 24px; display: flex; justify-content: space-between; align-items: center; width: 100%;">
+          <h3 class="modal-title" style="margin: 0; font-size: 16px; font-weight: 700; color: var(--ink);">💳 Tài khoản Ngân hàng nhận thanh toán</h3>
+          <button type="button" class="btn-close" onclick="closeBankAccountsModal()" style="border: none; background: transparent; cursor: pointer; font-size: 24px; color: var(--muted);">&times;</button>
+        </div>
+        <div class="modal-body" style="max-height: 450px; overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 20px;">
+          <!-- List of bank accounts -->
+          <div>
+            <label class="section-subtitle-v2" style="margin-top: 0; display: block; margin-bottom: 8px;">Danh sách số tài khoản</label>
+            <div id="bank-accounts-list" style="display: flex; flex-direction: column; gap: 12px;">
+              <!-- Rendered dynamically -->
+            </div>
+          </div>
+
+          <!-- Add new bank account form -->
+          <div style="border-top: 1px solid var(--hairline-soft); padding-top: 20px;">
+            <label class="section-subtitle-v2" style="margin-top: 0; display: block; margin-bottom: 8px;">Thêm tài khoản mới</label>
+            <form id="add-bank-account-form" onsubmit="handleAddBankAccount(event)" style="display: flex; flex-direction: column; gap: 14px;">
+              <div class="text-input-container" style="margin-bottom: 0;">
+                <label class="text-input-label" for="bank-input-name">Tên ngân hàng (vi dụ: MB, VCB, TCB, ...)</label>
+                <input type="text" id="bank-input-name" class="text-input" placeholder="Ví dụ: MB, Vietcombank, Techcombank" required>
+              </div>
+              <div class="text-input-container" style="margin-bottom: 0;">
+                <label class="text-input-label" for="bank-input-number">Số tài khoản (STK)</label>
+                <input type="text" id="bank-input-number" class="text-input" placeholder="Nhập số tài khoản" required>
+              </div>
+              <div class="text-input-container" style="margin-bottom: 0;">
+                <label class="text-input-label" for="bank-input-holder">Chủ tài khoản (Không dấu, viết hoa)</label>
+                <input type="text" id="bank-input-holder" class="text-input" placeholder="Ví dụ: HUYNH THANH LONG" required style="text-transform: uppercase;">
+              </div>
+              <button type="submit" class="btn btn-primary" style="background-color: var(--primary); color: white; width: 100%; height: 42px; border-radius: var(--rounded-md); font-weight: 600; cursor: pointer; border: none; transition: background 0.15s ease;">➕ Thêm tài khoản ngân hàng</button>
+            </form>
+          </div>
+        </div>
+        <div class="modal-footer" style="background-color: var(--surface-soft); border-top: 1px solid var(--hairline-soft); padding: 16px 24px; display: flex; justify-content: flex-end; align-items: center; width: 100%; gap: 12px;">
+          <button type="button" class="btn btn-secondary" onclick="closeBankAccountsModal()" style="border-color: #334155; color: #94a3b8; background-color: transparent; border-radius: var(--rounded-md);">Đóng</button>
+        </div>
+      </div>
+    </div>
+
 
 
     <!-- VIEW 3: Staff Management Dashboard (Hidden by default) -->
@@ -5413,6 +5647,7 @@
           <select id="report-type">
             <option value="overview">Doanh thu tổng quan</option>
             <option value="payment-method">Phương thức thanh toán</option>
+            <option value="bank-account">Theo số tài khoản</option>
           </select>
         </div>
         <div style="width: 240px;">
@@ -5522,6 +5757,36 @@
               </tr>
             </thead>
             <tbody id="report-payment-method-table-body">
+              <!-- Dynamic rows -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Bank Account Report Panel (Hidden by default) -->
+      <div id="bank-account-report-panel" style="display: none; padding: 24px; background-color: #ffffff; flex-direction: column; box-sizing: border-box;">
+        <!-- Horizontal Bar Chart & Tabs Card -->
+        <div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; background: #ffffff;">
+          <!-- Title Header -->
+          <h3 style="font-size: 15px; font-weight: 700; color: #0f172a; margin: 0 0 16px 0;">Số lượng hóa đơn chuyển khoản</h3>
+          
+          <!-- Horizontal Bar Chart -->
+          <div style="height: 240px; position: relative; width: 100%;">
+            <canvas id="report-bank-account-chart"></canvas>
+          </div>
+        </div>
+
+        <!-- Table -->
+        <div class="table-responsive" style="margin-top: 24px; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; box-shadow: var(--shadow-sm);">
+          <table class="premium-table" style="width: 100%; border-collapse: collapse; text-align: left; font-size: 13px; background: #ffffff;">
+            <thead>
+              <tr style="background-color: #f8fafc; border-bottom: 1px solid #e2e8f0; font-weight: 700; color: #1e293b; height: 44px;">
+                <th style="padding: 12px 16px;">Tài khoản ngân hàng</th>
+                <th style="padding: 12px 16px; text-align: center;">Số lượng hóa đơn</th>
+                <th style="padding: 12px 16px; text-align: right;" id="report-ba-table-header-revenue">Doanh thu gồm thuế</th>
+              </tr>
+            </thead>
+            <tbody id="report-bank-account-table-body">
               <!-- Dynamic rows -->
             </tbody>
           </table>
@@ -5986,14 +6251,60 @@
       </div>
     </div>
 
+    <!-- VIEW 4.2: Option Groups Dashboard (Hidden by default) -->
+    <div id="selection-groups-dashboard-view" style="display: none; width: 100%;">
+      <!-- 1. Selection Groups List View -->
+      <div id="selection-groups-list-container" style="display: block; width: 100%;">
+        <div class="dashboard-header-block" style="margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; width: 100%; flex-wrap: wrap; gap: 12px;">
+          <div>
+            <h1 class="section-title-v2">Nhóm lựa chọn</h1>
+            <p style="margin: 4px 0 0 0; color: var(--muted); font-size: 13px;">Thiết lập các nhóm lựa chọn và tùy chọn cho mặt hàng</p>
+          </div>
+          <button class="btn-mgmt-primary-premium" id="btn-create-selection-group" style="display: flex; align-items: center; gap: 6px;">
+            <span>➕ Thêm nhóm lựa chọn</span>
+          </button>
+        </div>
 
-      </main>
+        <!-- Search Bar -->
+        <div class="dashboard-card" style="padding: 16px; margin-bottom: 20px;">
+          <div style="display: flex; gap: 12px; max-width: 600px;">
+            <input type="text" id="selection-group-search-input" class="text-input" placeholder="Tìm kiếm nhóm lựa chọn" style="flex: 1; height: 38px; padding: 0 12px; box-sizing: border-box;" autocomplete="off">
+            <button class="btn-mgmt-primary-premium" id="btn-search-selection-groups" style="height: 38px; padding: 0 20px; font-size: 13px; font-weight: 600;">Tìm kiếm</button>
+          </div>
+        </div>
+
+        <!-- Table Card -->
+        <div class="dashboard-card" style="padding: 0; overflow: hidden; border: 1px solid var(--hairline-soft); border-radius: var(--rounded-lg);">
+          <div class="table-responsive">
+            <table class="report-simple-table" style="width: 100%; border-collapse: collapse; text-align: left; font-size: 13px; background: #ffffff;">
+              <thead>
+                <tr style="background-color: #f8fafc; border-bottom: 1px solid #e2e8f0; font-weight: 700; color: #1e293b; height: 44px;">
+                  <th style="padding: 12px 16px; width: 40px; text-align: center;">
+                    <input type="checkbox" id="select-all-selection-groups" style="cursor: pointer;">
+                  </th>
+                  <th style="padding: 12px 16px; min-width: 180px;">Nhóm lựa chọn</th>
+                  <th style="padding: 12px 16px;">Chi tiết lựa chọn</th>
+                  <th style="padding: 12px 16px; width: 150px; text-align: center;">Mặt hàng liên kết</th>
+                  <th style="padding: 12px 16px; width: 120px; text-align: center;">Hành động</th>
+                </tr>
+              </thead>
+              <tbody id="selection-groups-table-body">
+                <tr>
+                  <td colspan="5" style="text-align: center; padding: 24px; color: var(--muted);">Đang tải danh sách nhóm lựa chọn...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
     </div>
   </div>
 
   <!-- CALCULATOR MODAL: Checkout / Calculating Change -->
   <div class="modal-backdrop" id="checkout-modal">
-    <div class="modal-content" style="max-width: 900px; border-radius: var(--rounded-lg);">
+    <div class="modal-content" style="width: 95%; max-width: 1200px; border-radius: var(--rounded-lg);">
       <div class="modal-header" style="border-bottom: 1px solid var(--hairline-soft); padding: 20px 24px;">
         <h3 class="modal-title" id="checkout-modal-title" style="font-size: 22px; font-weight: 700; letter-spacing: -0.5px;">Thanh toán - Bàn 1</h3>
         <button class="btn-close" id="btn-close-checkout-modal" style="font-size: 24px;">&times;</button>
@@ -6009,7 +6320,8 @@
                 <thead>
                   <tr>
                     <th>Món ăn</th>
-                    <th class="text-center" style="width: 60px;">SL</th>
+                    <th class="text-center" style="width: 50px;">SL</th>
+                    <th class="text-center" style="width: 150px;">Giảm món</th>
                     <th class="text-right" style="width: 100px;">Thành tiền</th>
                   </tr>
                 </thead>
@@ -6088,6 +6400,32 @@
 
             <!-- Bank Transfer Section (shown when bank is active) -->
             <div id="bank-payment-fields" style="display: none;">
+              <label class="text-input-label" style="display: block; margin-bottom: 6px; font-weight: 600;">Chọn tài khoản nhận tiền:</label>
+              <div id="checkout-bank-selector" style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; width: 100%;">
+                <!-- Rendered dynamically -->
+              </div>
+              <div class="bank-qr-container">
+                <div class="qr-code-placeholder" style="position: relative; width: 160px; height: 160px;">
+                  <img id="bank-qr-image" class="qr-code-image" src="" alt="Mã QR thanh toán" style="opacity: 0; transition: opacity 0.2s ease;">
+                  <!-- Loading overlay -->
+                  <div id="bank-qr-loading" style="position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #f8fafc; border-radius: var(--rounded-md);">
+                    <div style="width: 24px; height: 24px; border: 3px solid #e2e8f0; border-top-color: var(--primary); border-radius: 50%; animation: qr-spin 0.8s linear infinite;"></div>
+                    <span style="font-size: 11px; color: var(--muted); margin-top: 8px;">Đang tạo mã...</span>
+                  </div>
+                  <!-- Error overlay -->
+                  <div id="bank-qr-error" style="position: absolute; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center; background: #fff1f2; padding: 12px; text-align: center; border-radius: var(--rounded-md);">
+                    <span style="font-size: 20px; margin-bottom: 4px;">⚠️</span>
+                    <span style="font-size: 11px; color: #b91c1c; font-weight: 600;">Lỗi tải mã QR. Kiểm tra Ngân hàng!</span>
+                  </div>
+                </div>
+                <div class="bank-details-text">
+                  <p><strong>Ngân hàng:</strong> <span id="bank-payment-name">MB BANK</span></p>
+                  <p><strong>Chủ tài khoản:</strong> <span id="bank-payment-holder">HUYNH THANH LONG</span></p>
+                  <p><strong>Số tài khoản:</strong> <span id="bank-payment-number">25103456789</span></p>
+                  <p><strong>Số tiền:</strong> <span id="bank-payment-amount" style="font-weight: 700; color: var(--primary);">0đ</span></p>
+                  <p class="qr-hint">* Khách quét mã để tự động chuyển khoản đúng số tiền.</p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -6233,6 +6571,7 @@
         </div>
       </div>
     </div>
+
   </div>
 
   <!-- MODAL 3: Create/Edit Menu Item -->
@@ -6301,18 +6640,31 @@
               <!-- Category Input (Hidden) -->
               <div class="text-input-container" style="display: none;">
                 <label class="text-input-label" for="menu-item-category-input">Phân loại món</label>
-                <select id="menu-item-category-input" class="text-input" style="padding-top: 24px; font-weight: 600; appearance: none; -webkit-appearance: none;" required>
+                <select id="menu-item-category-input" class="text-input" style="padding-top: 24px; font-weight: 600; appearance: none; -webkit-appearance: none;">
                   <option value="main" selected>🍛 Món chính</option>
                   <option value="side">🥗 Món thêm</option>
                   <option value="drink">🥤 Nước uống</option>
                 </select>
               </div>
 
-              <!-- Description Input (Textarea style) -->
-              <div class="text-input-container" style="height: auto;">
-                <label class="text-input-label" for="menu-item-desc-input">Mô tả món ăn</label>
-                <textarea id="menu-item-desc-input" class="text-input textarea-input" placeholder="Thành phần món ăn, cách chế biến hoặc thông tin nổi bật khác..." autocomplete="off" rows="3" style="height: 100px; resize: none; padding-top: 24px;"></textarea>
+              <!-- Phân loại (Type) Input -->
+              <div class="text-input-container">
+                <label class="text-input-label" for="menu-item-type-input">Phân loại</label>
+                <select id="menu-item-type-input" class="text-input" style="padding-top: 24px; font-weight: 600;" required>
+                  <option value="Món ăn" selected>🍲 Món ăn</option>
+                  <option value="món uống">🥤 Món uống</option>
+                </select>
               </div>
+
+              <!-- Thuộc thực đơn (Menu Group) Input -->
+              <div class="text-input-container">
+                <label class="text-input-label" for="menu-item-group-input">Thuộc thực đơn</label>
+                <select id="menu-item-group-input" class="text-input" style="padding-top: 24px; font-weight: 600;">
+                  <option value="">-- Chưa phân thực đơn --</option>
+                </select>
+              </div>
+
+
             </div>
           </div>
         </div>
@@ -6624,10 +6976,115 @@
           </div>
         </div>
       </div>
-      
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" id="btn-cancel-manager-order-modal">Quay lại</button>
         <button type="button" class="btn btn-primary" id="btn-submit-manager-order">Lưu & Gửi Bếp</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Create/Edit Selection Group -->
+  <div class="modal-backdrop" id="selection-group-modal" style="display: none; z-index: 1050;">
+    <div class="modal-content" style="max-width: 900px; width: 95%; border-radius: var(--rounded-lg); overflow: hidden; background: #ffffff; display: flex; flex-direction: column; max-height: 90vh; box-shadow: var(--shadow-lg);">
+      <div class="modal-header" style="border-bottom: 1px solid var(--hairline-soft); padding: 16px 24px; display: flex; justify-content: space-between; align-items: center;">
+        <h3 class="modal-title" id="selection-group-form-title" style="font-size: 18px; font-weight: 700; margin: 0;">Topping</h3>
+        <button class="btn-close" id="btn-close-selection-group-modal" style="font-size: 24px; background: none; border: none; cursor: pointer; color: var(--muted);">&times;</button>
+      </div>
+      
+      <div class="modal-body" style="padding: 24px; overflow-y: auto; flex: 1; background-color: #f8fafc;">
+        <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 24px; align-items: start; width: 100%;">
+          <!-- Left Column: Details -->
+          <div style="display: flex; flex-direction: column; gap: 20px;">
+            <!-- Group Name Card -->
+            <div class="dashboard-card" style="padding: 20px;">
+              <h3 style="font-size: 15px; font-weight: 700; color: #1e293b; margin-bottom: 12px;">Tên bộ lựa chọn</h3>
+              <input type="text" id="selection-group-name-input" class="text-input" placeholder="Nhập tên nhóm lựa chọn" style="width: 100%; height: 38px; font-weight: 500; padding: 8px 12px; box-sizing: border-box;" required autocomplete="off">
+            </div>
+
+            <!-- Option Items Card -->
+            <div class="dashboard-card" style="padding: 20px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <h3 style="font-size: 15px; font-weight: 700; color: #1e293b; margin: 0;">Lựa chọn</h3>
+              </div>
+
+              <!-- List of option items rows -->
+              <div id="selection-options-rows-container" style="display: flex; flex-direction: column; gap: 12px;">
+                <!-- Dynamically populated -->
+              </div>
+
+              <div style="margin-top: 16px;">
+                <span id="btn-add-option-row" style="cursor: pointer; color: #0066cc; font-weight: 600; font-size: 13px; display: inline-flex; align-items: center; gap: 4px; user-select: none;">
+                  ➕ Thêm lựa chọn
+                </span>
+              </div>
+            </div>
+
+            <!-- Min/Max Limits Card -->
+            <div class="dashboard-card" style="padding: 20px; display: flex; flex-direction: column; gap: 16px;">
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                <div>
+                  <label style="font-size: 13px; font-weight: 700; color: #1e293b; margin-bottom: 6px; display: block;">Chọn tối thiểu</label>
+                  <input type="number" id="selection-min-input" class="text-input" value="0" min="0" style="width: 100%; height: 38px; padding: 8px 12px; box-sizing: border-box;">
+                </div>
+                <div>
+                  <label style="font-size: 13px; font-weight: 700; color: #1e293b; margin-bottom: 6px; display: block;">Chọn tối đa</label>
+                  <input type="number" id="selection-max-input" class="text-input" placeholder="Không bắt buộc" style="width: 100%; height: 38px; padding: 8px 12px; box-sizing: border-box;">
+                </div>
+              </div>
+              
+              <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #f1f5f9; padding-top: 12px; margin-top: 8px;">
+                <span style="font-size: 13px; font-weight: 600; color: #1e293b;">Cho phép chọn nhiều số lượng trên mỗi lựa chọn</span>
+                <label class="switch-toggle" style="position: relative; display: inline-block; width: 44px; height: 24px; user-select: none;">
+                  <input type="checkbox" id="selection-allow-multiple" style="opacity: 0; width: 0; height: 0;">
+                  <span class="switch-slider" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 24px;"></span>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right Column: Linked Items -->
+          <div style="display: flex; flex-direction: column; gap: 20px;">
+            <div class="dashboard-card" style="padding: 20px;">
+              <h3 style="font-size: 15px; font-weight: 700; color: #1e293b; margin-bottom: 12px;">Mặt hàng liên kết</h3>
+              <button class="btn-mgmt-secondary-premium" id="btn-select-linked-items" style="width: 100%; height: 38px; font-size: 13px; font-weight: 600; border: 1.5px dashed #0066cc; color: #0066cc; background: #ffffff; border-radius: 6px; cursor: pointer;">
+                Chọn mặt hàng liên kết
+              </button>
+              <p style="font-size: 11px; color: var(--muted); text-align: center; margin-top: 8px; margin-bottom: 0;">Chọn nhanh một hàng liên kết nhóm lựa chọn</p>
+              
+              <!-- Linked items list display -->
+              <div id="linked-items-badge-container" style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; max-height: 200px; overflow-y: auto;">
+                <!-- Filled dynamically -->
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="modal-footer" style="background-color: var(--surface-soft); border-top: 1px solid var(--hairline-soft); padding: 16px 24px; display: flex; justify-content: flex-end; gap: 12px; align-items: center;">
+        <button class="btn-mgmt-secondary-premium" id="btn-cancel-selection-group" style="height: 38px; padding: 0 20px; font-weight: 600;">Hủy</button>
+        <button class="btn-mgmt-primary-premium" id="btn-save-selection-group" style="height: 38px; padding: 0 20px; font-weight: 600;">Lưu nhóm</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 6: Select Linked Items for Selection Group -->
+  <div class="modal-backdrop" id="selection-group-items-modal" style="display: none; z-index: 1100;">
+    <div class="modal-content" style="max-width: 500px; border-radius: var(--rounded-lg); overflow: hidden;">
+      <div class="modal-header" style="border-bottom: 1px solid var(--hairline-soft); padding: 16px 24px;">
+        <h3 class="modal-title" style="font-size: 18px; font-weight: 700;">Chọn mặt hàng liên kết</h3>
+        <button class="btn-close" id="btn-close-selection-group-items-modal" style="font-size: 24px;">&times;</button>
+      </div>
+      
+      <div class="modal-body" style="padding: 24px; max-height: 400px; overflow-y: auto;">
+        <input type="text" id="selection-group-items-search-input" class="text-input" placeholder="🔍 Tìm kiếm mặt hàng..." style="width: 100%; height: 38px; margin-bottom: 16px; padding: 8px 12px; box-sizing: border-box;">
+        <div id="selection-group-items-checklist" style="display: flex; flex-direction: column; gap: 10px;">
+          <!-- Dynamically populated -->
+        </div>
+      </div>
+      
+      <div class="modal-footer" style="background-color: var(--surface-soft); border-top: 1px solid var(--hairline-soft); padding: 12px 24px; display: flex; justify-content: flex-end; gap: 12px; align-items: center;">
+        <button class="btn-mgmt-secondary-premium" id="btn-cancel-selection-group-items" style="height: 36px; padding: 0 16px;">Hủy</button>
+        <button class="btn-mgmt-primary-premium" id="btn-confirm-selection-group-items" style="height: 36px; padding: 0 16px;">Xác nhận</button>
       </div>
     </div>
   </div>
