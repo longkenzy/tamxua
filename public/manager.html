@@ -8,6 +8,37 @@
   <link rel="apple-touch-icon" href="images/logo.png">
   <link rel="stylesheet" href="css/style.css?v=1.0.1">
   <style>
+    /* Stepper and Custom Item Modal for Selection Groups */
+    .stepper-container {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      margin: 16px 0;
+    }
+    .btn-stepper {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      border: 1px solid #cbd5e1;
+      background-color: #ffffff;
+      font-size: 18px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+    .stepper-value {
+      font-size: 22px;
+      font-weight: 700;
+      width: 40px;
+      text-align: center;
+    }
+    #custom-item-modal.modal-backdrop {
+      z-index: 3000;
+    }
+
     /* Manager specific styling */
     .manager-container {
       max-width: 1500px;
@@ -6979,6 +7010,44 @@
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" id="btn-cancel-manager-order-modal">Quay lại</button>
         <button type="button" class="btn btn-primary" id="btn-submit-manager-order">Lưu & Gửi Bếp</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Custom Item (Add to Cart notes / qty / options) -->
+  <div class="modal-backdrop" id="custom-item-modal">
+    <div class="modal-content" style="max-width: 400px; border-radius: 6px; overflow: hidden;">
+      <div class="modal-header">
+        <h3 class="modal-title" id="custom-modal-title">Món ăn</h3>
+        <button class="btn-close" id="btn-close-custom-modal">&times;</button>
+      </div>
+      <div class="modal-body" style="padding: 16px;">
+        <div class="text-center">
+          <span id="custom-modal-emoji" style="font-size: 56px; display: block; margin-bottom: 8px;">🍽️</span>
+          <span id="custom-modal-price" style="font-size: 18px; font-weight: 700; color: #ff6600;">0đ</span>
+          <p id="custom-modal-desc" class="text-muted" style="font-size: 13px; margin-top: 6px;">Mô tả món ăn</p>
+        </div>
+
+        <h4 class="bold text-center" style="margin-top: 16px; font-size: 14px;">Chọn số lượng</h4>
+        <div class="stepper-container">
+          <button class="btn-stepper" id="btn-stepper-minus">-</button>
+          <span class="stepper-value" id="stepper-value">1</span>
+          <button class="btn-stepper" id="btn-stepper-plus">+</button>
+        </div>
+
+        <!-- Option Groups Container -->
+        <div id="custom-item-options-container" style="margin-top: 16px; margin-bottom: 20px; display: flex; flex-direction: column; gap: 14px;">
+          <!-- Dynamically populated options -->
+        </div>
+
+        <div class="text-input-container">
+          <label class="text-input-label" for="custom-item-notes">Ghi chú món này</label>
+          <input type="text" id="custom-item-notes" class="text-input" placeholder="Ví dụ: Không cay, nhiều rau...">
+        </div>
+      </div>
+      <div class="modal-footer" style="padding: 12px 16px; background-color: #f8fafc; border-top: 1px solid #cbd5e1; display: flex; justify-content: flex-end; gap: 8px;">
+        <button class="btn btn-secondary" id="btn-cancel-custom-modal" style="border-radius: 6px;">Hủy</button>
+        <button class="btn btn-primary" id="btn-add-to-cart-confirm" style="border-radius: 6px;">Thêm vào giỏ</button>
       </div>
     </div>
   </div>

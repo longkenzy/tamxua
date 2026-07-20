@@ -67,9 +67,29 @@ app.use((req, res, next) => {
   next();
 });
 
-// Serve static assets from public folder
-app.use(express.static(path.join(__dirname, 'public')));
-app.use('/templates', express.static(path.join(__dirname, 'templates')));
+// Serve static assets from public folder with cache control headers to prevent caching issues
+app.use(express.static(path.join(__dirname, 'public'), {
+  etag: true,
+  lastModified: true,
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith('.html') || filePath.endsWith('.css') || filePath.endsWith('.js')) {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+    }
+  }
+}));
+app.use('/templates', express.static(path.join(__dirname, 'templates'), {
+  etag: true,
+  lastModified: true,
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith('.html') || filePath.endsWith('.css') || filePath.endsWith('.js')) {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+    }
+  }
+}));
 
 // Database helper functions to format data for client
 async function getTablesWithOrders() {
@@ -1366,7 +1386,7 @@ app.post('/api/print-docx', async (req, res) => {
 
       const numericAmount = parseInt(templateData.final_total.replace(/[^\d]/g, '')) || 0;
       const cleanTableName = (templateData.table_name || 'Ban').normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D");
-      const description = `TAMXUA Thanh toan ${cleanTableName}`.replace(/[^a-zA-Z0-9 ]/g, "");
+      const description = 'ck';
       
       let bankSlug = getVietQrBankSlug(activeBank.bank_name);
       const qrUrl = `https://img.vietqr.io/image/${bankSlug}-${activeBank.account_number}-compact.png?amount=${numericAmount}&addInfo=${encodeURIComponent(description)}&accountName=${encodeURIComponent(activeBank.account_holder)}`;
