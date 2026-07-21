@@ -130,6 +130,12 @@ async function setupDatabase() {
     await client.query(`
       ALTER TABLE order_items ADD COLUMN IF NOT EXISTS options JSONB DEFAULT '[]'::jsonb
     `);
+    await client.query(`
+      ALTER TABLE order_items ADD COLUMN IF NOT EXISTS discount INT DEFAULT 0
+    `);
+    await client.query(`
+      ALTER TABLE order_items ADD COLUMN IF NOT EXISTS discount_type VARCHAR(10) DEFAULT 'cash'
+    `);
 
     // 5. Create transactions table
     await client.query(`

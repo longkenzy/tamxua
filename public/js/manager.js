@@ -38,8 +38,12 @@ let itemsBestsellLimit = 5; // Default Top 5
 let activeMenuMgmtCategory = 'all'; // Filter state for menu management categories
 let menuGroups = [];
 let selectedGroupItemIds = new Set();
-let editingGroupId = null;
 let activeFloorFilter = 'trệt'; // Filter state for manager floor tabs ('trệt' or 'lầu')
+
+function formatNumberWithDots(val) {
+  if (!val) return '0';
+  return val.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+}
 
 // DOM Elements
 const connectionDot = document.getElementById('connection-dot');
@@ -1143,7 +1147,7 @@ function renderTableDetails(table) {
     <h4 class="bold" style="font-size: 15px; margin-top: var(--space-xs);">Danh sách món đã gọi (${itemsCount})</h4>
     
     <div class="panel-items-list">
-      ${table.order.map(item => {
+      ${table.order.map((item, idx) => {
         const optionGroupsMap = {};
         if (item.options && Array.isArray(item.options)) {
           item.options.forEach(o => {
@@ -1156,18 +1160,49 @@ function renderTableDetails(table) {
           return `<div class="panel-item-note" style="color: #64748b; margin-top: 2px;">${gn}: ${optionGroupsMap[gn].join(', ')}</div>`;
         }).join('');
         
+        const isPercent = (item.discount_type === 'percent');
+        const discountAmt = isPercent ? Math.round(item.price * (item.discount || 0) / 100) : (item.discount || 0);
+
         return `
-          <div class="panel-item-row">
-            <div>
-              <span class="panel-item-name">${item.emoji} ${item.name}</span>
-              <div class="panel-item-qty">Số lượng: ${item.quantity} × ${formatVND(item.price)}</div>
-              ${optionsTextLines}
-              ${item.notes ? `<div class="panel-item-note">Ghi chú: ${item.notes}</div>` : ''}
+          <div class="panel-item-row" style="flex-direction: column; align-items: stretch; gap: 6px;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; width: 100%;">
+              <div>
+                <span class="panel-item-name">${idx + 1}. ${item.name}</span>
+                <div class="panel-item-qty">Số lượng: ${item.quantity} × ${formatVND(item.price)}</div>
+                ${optionsTextLines}
+                ${item.notes ? `<div class="panel-item-note">Ghi chú: ${item.notes}</div>` : ''}
+              </div>
+              <span class="panel-item-subtotal">${formatVND((item.price - discountAmt) * item.quantity)}</span>
             </div>
-            <span class="panel-item-subtotal">${formatVND(item.price * item.quantity)}</span>
+            
+            <!-- Per-item discount input -->
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 4px; padding-top: 4px; border-top: 1px dashed var(--hairline-soft); box-sizing: border-box;">
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <span style="font-size: 11px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Giảm giá món:</span>
+                <div style="display: inline-flex; align-items: center; border: 1.5px solid var(--border-strong); border-radius: 6px; overflow: hidden; background-color: #ffffff; height: 26px;">
+                  <input type="text" class="item-detail-discount-input" data-item-id="${item.id}" placeholder="0" value="${isPercent ? (item.discount || 0) : formatNumberWithDots(item.discount || 0)}" style="border: none; outline: none; padding: 2px 6px; width: 75px; font-size: 12px; font-weight: 600; text-align: right; box-sizing: border-box; height: 100%;">
+                  <select class="item-detail-discount-type-select" data-item-id="${item.id}" style="border: none; outline: none; padding: 0 4px; background-color: var(--surface-soft); font-size: 11px; font-weight: 700; color: var(--muted); border-left: 1px solid var(--border-strong); height: 100%; cursor: pointer;">
+                    <option value="cash" ${!isPercent ? 'selected' : ''}>đ</option>
+                    <option value="percent" ${isPercent ? 'selected' : ''}>%</option>
+                  </select>
+                </div>
+              </div>
+              ${(item.discount || 0) > 0 ? `
+                <button type="button" class="btn-clear-item-discount" data-item-id="${item.id}" style="background: none; border: none; color: #ef4444; cursor: pointer; font-size: 11px; font-weight: 700; display: inline-flex; align-items: center; gap: 2px;" title="Xóa giảm giá">
+                  ❌ Xóa giảm
+                </button>
+              ` : ''}
+            </div>
           </div>
         `;
       }).join('')}
+    </div>
+
+    <!-- Discount Save Button Container -->
+    <div id="save-discounts-btn-container" style="display: none; margin-top: 12px; animation: fadeInUp 0.3s ease-out; width: 100%; box-sizing: border-box;">
+      <button class="btn btn-primary" id="btn-save-discounts-direct" style="width: 100%; border-radius: 4px; font-weight: 700; height: 42px; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #107c41 0%, #1f9a55 100%); border: none; box-shadow: 0 4px 10px rgba(16,124,65,0.25);">
+        Lưu giảm giá đã chỉnh sửa
+      </button>
     </div>
 
     ${table.notes ? `
@@ -1475,6 +1510,154 @@ function renderTableDetails(table) {
         btnPrintKitchenDirect.disabled = false;
       }
     });
+  }
+
+  // Bind discount inputs and handlers
+  const discountInputs = tableDetailsPanel.querySelectorAll('.item-detail-discount-input');
+  discountInputs.forEach(input => {
+    const itemId = input.getAttribute('data-item-id');
+    const typeSelect = tableDetailsPanel.querySelector(`.item-detail-discount-type-select[data-item-id="${itemId}"]`);
+    
+    function validateInput() {
+      let rawVal = input.value.replace(/\D/g, '');
+      let val = parseInt(rawVal) || 0;
+      const type = typeSelect ? typeSelect.value : 'cash';
+      const item = table.order.find(i => i.id === itemId);
+      
+      if (item) {
+        if (type === 'percent') {
+          if (val > 100) {
+            val = 100;
+          }
+          input.value = val.toString();
+        } else {
+          if (val > item.price) {
+            val = item.price;
+          }
+          input.value = formatNumberWithDots(val);
+        }
+        if (val < 0) {
+          val = 0;
+          input.value = '0';
+        }
+      }
+      checkDiscountChanges(table);
+    }
+
+    input.addEventListener('input', validateInput);
+    if (typeSelect) {
+      typeSelect.addEventListener('change', validateInput);
+    }
+  });
+
+  const clearDiscountBtns = tableDetailsPanel.querySelectorAll('.btn-clear-item-discount');
+  clearDiscountBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const itemId = btn.getAttribute('data-item-id');
+      const input = tableDetailsPanel.querySelector(`.item-detail-discount-input[data-item-id="${itemId}"]`);
+      if (input) {
+        input.value = '0';
+        checkDiscountChanges(table);
+      }
+    });
+  });
+
+  const btnSaveDiscountsDirect = document.getElementById('btn-save-discounts-direct');
+  if (btnSaveDiscountsDirect) {
+    btnSaveDiscountsDirect.addEventListener('click', async () => {
+      btnSaveDiscountsDirect.disabled = true;
+      btnSaveDiscountsDirect.textContent = 'Đang lưu...';
+      
+      const updatedItems = table.order.map(item => {
+        const input = tableDetailsPanel.querySelector(`.item-detail-discount-input[data-item-id="${item.id}"]`);
+        const typeSelect = tableDetailsPanel.querySelector(`.item-detail-discount-type-select[data-item-id="${item.id}"]`);
+        
+        let discountVal = 0;
+        if (input) {
+          const rawVal = input.value.replace(/\D/g, '');
+          discountVal = parseInt(rawVal) || 0;
+        } else {
+          discountVal = item.discount || 0;
+        }
+        
+        const discountType = typeSelect ? typeSelect.value : (item.discount_type || 'cash');
+        return {
+          ...item,
+          discount: discountVal,
+          discount_type: discountType
+        };
+      });
+
+      try {
+        const response = await fetch('/api/order', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            tableId: table.id,
+            items: updatedItems,
+            notes: table.notes || ''
+          })
+        });
+
+        if (response.status === 401) {
+          window.location.href = '/login.html';
+          return;
+        }
+
+        const result = await response.json();
+        if (result.success) {
+          showToast('✅ Đã lưu thay đổi giảm giá thành công!');
+          
+          // Refresh data
+          const tablesRes = await fetch('/api/tables');
+          if (tablesRes.ok) {
+            tables = await tablesRes.json();
+            renderTables();
+            const updatedTable = tables.find(t => t.id === table.id);
+            renderTableDetails(updatedTable);
+          }
+        } else {
+          alert(`Lỗi khi lưu giảm giá: ${result.error}`);
+        }
+      } catch (err) {
+        console.error('Lỗi khi lưu giảm giá:', err);
+        alert('Không thể kết nối đến máy chủ.');
+      } finally {
+        btnSaveDiscountsDirect.disabled = false;
+        btnSaveDiscountsDirect.innerHTML = 'Lưu giảm giá đã chỉnh sửa';
+      }
+    });
+  }
+
+  function checkDiscountChanges(t) {
+    let changed = false;
+    t.order.forEach(item => {
+      const input = tableDetailsPanel.querySelector(`.item-detail-discount-input[data-item-id="${item.id}"]`);
+      const typeSelect = tableDetailsPanel.querySelector(`.item-detail-discount-type-select[data-item-id="${item.id}"]`);
+      
+      let inputVal = 0;
+      if (input) {
+        const rawVal = input.value.replace(/\D/g, '');
+        inputVal = parseInt(rawVal) || 0;
+      }
+      
+      const inputType = typeSelect ? typeSelect.value : 'cash';
+      const origVal = item.discount || 0;
+      const origType = item.discount_type || 'cash';
+      
+      // If both values are 0, there is no effective change regardless of unit change
+      if (inputVal === 0 && origVal === 0) {
+        // No change
+      } else {
+        if (inputVal !== origVal || inputType !== origType) {
+          changed = true;
+        }
+      }
+    });
+    const container = document.getElementById('save-discounts-btn-container');
+    if (container) {
+      container.style.display = changed ? 'block' : 'none';
+    }
   }
 }
 
@@ -3069,7 +3252,9 @@ async function openCheckoutModal(table) {
 
   table.order.forEach(item => {
     // Initialize unit discount representation
-    checkoutItemDiscounts[item.id] = { value: 0, type: 'cash' };
+    const preSavedDiscount = item.discount || 0;
+    const preSavedDiscountType = item.discount_type || 'cash';
+    checkoutItemDiscounts[item.id] = { value: preSavedDiscount, type: preSavedDiscountType };
 
     const optionGroupsMap = {};
     if (item.options && Array.isArray(item.options)) {
@@ -3083,6 +3268,8 @@ async function openCheckoutModal(table) {
       return `<span class="checkout-item-note-badge" style="background-color: #e2e8f0; color: #475569; font-weight: 500; margin-top: 2px; display: inline-block;">${gn}: ${optionGroupsMap[gn].join(', ')}</span>`;
     }).join('');
 
+    const preSavedDiscountAmount = preSavedDiscountType === 'percent' ? Math.round(item.price * preSavedDiscount / 100) : preSavedDiscount;
+
     const row = document.createElement('tr');
     row.innerHTML = `
       <td style="vertical-align: middle;">
@@ -3095,14 +3282,14 @@ async function openCheckoutModal(table) {
       <td class="text-center bold" style="font-size: 15px; vertical-align: middle;">${item.quantity}</td>
       <td class="text-center" style="vertical-align: middle;">
         <div style="display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 1px 2px rgba(0,0,0,0.05); border-radius: var(--rounded-sm); overflow: hidden;">
-          <input type="number" class="item-discount-value-input text-input" data-item-id="${item.id}" placeholder="0" min="0" value="0" style="padding: 2px 8px; height: 28px; border: 1.5px solid #cbd5e1; border-right: none; border-radius: 6px 0 0 6px; font-size: 13px; text-align: right; width: 75px; box-sizing: border-box; font-weight: 600; outline: none; transition: border-color 0.2s;">
+          <input type="text" class="item-discount-value-input text-input" data-item-id="${item.id}" placeholder="0" value="${preSavedDiscountType === 'percent' ? preSavedDiscount : formatNumberWithDots(preSavedDiscount)}" style="padding: 2px 8px; height: 28px; border: 1.5px solid #cbd5e1; border-right: none; border-radius: 6px 0 0 6px; font-size: 13px; text-align: right; width: 75px; box-sizing: border-box; font-weight: 600; outline: none; transition: border-color 0.2s;">
           <select class="item-discount-type-select text-input" data-item-id="${item.id}" style="padding: 2px 8px 2px 4px; height: 28px; border: 1.5px solid #cbd5e1; border-radius: 0 6px 6px 0; font-size: 13px; font-weight: 600; width: 45px; box-sizing: border-box; text-align: center; background-color: #f8fafc; cursor: pointer; outline: none; transition: border-color 0.2s; color: #475569;">
-            <option value="cash">đ</option>
-            <option value="percent">%</option>
+            <option value="cash" ${preSavedDiscountType === 'cash' ? 'selected' : ''}>đ</option>
+            <option value="percent" ${preSavedDiscountType === 'percent' ? 'selected' : ''}>%</option>
           </select>
         </div>
       </td>
-      <td class="text-right bold item-line-total" data-item-id="${item.id}" style="vertical-align: middle;">${formatVND(item.price * item.quantity)}</td>
+      <td class="text-right bold item-line-total" data-item-id="${item.id}" style="vertical-align: middle;">${formatVND((item.price - preSavedDiscountAmount) * item.quantity)}</td>
     `;
     checkoutBillItemsBody.appendChild(row);
 
@@ -3111,23 +3298,24 @@ async function openCheckoutModal(table) {
     const typeSelect = row.querySelector('.item-discount-type-select');
 
     function handleDiscountChange() {
-      let val = parseFloat(valInput.value) || 0;
+      let rawVal = valInput.value.replace(/\D/g, '');
+      let val = parseInt(rawVal) || 0;
       const type = typeSelect.value;
       
       if (type === 'percent') {
         if (val > 100) {
           val = 100;
-          valInput.value = 100;
         }
+        valInput.value = val.toString();
       } else {
         if (val > item.price) {
           val = item.price;
-          valInput.value = item.price;
         }
+        valInput.value = formatNumberWithDots(val);
       }
       if (val < 0) {
         val = 0;
-        valInput.value = 0;
+        valInput.value = '0';
       }
       
       checkoutItemDiscounts[item.id] = { value: val, type: type };
@@ -3333,6 +3521,7 @@ async function openCheckoutModal(table) {
   discountValueInput.oninput = updateCheckoutCalculations;
   inputReceivedCash.oninput = updateCheckoutCalculations;
 
+  updateCheckoutCalculations();
   checkoutModal.style.display = 'flex';
   
   // Set focus automatically to input

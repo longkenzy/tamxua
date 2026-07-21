@@ -104,7 +104,9 @@ async function getTablesWithOrders() {
                  'emoji', m.emoji,
                  'quantity', oi.quantity,
                  'notes', COALESCE(oi.notes, ''),
-                 'options', COALESCE(oi.options, '[]'::jsonb)
+                 'options', COALESCE(oi.options, '[]'::jsonb),
+                 'discount', COALESCE(oi.discount, 0),
+                 'discount_type', COALESCE(oi.discount_type, 'cash')
                )
              ) FILTER (WHERE oi.id IS NOT NULL),
              '[]'::json
@@ -1139,9 +1141,9 @@ app.post('/api/order', async (req, res) => {
       for (const item of items) {
         if (item.quantity > 0) {
           await client.query(`
-            INSERT INTO order_items (table_id, menu_id, quantity, price, notes, options)
-            VALUES ($1, $2, $3, $4, $5, $6)
-          `, [tableId, item.id, parseInt(item.quantity || 1), parseInt(item.price || 0), item.notes || '', JSON.stringify(item.options || [])]);
+            INSERT INTO order_items (table_id, menu_id, quantity, price, notes, options, discount, discount_type)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+          `, [tableId, item.id, parseInt(item.quantity || 1), parseInt(item.price || 0), item.notes || '', JSON.stringify(item.options || []), parseInt(item.discount || 0), item.discount_type || 'cash']);
         }
       }
     }

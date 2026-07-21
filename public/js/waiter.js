@@ -455,12 +455,6 @@ function renderOrders() {
             <span class="detail-text price">${formatVND(totalAmount)}</span>
           </div>
         </div>
-        ${table.notes ? `
-          <div style="font-size: 11px; color: #b91c1c; background-color: #fef2f2; border: 1px solid #fca5a5; padding: 6px 10px; border-radius: 4px; margin-top: 8px; font-weight: 600; text-align: left; line-height: 1.3; display: flex; align-items: flex-start; gap: 4px; word-break: break-word; box-sizing: border-box; width: 100%;">
-            <span>📝</span>
-            <span>${table.notes}</span>
-          </div>
-        ` : ''}
       </div>
     `;
     card.addEventListener('click', () => selectTable(table.id));
