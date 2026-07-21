@@ -5871,8 +5871,8 @@
       <div style="padding: 24px; background-color: #ffffff;">
         <div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; box-shadow: var(--shadow-sm);">
           <div style="display: flex; gap: 24px; border-bottom: 1px solid #e2e8f0; margin-bottom: 16px; padding-bottom: 8px;">
-            <div class="report-chart-tab active" id="btn-item-chart-revenue" style="font-weight: 700; color: #0066cc; cursor: pointer; padding-bottom: 8px; border-bottom: 2px solid #0066cc; transition: all 0.2s;">Tổng tiền hàng</div>
-            <div class="report-chart-tab" id="btn-item-chart-qty" style="font-weight: 600; color: #64748b; cursor: pointer; padding-bottom: 8px; border-bottom: 2px solid transparent; transition: all 0.2s;">Số lượng</div>
+            <div class="report-chart-tab" id="btn-item-chart-revenue" style="font-weight: 600; color: #64748b; cursor: pointer; padding-bottom: 8px; border-bottom: 2px solid transparent; transition: all 0.2s;">Tổng tiền hàng</div>
+            <div class="report-chart-tab active" id="btn-item-chart-qty" style="font-weight: 700; color: #0066cc; cursor: pointer; padding-bottom: 8px; border-bottom: 2px solid #0066cc; transition: all 0.2s;">Số lượng</div>
           </div>
           <div style="height: 280px; position: relative; width: 100%;">
             <canvas id="report-items-horizontal-chart"></canvas>
@@ -6992,6 +6992,14 @@
           <!-- Selected Items Scroll List -->
           <div id="manager-order-selected-list">
             <!-- Rendered dynamically -->
+          </div>
+          
+          <!-- Ghi chú tổng -->
+          <div style="margin-top: 12px; margin-bottom: 12px; display: flex; flex-direction: column; gap: 4px; box-sizing: border-box;">
+            <label for="manager-order-general-notes" style="font-size: 11px; font-weight: 700; color: #475569; display: flex; align-items: center; gap: 4px; text-transform: uppercase;">
+              <span>📝</span> Ghi chú hóa đơn
+            </label>
+            <input type="text" id="manager-order-general-notes" placeholder="Nhập ghi chú cho hóa đơn..." style="border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px 12px; font-size: 13px; outline: none; width: 100%; box-sizing: border-box; background-color: #f8fafc; transition: all 0.2s;">
           </div>
           
           <!-- Order Summary Info -->

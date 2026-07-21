@@ -307,7 +307,7 @@ function initConnection() {
           if (data.printedByServer) {
             showToast(`✅ Đã tự động in ngầm ${data.title} tại ${data.printerId === 'kitchen_default' ? 'Bếp chính' : 'Quầy nước'} cho ${data.tableName}!`);
           } else {
-            printDocxSlip(data.printerId, data.tableName, data.items, data.title);
+            printDocxSlip(data.printerId, data.tableName, data.items, data.title, data.notes);
           }
         }
       });
@@ -434,7 +434,7 @@ async function fetchDataPoll() {
             try {
               const payload = JSON.parse(job.payload);
               if (job.type === 'kitchen') {
-                await printDocxSlip(payload.printerId, payload.tableName, payload.items, payload.title);
+                await printDocxSlip(payload.printerId, payload.tableName, payload.items, payload.title, payload.notes);
               } else if (job.type === 'receipt') {
                 await printReceipt(payload.tableObj, payload.orderItems, payload.discountAmount, payload.receivedAmount, payload.transactionId, payload.timestamp, payload.payMethod);
               } else if (job.type === 'test') {
@@ -950,7 +950,7 @@ function renderTables() {
       
       itemsDetailHtml = `
         <div class="table-card-items-list" style="margin-top: 8px; border-top: 1px solid var(--hairline-soft); padding-top: 8px; text-align: left; display: flex; flex-direction: column; gap: 4px;">
-          ${table.order.map(item => {
+          ${table.order.map((item, idx) => {
             const optionGroupsMap = {};
             if (item.options && Array.isArray(item.options)) {
               item.options.forEach(o => {
@@ -967,7 +967,7 @@ function renderTables() {
               <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 4px; line-height: 1.2; padding: 2px 0; font-size: 12px;">
                 <div style="display: flex; flex-direction: column; max-width: 70%;">
                   <span style="font-weight: 500; word-break: break-word;" title="${item.name}">
-                    ${item.emoji} ${item.name}
+                    ${idx + 1}. ${item.name}
                   </span>
                   <span class="text-muted" style="font-size: 10px; margin-left: 14px;">
                     SL: ${item.quantity}
@@ -1006,6 +1006,12 @@ function renderTables() {
       <div class="table-card-body" style="display: flex; flex-direction: column; justify-content: space-between; flex-grow: 1; margin-top: 4px;">
         ${isOccupied ? `
           ${itemsDetailHtml}
+          ${table.notes ? `
+            <div style="font-size: 11px; color: #b91c1c; background-color: #fef2f2; border: 1px solid #fca5a5; padding: 6px 10px; border-radius: var(--rounded-md); margin-top: 8px; font-weight: 600; text-align: left; line-height: 1.3; display: flex; align-items: flex-start; gap: 4px; word-break: break-word; box-sizing: border-box; width: 100%;">
+              <span style="font-size: 12px; flex-shrink: 0;">📝</span> 
+              <span>${table.notes}</span>
+            </div>
+          ` : ''}
           <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px; border-top: 1px dashed var(--border-strong); padding-top: 6px;">
             <span class="table-card-items-count" style="font-size: 11px; color: var(--muted);">${itemsCount} món</span>
             <span class="table-card-price" style="font-size: 15px; font-weight: 700; color: var(--primary);">${formatVND(subtotal)}</span>
@@ -1163,6 +1169,16 @@ function renderTableDetails(table) {
         `;
       }).join('')}
     </div>
+
+    ${table.notes ? `
+      <div style="font-size: 13px; color: #b91c1c; background-color: #fef2f2; border: 1.5px dashed #fca5a5; padding: 12px; border-radius: 8px; margin-top: 12px; font-weight: 700; text-align: left; line-height: 1.4; display: flex; align-items: flex-start; gap: 6px; word-break: break-word; box-sizing: border-box; width: 100%;">
+        <span style="font-size: 16px; flex-shrink: 0; line-height: 1;">📝</span>
+        <div>
+          <div style="font-size: 11px; text-transform: uppercase; color: #7f1d1d; letter-spacing: 0.5px; margin-bottom: 2px;">Ghi chú tổng của bàn</div>
+          <span>${table.notes}</span>
+        </div>
+      </div>
+    ` : ''}
 
     <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 16px; animation: fadeInUp 0.4s ease-out;">
       <div style="display: flex; gap: 6px; width: 100%;">
@@ -1451,7 +1467,7 @@ function renderTableDetails(table) {
           showToast('⚠️ Không có món ăn nào trong đơn để in phiếu bếp!');
           return;
         }
-        await printDocxSlip('kitchen_default', table.name, kitchenItems, 'HOÁ ĐƠN BẾP');
+        await printDocxSlip('kitchen_default', table.name, kitchenItems, 'HOÁ ĐƠN BẾP', table.notes || '');
       } catch (err) {
         console.error("Lỗi khi in lại phiếu bếp:", err);
         showToast("❌ Gặp lỗi khi in lại phiếu bếp.");
@@ -1476,6 +1492,11 @@ function openManagerOrderModal(table) {
   const modal = document.getElementById('manager-order-modal');
   if (!modal) return;
   
+  const notesInput = document.getElementById('manager-order-general-notes');
+  if (notesInput) {
+    notesInput.value = table.notes || '';
+  }
+
   const title = document.getElementById('manager-order-modal-title');
   if (table.order && table.order.length > 0) {
     title.textContent = `Thêm món - ${table.name}`;
@@ -2150,6 +2171,9 @@ function initManagerOrderModal() {
     const oldOrder = tableBeforeSave ? JSON.parse(JSON.stringify(tableBeforeSave.order || [])) : [];
     const tableName = tableBeforeSave ? tableBeforeSave.name : 'Bàn';
     
+    const notesInput = document.getElementById('manager-order-general-notes');
+    const generalNotes = notesInput ? notesInput.value.trim() : '';
+
     try {
       const response = await fetch('/api/order', {
         method: 'POST',
@@ -2158,7 +2182,8 @@ function initManagerOrderModal() {
         },
         body: JSON.stringify({
           tableId: managerOrderTableId,
-          items: managerCart
+          items: managerCart,
+          notes: generalNotes
         })
       });
       
@@ -2183,8 +2208,8 @@ function initManagerOrderModal() {
           const kitchenItems = diffItems.filter(item => !drinkItems.includes(item));
 
           // Trigger automatic printing for connected printers
-          printDocxSlip('kitchen_default', tableName, kitchenItems, kitchenTitle);
-          printDocxSlip('kitchen_bar', tableName, drinkItems, drinkTitle);
+          printDocxSlip('kitchen_default', tableName, kitchenItems, kitchenTitle, generalNotes);
+          printDocxSlip('kitchen_bar', tableName, drinkItems, drinkTitle, generalNotes);
         }
 
         closeModal();
@@ -2432,7 +2457,7 @@ function printTestIframe(printerType, targetStr) {
 }
 
 // Helper to print kitchen/bar slip using docx template
-async function printDocxSlip(printerId, tableName, items, title = 'HOÁ ĐƠN BẾP') {
+async function printDocxSlip(printerId, tableName, items, title = 'HOÁ ĐƠN BẾP', notes = '') {
   if (items.length === 0) return;
   
   const isConnected = localStorage.getItem(`printer_${printerId}_connected`) === 'true';
@@ -2456,6 +2481,7 @@ async function printDocxSlip(printerId, tableName, items, title = 'HOÁ ĐƠN B�
     const templateData = {
       table_name: tableName,
       order_time: orderTimeStr,
+      general_note: notes || '',
       items: items.map(item => {
         const optionGroupsMap = {};
         if (item.options && Array.isArray(item.options)) {
@@ -2506,6 +2532,7 @@ async function printDocxSlip(printerId, tableName, items, title = 'HOÁ ĐƠN B�
     template: selectedTemplate,
     table_name: tableName,
     order_time: orderTimeStr,
+    general_note: notes || '',
     items: items.map(item => {
       const optionGroupsMap = {};
       if (item.options && Array.isArray(item.options)) {
@@ -3674,6 +3701,12 @@ function openTransactionDetail(txIdOrIndex) {
         <span style="color: #64748b;">Phương thức thanh toán:</span>
         <span style="font-weight: 600; color: #0f172a;">${paymentMethodLabel}</span>
       </div>
+      ${tx.notes ? `
+      <div style="display: flex; justify-content: space-between;">
+        <span style="color: #64748b;">Ghi chú tổng:</span>
+        <span style="font-weight: 600; color: #ef4444;">${tx.notes}</span>
+      </div>
+      ` : ''}
       
       <div style="margin-top: 8px; font-weight: 700; color: #475569; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px;">Danh sách món ăn</div>
       <div style="display: flex; flex-direction: column; gap: 8px; max-height: 180px; overflow-y: auto; padding: 4px 0;">
@@ -7404,7 +7437,7 @@ function loadRevenueReport() {
 }
 
 // State to track item report chart tab: 'revenue' or 'qty'
-let activeItemReportChartTab = 'revenue';
+let activeItemReportChartTab = 'qty';
 let reportItemsHorizontalChartInstance = null;
 
 function getItemUnit(name) {
@@ -7487,8 +7520,8 @@ function loadItemsReport() {
       
       if (tx.items) {
         tx.items.forEach(item => {
-          const mItem = menuItems.find(m => m.name === item.name);
-          const categoryName = mItem && mItem.menu_group ? mItem.menu_group : 'Không có danh mục';
+           const mItem = menuItems.find(m => m.name === item.name);
+          const categoryName = mItem && mItem.category ? mItem.category : 'Không có danh mục';
           const itemSubtotal = (item.price || 0) * item.quantity;
           const itemDiscount = Math.round(itemSubtotal * discountRatio) || 0;
           
@@ -7530,10 +7563,26 @@ function loadItemsReport() {
     });
 
     const categories = Object.values(categoryStats).sort((a, b) => b.revenue - a.revenue);
-    chartData = categories.map(cat => ({
-      name: cat.name,
-      value: activeItemReportChartTab === 'revenue' ? cat.revenue : cat.qty
+    
+    // Thu thập tất cả các mặt hàng đã được bán trong các danh mục
+    const itemsList = [];
+    categories.forEach(cat => {
+      Object.values(cat.items).forEach(item => {
+        itemsList.push(item);
+      });
+    });
+
+    // Sắp xếp mặt hàng bán ra theo số lượng hoặc tổng doanh số tương ứng tab đang chọn
+    const sortedItemsForChart = itemsList.sort((a, b) => {
+      return activeItemReportChartTab === 'revenue' ? b.revenue - a.revenue : b.qty - a.qty;
+    });
+
+    // Lấy toàn bộ mặt hàng để vẽ biểu đồ
+    chartData = sortedItemsForChart.map(item => ({
+      name: item.name,
+      value: activeItemReportChartTab === 'revenue' ? item.revenue : item.qty
     }));
+
     tableData = categoryStats;
   } else {
     // 2. Flat lists
@@ -7779,7 +7828,6 @@ function loadItemsReport() {
         }]
       },
       options: {
-        indexAxis: 'y',
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
@@ -7796,6 +7844,13 @@ function loadItemsReport() {
         },
         scales: {
           x: {
+            ticks: {
+              color: '#1e293b',
+              font: { size: 11 }
+            },
+            grid: { display: false }
+          },
+          y: {
             beginAtZero: true,
             ticks: {
               callback: function(value) {
@@ -7805,13 +7860,6 @@ function loadItemsReport() {
               font: { size: 11 }
             },
             grid: { color: '#f1f5f9' }
-          },
-          y: {
-            ticks: {
-              color: '#1e293b',
-              font: { size: 12, weight: 'bold' }
-            },
-            grid: { display: false }
           }
         }
       }

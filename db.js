@@ -110,6 +110,9 @@ async function setupDatabase() {
     await client.query(`
       ALTER TABLE tables ADD COLUMN IF NOT EXISTS location VARCHAR(50) DEFAULT 'trệt'
     `);
+    await client.query(`
+      ALTER TABLE tables ADD COLUMN IF NOT EXISTS notes TEXT
+    `);
 
     // 4. Create order_items table
     await client.query(`
@@ -150,6 +153,9 @@ async function setupDatabase() {
     // Add payment_method column if not exists
     await client.query(`
       ALTER TABLE transactions ADD COLUMN IF NOT EXISTS payment_method VARCHAR(50) DEFAULT 'cash'
+    `);
+    await client.query(`
+      ALTER TABLE transactions ADD COLUMN IF NOT EXISTS notes TEXT
     `);
 
     // Add bank account columns if not exists

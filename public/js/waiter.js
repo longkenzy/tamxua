@@ -192,7 +192,7 @@ function initConnection() {
               showSuccessToast(`✅ Đã tự động in ngầm ${data.title} tại ${data.printerId === 'kitchen_default' ? 'Bếp chính' : 'Quầy nước'} cho ${data.tableName}!`);
             }
           } else {
-            printDocxSlip(data.printerId, data.tableName, data.items, data.title);
+            printDocxSlip(data.printerId, data.tableName, data.items, data.title, data.notes);
           }
         }
       });
@@ -292,7 +292,7 @@ async function fetchDataPoll() {
             try {
               const payload = JSON.parse(job.payload);
               if (job.type === 'kitchen') {
-                await printDocxSlip(payload.printerId, payload.tableName, payload.items, payload.title);
+                await printDocxSlip(payload.printerId, payload.tableName, payload.items, payload.title, payload.notes);
               } else if (job.type === 'receipt') {
                 await printReceipt(payload.tableObj, payload.orderItems, payload.discountAmount, payload.receivedAmount, payload.transactionId, payload.timestamp, payload.payMethod);
               } else if (job.type === 'test') {
@@ -455,6 +455,12 @@ function renderOrders() {
             <span class="detail-text price">${formatVND(totalAmount)}</span>
           </div>
         </div>
+        ${table.notes ? `
+          <div style="font-size: 11px; color: #b91c1c; background-color: #fef2f2; border: 1px solid #fca5a5; padding: 6px 10px; border-radius: 4px; margin-top: 8px; font-weight: 600; text-align: left; line-height: 1.3; display: flex; align-items: flex-start; gap: 4px; word-break: break-word; box-sizing: border-box; width: 100%;">
+            <span>📝</span>
+            <span>${table.notes}</span>
+          </div>
+        ` : ''}
       </div>
     `;
     card.addEventListener('click', () => selectTable(table.id));
@@ -566,6 +572,11 @@ function renderTables() {
       <div class="table-card-sapo-top">${displayName}</div>
       <div class="table-card-sapo-divider"></div>
       <div class="table-card-sapo-bottom">${statusText}</div>
+      ${isOccupied && table.notes ? `
+        <div style="font-size: 9px; color: #b91c1c; background-color: #fef2f2; border-top: 1px solid #fca5a5; padding: 2px 4px; word-break: break-all; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; box-sizing: border-box; border-bottom-left-radius: 4px; border-bottom-right-radius: 4px;" title="${table.notes}">
+          📝 ${table.notes}
+        </div>
+      ` : ''}
     `;
     
     card.addEventListener('click', () => selectTable(table.id));
@@ -975,6 +986,11 @@ function openCartModal() {
       }
     });
     serviceTypeSelect.dataset.listenerAttached = 'true';
+  }
+
+  const notesInput = document.getElementById('cart-general-notes');
+  if (notesInput) {
+    notesInput.value = table ? (table.notes || '') : '';
   }
 
   renderCartItems();
@@ -1571,7 +1587,7 @@ function printTestIframe(printerType, targetStr) {
 }
 
 // Helper to print kitchen/bar slip using docx template
-async function printDocxSlip(printerId, tableName, items, title = 'HOÁ ĐƠN BẾP') {
+async function printDocxSlip(printerId, tableName, items, title = 'HOÁ ĐƠN BẾP', notes = '') {
   if (items.length === 0) return;
   
   if (socket && socket.connected) {
@@ -1579,7 +1595,8 @@ async function printDocxSlip(printerId, tableName, items, title = 'HOÁ ĐƠN B�
       printerId: printerId,
       tableName: tableName,
       items: items,
-      title: title
+      title: title,
+      notes: notes
     });
     if (typeof showSuccessToast === 'function') {
       showSuccessToast(`📤 Đã gửi lệnh in ${title} cho ${tableName} tới máy chủ.`);
@@ -1593,7 +1610,7 @@ async function printDocxSlip(printerId, tableName, items, title = 'HOÁ ĐƠN B�
         body: JSON.stringify({
           printerId: printerId,
           type: 'kitchen',
-          payload: { printerId, tableName, items, title }
+          payload: { printerId, tableName, items, title, notes }
         })
       });
       if (response.ok) {
@@ -1749,6 +1766,9 @@ btnSubmitOrder.addEventListener('click', async () => {
   const oldOrder = tableBeforeSave ? JSON.parse(JSON.stringify(tableBeforeSave.order || [])) : [];
   const tableName = tableBeforeSave ? tableBeforeSave.name : 'Mang đi';
   
+  const notesValInput = document.getElementById('cart-general-notes');
+  const generalNotes = notesValInput ? notesValInput.value.trim() : '';
+  
   try {
     const response = await fetch('/api/order', {
       method: 'POST',
@@ -1757,7 +1777,8 @@ btnSubmitOrder.addEventListener('click', async () => {
       },
       body: JSON.stringify({
         tableId: targetTableId,
-        items: cart
+        items: cart,
+        notes: generalNotes
       })
     });
     
@@ -1780,8 +1801,8 @@ btnSubmitOrder.addEventListener('click', async () => {
         const kitchenItems = diffItems.filter(item => !drinkItems.includes(item));
 
         // Trigger automatic printing for connected printers using docx templates
-        printDocxSlip('kitchen_default', tableName, kitchenItems, kitchenTitle);
-        printDocxSlip('kitchen_bar', tableName, drinkItems, drinkTitle);
+        printDocxSlip('kitchen_default', tableName, kitchenItems, kitchenTitle, generalNotes);
+        printDocxSlip('kitchen_bar', tableName, drinkItems, drinkTitle, generalNotes);
       }
 
       showSuccessToast(`Đã gửi Order thành công cho ${tableName}!`);
@@ -2436,6 +2457,11 @@ function openOrderDetailsView(table) {
   if (orderDetailsLocText) orderDetailsLocText.textContent = typeText;
   if (orderDetailsTableName) orderDetailsTableName.textContent = table.name;
   
+  const notesInput = document.getElementById('order-details-general-notes');
+  if (notesInput) {
+    notesInput.value = table.notes || '';
+  }
+
   // Render order details list
   renderOrderDetailsItems();
   
@@ -2757,13 +2783,17 @@ if (btnOrderDetailsSave) {
     const oldOrder = tableBeforeSave ? JSON.parse(JSON.stringify(tableBeforeSave.order || [])) : [];
     const tableName = tableBeforeSave ? tableBeforeSave.name : 'Bàn';
     
+    const notesValInput = document.getElementById('order-details-general-notes');
+    const generalNotes = notesValInput ? notesValInput.value.trim() : '';
+
     try {
       const res = await fetch('/api/order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           tableId: activeTableId,
-          items: cart
+          items: cart,
+          notes: generalNotes
         })
       });
       
@@ -2786,8 +2816,8 @@ if (btnOrderDetailsSave) {
           const kitchenItems = diffItems.filter(item => !drinkItems.includes(item));
 
           // Trigger automatic printing for connected printers using docx templates
-          printDocxSlip('kitchen_default', tableName, kitchenItems, kitchenTitle);
-          printDocxSlip('kitchen_bar', tableName, drinkItems, drinkTitle);
+          printDocxSlip('kitchen_default', tableName, kitchenItems, kitchenTitle, generalNotes);
+          printDocxSlip('kitchen_bar', tableName, drinkItems, drinkTitle, generalNotes);
         }
 
         showSuccessToast('Đã lưu thay đổi hóa đơn thành công!');

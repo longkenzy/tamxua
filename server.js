@@ -94,7 +94,7 @@ app.use('/templates', express.static(path.join(__dirname, 'templates'), {
 // Database helper functions to format data for client
 async function getTablesWithOrders() {
   const res = await db.query(`
-    SELECT t.id, t.name, t.status, t.location, t.updated_at,
+    SELECT t.id, t.name, t.status, t.location, t.updated_at, t.notes,
            COALESCE(
              json_agg(
                json_build_object(
@@ -112,7 +112,7 @@ async function getTablesWithOrders() {
     FROM tables t
     LEFT JOIN order_items oi ON t.id = oi.table_id
     LEFT JOIN menu m ON oi.menu_id = m.id
-    GROUP BY t.id, t.name, t.status, t.location, t.updated_at
+    GROUP BY t.id, t.name, t.status, t.location, t.updated_at, t.notes
     ORDER BY t.id;
   `);
 
@@ -122,6 +122,7 @@ async function getTablesWithOrders() {
     status: row.status,
     location: row.location || 'trệt',
     updatedAt: row.updated_at ? row.updated_at.toISOString() : '',
+    notes: row.notes || '',
     order: row.order
   }));
 }
@@ -133,7 +134,7 @@ async function getTransactionsWithItems() {
            tx.change_amount as "changeAmount", tx.discount_amount as "discountAmount", 
            tx.payment_method as "paymentMethod", 
            tx.bank_name as "bankName", tx.account_number as "accountNumber", tx.account_holder as "accountHolder",
-           tx.timestamp,
+           tx.timestamp, tx.notes,
            COALESCE(
              json_agg(
                json_build_object(
@@ -150,7 +151,7 @@ async function getTransactionsWithItems() {
            ) as items
     FROM transactions tx
     LEFT JOIN transaction_items ti ON tx.id = ti.transaction_id
-    GROUP BY tx.id, tx.table_id, tx.table_name, tx.subtotal, tx.received_amount, tx.change_amount, tx.discount_amount, tx.payment_method, tx.bank_name, tx.account_number, tx.account_holder, tx.timestamp
+    GROUP BY tx.id, tx.table_id, tx.table_name, tx.subtotal, tx.received_amount, tx.change_amount, tx.discount_amount, tx.payment_method, tx.bank_name, tx.account_number, tx.account_holder, tx.timestamp, tx.notes
     ORDER BY tx.timestamp DESC;
   `);
 
@@ -167,6 +168,7 @@ async function getTransactionsWithItems() {
     accountNumber: row.accountNumber,
     accountHolder: row.accountHolder,
     timestamp: row.timestamp ? row.timestamp.toISOString() : '',
+    notes: row.notes || '',
     items: row.items
   }));
 }
@@ -1101,7 +1103,7 @@ app.delete('/api/transactions-bulk', requireManager, async (req, res) => {
 
 // Submit Order
 app.post('/api/order', async (req, res) => {
-  const { tableId, items } = req.body;
+  const { tableId, items, notes } = req.body;
   if (!tableId || !items || !Array.isArray(items)) {
     return res.status(400).json({ error: 'Dữ liệu order không hợp lệ.' });
   }
@@ -1122,15 +1124,16 @@ app.post('/api/order', async (req, res) => {
 
     if (items.length === 0) {
       // If order is cleared, reset table to empty
-      await client.query("UPDATE tables SET status = 'empty', updated_at = NULL WHERE id = $1", [tableId]);
+      await client.query("UPDATE tables SET status = 'empty', updated_at = NULL, notes = NULL WHERE id = $1", [tableId]);
     } else {
       // Update table to eating
       await client.query(`
         UPDATE tables 
         SET status = 'eating', 
-            updated_at = COALESCE(updated_at, NOW()) 
+            updated_at = COALESCE(updated_at, NOW()),
+            notes = $2
         WHERE id = $1
-      `, [tableId]);
+      `, [tableId, notes !== undefined ? notes : (table.notes || null)]);
 
       // Insert all updated items
       for (const item of items) {
@@ -1223,9 +1226,9 @@ app.post('/api/checkout', async (req, res) => {
 
     // 1. Create Transaction
     await client.query(`
-      INSERT INTO transactions (id, table_id, table_name, subtotal, received_amount, change_amount, discount_amount, payment_method, bank_name, account_number, account_holder, timestamp)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW())
-    `, [txId, table.id, table.name, subtotal, parseFloat(receivedAmount), changeAmount, discount, paymentMethod || 'cash', txBankName, txAccountNumber, txAccountHolder]);
+      INSERT INTO transactions (id, table_id, table_name, subtotal, received_amount, change_amount, discount_amount, payment_method, bank_name, account_number, account_holder, timestamp, notes)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), $12)
+    `, [txId, table.id, table.name, subtotal, parseFloat(receivedAmount), changeAmount, discount, paymentMethod || 'cash', txBankName, txAccountNumber, txAccountHolder, table.notes]);
 
     // 2. Create Transaction Items
     for (const item of orderItems) {
@@ -1241,7 +1244,7 @@ app.post('/api/checkout', async (req, res) => {
 
     // 4. Reset Table status
     await client.query(`
-      UPDATE tables SET status = 'empty', updated_at = NULL WHERE id = $1
+      UPDATE tables SET status = 'empty', updated_at = NULL, notes = NULL WHERE id = $1
     `, [tableId]);
 
     await client.query('COMMIT');
@@ -2037,7 +2040,7 @@ function formatReceiptTable(items, width = 42) {
   return text;
 }
 
-function formatPlainKitchenSlipServer(tableName, items, title) {
+function formatPlainKitchenSlipServer(tableName, items, title, notes = '') {
   const width = 42;
   const border = '-'.repeat(width) + '\n';
   const dateStr = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) + ' ' + new Date().toLocaleDateString('vi-VN');
@@ -2048,6 +2051,9 @@ function formatPlainKitchenSlipServer(tableName, items, title) {
   text += border;
   text += wrapAndCenter(`BÀN: ${tableName}`, width) + '\n';
   text += wrapAndCenter(`Giờ order: ${dateStr}`, width) + '\n';
+  if (notes) {
+    text += wrapAndCenter(`GHI CHÚ: ${notes.toUpperCase()}`, width) + '\n';
+  }
   text += formatKitchenTable(items, width);
   
   text += '\n\n\n\n\n';
@@ -2145,6 +2151,7 @@ io.on('connection', async (socket) => {
           const templateData = {
             table_name: data.tableName,
             order_time: orderTimeStr,
+            general_note: data.notes || '',
             items: data.items.map(item => {
               const optionGroupsMap = {};
               if (item.options && Array.isArray(item.options)) {
@@ -2178,7 +2185,7 @@ io.on('connection', async (socket) => {
             await printDocxOnServer(sharedPath, selectedTemplate, templateData);
           }
         } else {
-          const plainText = formatPlainKitchenSlipServer(data.tableName, data.items, data.title);
+          const plainText = formatPlainKitchenSlipServer(data.tableName, data.items, data.title, data.notes);
           // In 2 bản cho hóa đơn bếp dạng thô (raw), nước (kitchen_bar) thì in 1 bản
           await printRawOnServer(type, sharedPath, printer ? printer.ip : '', printer ? printer.port : null, plainText);
           if (data.printerId !== 'kitchen_bar') {
