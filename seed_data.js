@@ -104,12 +104,27 @@ async function seedData() {
             const notes = Math.random() < 0.15 ? 'ít hành, không cay' : ''; // 15% có ghi chú
             subtotal += menuItem.price * quantity;
             
+            const options = [];
+            const lowerName = menuItem.name.toLowerCase();
+            if (lowerName.includes('cơm nhà') || lowerName.includes('cơm')) {
+              if (Math.random() < 0.5) {
+                options.push({ id: 13, name: 'Cá', price: 0, group_name: 'Món mặn', group_id: 3 });
+              } else {
+                options.push({ id: 14, name: 'Thịt', price: 0, group_name: 'Món mặn', group_id: 3 });
+              }
+            }
+            if (lowerName.includes('cơm tấm')) {
+              options.push({ id: 5, name: 'Trứng', price: 0, group_name: 'Món phụ', group_id: 1 });
+              options.push({ id: 6, name: 'Bì', price: 0, group_name: 'Món phụ', group_id: 1 });
+            }
+
             itemsToInsert.push({
               name: menuItem.name,
               emoji: menuItem.emoji,
               price: menuItem.price,
               quantity,
-              notes
+              notes,
+              options
             });
           }
 
@@ -173,9 +188,9 @@ async function seedData() {
           // Insert Transaction Items
           for (const item of itemsToInsert) {
             await client.query(`
-              INSERT INTO transaction_items (transaction_id, name, emoji, price, quantity, notes)
-              VALUES ($1, $2, $3, $4, $5, $6)
-            `, [txId, item.name, item.emoji, item.price, item.quantity, item.notes]);
+              INSERT INTO transaction_items (transaction_id, name, emoji, price, quantity, notes, options)
+              VALUES ($1, $2, $3, $4, $5, $6, $7)
+            `, [txId, item.name, item.emoji, item.price, item.quantity, item.notes, JSON.stringify(item.options || [])]);
           }
 
           totalTransactions++;

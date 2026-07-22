@@ -7496,11 +7496,54 @@ function loadRevenueReport() {
           prevTotalCount += prevItem.count;
           prevTotalRev += prevItem.revenue;
 
+          const accountTxs = reportTxs.filter(tx => tx.paymentMethod === 'bank' && (tx.accountNumber || 'unspecified') === item.accountNumber);
+          
+          let detailRowsHtml = '';
+          accountTxs.forEach((tx, txIdx) => {
+            const txNet = tx.subtotal - (tx.discountAmount || 0);
+            const itemsHtml = tx.items.map(ti => {
+              const itemTotal = ti.price * ti.quantity;
+              return `
+                <div style="display: flex; justify-content: space-between; font-size: 12px; color: #475569; padding: 2px 0;">
+                  <span>• ${ti.quantity} x ${ti.name} ${ti.notes ? `<span style="font-size: 11px; color: #94a3b8; font-style: italic;">(${ti.notes})</span>` : ''}</span>
+                  <span style="font-weight: 500;">${formatVND(itemTotal)}</span>
+                </div>
+              `;
+            }).join('');
+
+            detailRowsHtml += `
+              <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px; box-shadow: var(--shadow-sm); margin-bottom: 8px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #f1f5f9; padding-bottom: 8px; margin-bottom: 8px; font-weight: 600; font-size: 12px; color: #0f172a;">
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <span style="color: #64748b; font-weight: 700; font-size: 11px;">#${txIdx + 1}</span>
+                    <span style="background-color: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 4px; font-size: 11px;">${tx.tableName}</span>
+                    <span style="color: #64748b; font-weight: normal;">${tx.id}</span>
+                  </div>
+                  <span style="color: #64748b; font-weight: normal; font-size: 11px;">${formatTime(tx.timestamp)}</span>
+                </div>
+                
+                <div style="margin-bottom: 8px; border-bottom: 1px dashed #f1f5f9; padding-bottom: 6px;">
+                  ${itemsHtml}
+                </div>
+                
+                <div style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; font-weight: 700;">
+                  <span style="color: #475569;">Tổng tiền thanh toán:</span>
+                  <span style="color: #10b981; font-size: 13px;">${formatVND(txNet)}</span>
+                </div>
+              </div>
+            `;
+          });
+
           rowsHtml += `
-            <tr style="border-bottom: 1px solid #e2e8f0; height: 44px;">
+            <tr class="ba-main-row" style="border-bottom: 1px solid #e2e8f0; height: 44px; cursor: pointer; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='#f8fafc'" onmouseout="this.style.backgroundColor='transparent'">
               <td style="padding: 12px 16px; font-weight: 600;">
-                <div style="font-size: 13px; color: #1e293b;">${item.bankName} - ${item.accountNumber}</div>
-                <div style="font-size: 11px; color: #64748b; font-weight: normal;">Chủ TK: ${item.accountHolder}</div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <span class="ba-toggle-arrow" style="font-size: 10px; color: #64748b; transition: transform 0.2s; display: inline-block;">▶</span>
+                  <div>
+                    <div style="font-size: 13px; color: #1e293b;">${item.bankName} - ${item.accountNumber}</div>
+                    <div style="font-size: 11px; color: #64748b; font-weight: normal;">Chủ TK: ${item.accountHolder}</div>
+                  </div>
+                </div>
               </td>
               <td style="padding: 12px 16px; text-align: center; font-weight: 600; color: #1e293b;">
                 <div style="display: flex; align-items: center; justify-content: center;">
@@ -7511,7 +7554,17 @@ function loadRevenueReport() {
               <td style="padding: 12px 16px; text-align: right; font-weight: 600; color: #1e293b;">
                 <div style="display: flex; align-items: center; justify-content: flex-end;">
                   ${getTrendHTML(item.revenue, prevItem.revenue)}
-                  <span>${formatVND(item.revenue)} đ</span>
+                  <span>${formatVND(item.revenue)}</span>
+                </div>
+              </td>
+            </tr>
+            <tr class="ba-detail-row" style="display: none; background-color: #f8fafc; border-bottom: 1px solid #e2e8f0;">
+              <td colspan="3" style="padding: 16px 24px;">
+                <div style="font-weight: 700; font-size: 13px; color: #334155; margin-bottom: 12px;">
+                  📋 Danh sách hóa đơn đã thanh toán (${accountTxs.length} hóa đơn)
+                </div>
+                <div style="display: flex; flex-direction: column; max-height: 400px; overflow-y: auto; padding-right: 8px;">
+                  ${detailRowsHtml || '<div style="color: #64748b; font-style: italic; font-size: 12px;">Không có hóa đơn chi tiết.</div>'}
                 </div>
               </td>
             </tr>
@@ -7530,12 +7583,28 @@ function loadRevenueReport() {
             <td style="padding: 12px 16px; text-align: right; color: #10b981;">
               <div style="display: flex; align-items: center; justify-content: flex-end;">
                 ${getTrendHTML(totalRev, prevTotalRev)}
-                <span>${formatVND(totalRev)} đ</span>
+                <span>${formatVND(totalRev)}</span>
               </div>
             </td>
           </tr>
         `;
         baTbody.innerHTML = rowsHtml;
+
+        // Add toggle behavior for details
+        baTbody.querySelectorAll('.ba-main-row').forEach(row => {
+          row.addEventListener('click', () => {
+            const detailRow = row.nextElementSibling;
+            if (detailRow && detailRow.classList.contains('ba-detail-row')) {
+              const isHidden = detailRow.style.display === 'none';
+              detailRow.style.display = isHidden ? 'table-row' : 'none';
+              
+              const arrow = row.querySelector('.ba-toggle-arrow');
+              if (arrow) {
+                arrow.style.transform = isHidden ? 'rotate(90deg)' : 'rotate(0deg)';
+              }
+            }
+          });
+        });
       }
     }
   } else {
@@ -7805,21 +7874,24 @@ function loadItemsReport() {
       reportTxs.forEach(tx => {
         if (tx.items) {
           tx.items.forEach(item => {
-            if (item.notes && item.notes.trim()) {
-              const noteText = item.notes.trim();
-              if (!flatStats[noteText]) {
-                flatStats[noteText] = {
-                  name: noteText,
-                  emoji: '🎯',
-                  unit: 'lần',
-                  qty: 0,
-                  revenue: 0,
-                  discount: 0,
-                  originalPrice: noteText.toLowerCase().includes('trứng') ? 10000 : noteText.toLowerCase().includes('sườn') ? 40000 : noteText.toLowerCase().includes('chả') ? 15000 : 0
-                };
-              }
-              flatStats[noteText].qty += item.quantity;
-              flatStats[noteText].revenue += flatStats[noteText].originalPrice * item.quantity;
+            if (item.options && Array.isArray(item.options) && item.options.length > 0) {
+              item.options.forEach(opt => {
+                const groupName = opt.group_name || 'Lựa chọn';
+                const label = `${opt.name} (${groupName})`;
+                if (!flatStats[label]) {
+                  flatStats[label] = {
+                    name: label,
+                    emoji: '🎯',
+                    unit: 'lần',
+                    qty: 0,
+                    revenue: 0,
+                    discount: 0,
+                    originalPrice: opt.price || 0
+                  };
+                }
+                flatStats[label].qty += item.quantity;
+                flatStats[label].revenue += (opt.price || 0) * item.quantity;
+              });
             }
           });
         }
