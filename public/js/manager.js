@@ -152,6 +152,11 @@ function formatVND(amount) {
   return amount.toLocaleString('vi-VN') + 'đ';
 }
 
+// Format Print Currency (no đ suffix)
+function formatPrintAmount(amount) {
+  return amount.toLocaleString('vi-VN');
+}
+
 // Format Date-Time
 function formatTime(isoString) {
   if (!isoString) return '';
@@ -2639,6 +2644,170 @@ function printTestIframe(printerType, targetStr) {
   }, 300);
 }
 
+// Helper to clean tables and adjust borders/alignments for browser printing
+function adjustPrintDocumentTables(doc) {
+  const tables = doc.getElementsByTagName('table');
+  for (let tbl of tables) {
+    const txt = tbl.textContent.toUpperCase();
+    // Bảng chi tiết món ăn bắt buộc phải có chữ MẶT HÀNG hoặc TÊN MÓN làm tiêu đề cột
+    const isItemsTable = txt.includes('MẶT HÀNG') || txt.includes('TÊN MÓN');
+                         
+    if (!isItemsTable) {
+      // Đây là bảng metadata hoặc bảng tính tiền thanh toán ở dưới (không có cột "Mặt hàng")
+      tbl.style.border = 'none';
+      tbl.style.margin = '2px 0';
+      tbl.style.width = '100%';
+      tbl.style.borderCollapse = 'collapse';
+      
+      const cells = tbl.querySelectorAll('td, th, tr');
+      for (let cell of cells) {
+        cell.style.border = 'none';
+        cell.style.backgroundColor = 'transparent';
+        cell.style.padding = '2px 0';
+        cell.style.fontSize = '12px';
+        
+        // Tôn trọng chữ in đậm gốc của file Word
+        if (!cell.querySelector('strong, b') && !cell.innerHTML.includes('bold')) {
+          cell.style.fontWeight = 'normal';
+        }
+        
+        if (cell.tagName === 'TD' || cell.tagName === 'TH') {
+          cell.style.verticalAlign = 'middle';
+        }
+      }
+      
+      // Đảm bảo căn lề: Cột 1 căn trái, Cột 2 căn phải
+      const rows = tbl.querySelectorAll('tr');
+      for (let row of rows) {
+        const rowCells = row.querySelectorAll('td, th');
+        if (rowCells.length >= 2) {
+          rowCells[0].style.textAlign = 'left';
+          rowCells[1].style.textAlign = 'right';
+          
+          // Gỡ bỏ margin và căn lề paragraph bên trong cell nếu có
+          const pInside = rowCells[0].querySelectorAll('p');
+          pInside.forEach(p => {
+            p.style.textAlign = 'left';
+            if (!p.querySelector('strong, b') && !p.style.fontWeight.includes('bold')) {
+              p.style.fontWeight = 'normal';
+            }
+          });
+          const pInside2 = rowCells[1].querySelectorAll('p');
+          pInside2.forEach(p => {
+            p.style.textAlign = 'right';
+            if (!p.querySelector('strong, b') && !p.style.fontWeight.includes('bold')) {
+              p.style.fontWeight = 'normal';
+            }
+          });
+        }
+      }
+    } else {
+      // Nhận diện xem có phải là bảng món ăn của hóa đơn thanh toán không
+      const isReceiptItemsTable = txt.includes('T.TIỀN') || txt.includes('THÀNH TIỀN') || txt.includes('ĐON GIÁ') || txt.includes('ĐƠN GIÁ') || txt.includes('GIÁ');
+      
+      if (isReceiptItemsTable) {
+        // Đây là bảng thanh toán hóa đơn (nét liền, có kẻ dọc và viền ngoài)
+        tbl.style.width = '100%';
+        tbl.style.borderCollapse = 'collapse';
+        tbl.style.margin = '8px 0';
+        tbl.style.border = '1px solid #000';
+        
+        const cells = tbl.querySelectorAll('td, th');
+        for (let cell of cells) {
+          cell.style.setProperty('border', '1px solid #000', 'important');
+          cell.style.padding = '6px 4px';
+          cell.style.fontSize = '12px';
+          cell.style.setProperty('vertical-align', 'middle', 'important');
+          
+          cell.querySelectorAll('p').forEach(p => {
+            p.style.setProperty('margin', '0', 'important');
+            p.style.setProperty('padding', '0', 'important');
+            p.style.setProperty('line-height', '1.2', 'important');
+          });
+        }
+      } else {
+        // Đây là bảng hóa đơn bếp (nét đứt ngang, không viền dọc)
+        tbl.style.width = '100%';
+        tbl.style.borderCollapse = 'collapse';
+        tbl.style.margin = '8px 0';
+        tbl.style.border = 'none'; // Gỡ bỏ khung viền ngoài
+        
+        const cells = tbl.querySelectorAll('td, th');
+        for (let cell of cells) {
+          cell.style.border = 'none'; // Gỡ bỏ tất cả viền mặc định
+          cell.style.padding = '6px 4px';
+          cell.style.fontSize = '12px';
+          cell.style.setProperty('vertical-align', 'middle', 'important'); // Căn giữa theo chiều dọc
+          
+          cell.querySelectorAll('p').forEach(p => {
+            p.style.setProperty('margin', '0', 'important');
+            p.style.setProperty('padding', '0', 'important');
+            p.style.setProperty('line-height', '1.2', 'important');
+          });
+        }
+        
+        const rows = tbl.querySelectorAll('tr');
+        // Áp dụng viền nét đứt bên dưới cho tất cả các ô trong bảng
+        for (let i = 0; i < rows.length; i++) {
+          const rowCells = rows[i].querySelectorAll('td, th');
+          for (let cell of rowCells) {
+            cell.style.borderBottom = '1px dashed #000';
+          }
+        }
+      }
+
+      const rows = tbl.querySelectorAll('tr');
+      // Thiết lập định dạng in đậm cho hàng tiêu đề đầu tiên
+      if (rows.length > 0) {
+        const headerCells = rows[0].querySelectorAll('td, th');
+        for (let cell of headerCells) {
+          cell.style.fontWeight = 'bold';
+          cell.style.backgroundColor = 'transparent';
+          cell.querySelectorAll('p').forEach(p => {
+            p.style.fontWeight = 'bold';
+          });
+        }
+      }
+
+      // Tự động căn lề cột dựa trên số lượng cột (để khớp với thiết kế file Word)
+      for (let i = 0; i < rows.length; i++) {
+        const rowCells = rows[i].querySelectorAll('td, th');
+        if (rowCells.length === 3) {
+          // Bảng 3 cột:
+          // Hóa đơn bếp (Món, Đ.vị, SL) -> Trái, Giữa, Giữa
+          // Hóa đơn tiền (Món, SL, T.Tiền) -> Trái, Giữa, Phải
+          rowCells[0].style.textAlign = 'left';
+          rowCells[1].style.textAlign = 'center';
+          rowCells[2].style.textAlign = isReceiptItemsTable ? 'right' : 'center';
+          
+          rowCells[0].querySelectorAll('p').forEach(p => p.style.textAlign = 'left');
+          rowCells[1].querySelectorAll('p').forEach(p => p.style.textAlign = 'center');
+          rowCells[2].querySelectorAll('p').forEach(p => p.style.textAlign = isReceiptItemsTable ? 'right' : 'center');
+        } else if (rowCells.length === 4) {
+          // Bảng 4 cột (Hóa đơn tính tiền: Món, Đơn giá, SL, Thành tiền) -> Trái, Phải, Giữa, Phải
+          if (i === 0) {
+            // Hàng tiêu đề 4 cột thì căn giữa hết cho đẹp mắt
+            for (let cell of rowCells) {
+              cell.style.textAlign = 'center';
+              cell.querySelectorAll('p').forEach(p => p.style.textAlign = 'center');
+            }
+          } else {
+            rowCells[0].style.textAlign = 'left';
+            rowCells[1].style.textAlign = 'right';
+            rowCells[2].style.textAlign = 'center';
+            rowCells[3].style.textAlign = 'right';
+            
+            rowCells[0].querySelectorAll('p').forEach(p => p.style.textAlign = 'left');
+            rowCells[1].querySelectorAll('p').forEach(p => p.style.textAlign = 'right');
+            rowCells[2].querySelectorAll('p').forEach(p => p.style.textAlign = 'center');
+            rowCells[3].querySelectorAll('p').forEach(p => p.style.textAlign = 'right');
+          }
+        }
+      }
+    }
+  }
+}
+
 // Helper to print kitchen/bar slip using docx template
 async function printDocxSlip(printerId, tableName, items, title = 'HOÁ ĐƠN BẾP', notes = '') {
   if (items.length === 0) return;
@@ -2664,7 +2833,7 @@ async function printDocxSlip(printerId, tableName, items, title = 'HOÁ ĐƠN B�
     const templateData = {
       table_name: tableName,
       order_time: orderTimeStr,
-      general_note: notes || '',
+      general_note: notes ? `Ghi chú tổng: ${notes}` : '',
       items: items.map(item => {
         const optionGroupsMap = {};
         if (item.options && Array.isArray(item.options)) {
@@ -2674,12 +2843,12 @@ async function printDocxSlip(printerId, tableName, items, title = 'HOÁ ĐƠN B�
             optionGroupsMap[gn].push(o.name);
           });
         }
-        const optionsText = Object.keys(optionGroupsMap).map(gn => `${gn}: ${optionGroupsMap[gn].join(', ')}`).join('\n');
+        const optionsText = Object.keys(optionGroupsMap).map(gn => `+ ${gn}: ${optionGroupsMap[gn].join(', ')}`).join('\n');
         
         return {
           name: item.name,
           quantity: item.quantity,
-          notes: item.notes || '',
+          notes: item.notes ? ` * G/chú: ${item.notes}` : '',
           options_text: optionsText
         };
       })
@@ -2715,7 +2884,7 @@ async function printDocxSlip(printerId, tableName, items, title = 'HOÁ ĐƠN B�
     template: selectedTemplate,
     table_name: tableName,
     order_time: orderTimeStr,
-    general_note: notes || '',
+    general_note: notes ? `Ghi chú tổng: ${notes}` : '',
     items: items.map(item => {
       const optionGroupsMap = {};
       if (item.options && Array.isArray(item.options)) {
@@ -2725,12 +2894,12 @@ async function printDocxSlip(printerId, tableName, items, title = 'HOÁ ĐƠN B�
           optionGroupsMap[gn].push(o.name);
         });
       }
-      const optionsText = Object.keys(optionGroupsMap).map(gn => `${gn}: ${optionGroupsMap[gn].join(', ')}`).join('\n');
+      const optionsText = Object.keys(optionGroupsMap).map(gn => `+ ${gn}: ${optionGroupsMap[gn].join(', ')}`).join('\n');
       
       return {
         name: item.name,
         quantity: item.quantity,
-        notes: item.notes || '',
+        notes: item.notes ? ` * G/chú: ${item.notes}` : '',
         options_text: optionsText
       };
     })
@@ -2773,11 +2942,32 @@ async function printDocxSlip(printerId, tableName, items, title = 'HOÁ ĐƠN B�
     doc.write(htmlContent);
     doc.close();
 
+    // Clean tables and adjust alignments to match the Word template
+    adjustPrintDocumentTables(doc);
+
     // Dynamically adjust header styles and font alignments
     const paragraphs = doc.getElementsByTagName('p');
     for (let p of paragraphs) {
       let txt = p.textContent.trim();
+      
+      // Ẩn dòng ghi chú nếu nội dung ghi chú trống (chỉ có chữ "Ghi chú:", "* G/chú:", hoặc "Ghi chú tổng:")
+      if (/^ghi\s*chú\s*:\s*$/i.test(txt) || /^(\s*\*\s*)?g\/chú\s*:\s*$/i.test(txt) || /^ghi\s*chú\s*tổng\s*:\s*$/i.test(txt)) {
+        p.style.display = 'none';
+        continue;
+      }
+
+      // Ẩn dòng kẻ bằng các ký tự gạch nối dài (ví dụ: -------) từ mẫu Word
+      if (/^[-=_.*]{5,}$/.test(txt)) {
+        p.style.display = 'none';
+        continue;
+      }
+      
       p.style.fontFamily = 'Arial, sans-serif';
+      
+      // Nếu paragraph nằm trong bảng, bỏ qua các phần căn lề và đổi cỡ chữ (để bảng tự quyết định)
+      if (p.closest('table') !== null) {
+        continue;
+      }
       
       // Replace title text if customized
       if (title && (txt.toUpperCase().includes('HOÁ ĐƠN BẾP') || txt.toUpperCase().includes('HÓA ĐƠN BẾP'))) {
@@ -2785,10 +2975,19 @@ async function printDocxSlip(printerId, tableName, items, title = 'HOÁ ĐƠN B�
         txt = title;
       }
       
-      // Left-align Order and Checkout times
-      if (txt.includes('Giờ vào') || txt.includes('Giờ ra') || txt.includes('Giờ order')) {
+      // Căn lề trái cho các thông tin cụ thể giống Word mẫu
+      if (txt.includes('Giờ vào') || txt.includes('Giờ ra') || txt.includes('Giờ order') || txt.includes('Giờ in') ||
+          txt.startsWith('Nhân viên') || txt.startsWith('Ghi chú tổng') || 
+          txt.startsWith('Bàn') || (txt.startsWith('(Bàn)') && txt.length < 30)) {
         p.style.textAlign = 'left';
-        p.style.fontSize = '12px';
+        if (txt.includes('Giờ')) {
+          p.style.fontSize = '12px';
+        }
+      }
+
+      // Căn giữa cho các thẻ in lại / in thử hoặc ngăn cách
+      if (txt.includes('--IN LẠI--') || txt.includes('--IN THỬ--') || txt.startsWith('--')) {
+        p.style.textAlign = 'center';
       }
       
       // Increase size for TẤM XƯA
@@ -2796,6 +2995,7 @@ async function printDocxSlip(printerId, tableName, items, title = 'HOÁ ĐƠN B�
         p.style.fontSize = '22px';
         p.style.fontWeight = 'bold';
         p.style.letterSpacing = '1px';
+        p.style.textAlign = 'center';
       }
       
       // Increase size for HOÁ ĐƠN BẾP
@@ -2840,6 +3040,39 @@ async function printReceipt(tableObj, orderItems, discountAmount, receivedAmount
 
     if (type === 'system') {
       const subtotal = orderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+      
+      // Calculate item discounts sum
+      const itemDiscountsSum = orderItems.reduce((sum, item) => {
+        let itemDiscount = 0;
+        if (item.discount !== undefined && item.discount !== null) {
+          itemDiscount = item.discount;
+        } else if (typeof checkoutItemDiscounts !== 'undefined' && checkoutItemDiscounts[item.id]) {
+          const disc = checkoutItemDiscounts[item.id];
+          if (disc.type === 'percent') {
+            itemDiscount = Math.round(item.price * disc.value / 100);
+          } else {
+            itemDiscount = disc.value;
+          }
+        }
+        return sum + (itemDiscount * item.quantity);
+      }, 0);
+
+      const generalDiscount = Math.max(0, discountAmount - itemDiscountsSum);
+      const subtotalAfterItemDiscounts = subtotal - itemDiscountsSum;
+      
+      let isPercentDiscount = false;
+      let discountPercent = 0;
+      if (typeof discountTypeInput !== 'undefined' && discountTypeInput.value === 'percent') {
+        isPercentDiscount = true;
+        discountPercent = parseFloat(discountValueInput.value) || 0;
+      } else if (generalDiscount > 0 && subtotalAfterItemDiscounts > 0) {
+        const calculatedPct = (generalDiscount / subtotalAfterItemDiscounts) * 100;
+        if (Math.abs(calculatedPct - Math.round(calculatedPct)) < 0.01) {
+          isPercentDiscount = true;
+          discountPercent = Math.round(calculatedPct);
+        }
+      }
+
       const finalTotal = Math.max(0, subtotal - discountAmount);
       const changeAmount = receivedAmount ? (receivedAmount - finalTotal) : 0;
 
@@ -2874,8 +3107,8 @@ async function printReceipt(tableObj, orderItems, discountAmount, receivedAmount
         table_name: tableObj.name,
         order_time: orderTimeStr,
         checkout_time: checkoutTimeStr,
-        subtotal: formatVNDShort(subtotal),
-        discount: discountAmount > 0 ? `-${formatVNDShort(discountAmount)}` : '0đ',
+        subtotal: generalDiscount > 0 ? formatVNDShort(subtotal - discountAmount) : formatVNDShort(subtotal),
+        discount: generalDiscount > 0 ? '0' : (discountAmount > 0 ? `-${formatVNDShort(discountAmount)}` : '0'),
         final_total: formatVNDShort(finalTotal),
         received_amount: formatVNDShort(receivedAmount || finalTotal),
         change_amount: formatVNDShort(Math.max(0, changeAmount)),
@@ -2883,18 +3116,69 @@ async function printReceipt(tableObj, orderItems, discountAmount, receivedAmount
         bank_name: txBankName,
         account_number: txAccountNumber,
         account_holder: txAccountHolder,
+        total_quantity: orderItems.reduce((sum, item) => sum + item.quantity, 0),
+        total_items: orderItems.length,
         items: orderItems.map(item => {
           let itemDiscount = 0;
+          let itemDiscountType = 'cash';
+          let itemDiscountValue = 0;
+
           if (item.discount !== undefined && item.discount !== null) {
             itemDiscount = item.discount;
+            // Tự động nhận diện loại giảm giá (%) của món ăn từ database
+            const calculatedPct = (itemDiscount / item.price) * 100;
+            if (Math.abs(calculatedPct - Math.round(calculatedPct)) < 0.01 && Math.round(calculatedPct) > 0) {
+              itemDiscountType = 'percent';
+              itemDiscountValue = Math.round(calculatedPct);
+            } else {
+              itemDiscountType = 'cash';
+              itemDiscountValue = itemDiscount;
+            }
           } else if (checkoutItemDiscounts && checkoutItemDiscounts[item.id]) {
             const disc = checkoutItemDiscounts[item.id];
+            itemDiscountType = disc.type;
+            itemDiscountValue = disc.value;
             if (disc.type === 'percent') {
               itemDiscount = Math.round(item.price * disc.value / 100);
             } else {
               itemDiscount = disc.value;
             }
           }
+          
+          let finalPrice = item.price - itemDiscount;
+          
+          // Tạo note giảm giá riêng cho từng món
+          let itemNoteSuffix = '';
+          if (itemDiscount > 0) {
+            if (itemDiscountType === 'percent') {
+              itemNoteSuffix = `* Giảm giá ${itemDiscountValue}% (${formatVNDShort(itemDiscount)}đ) cho món`;
+            } else {
+              itemNoteSuffix = `* Giảm giá ${formatVNDShort(itemDiscount)}đ cho món`;
+            }
+          }
+
+          let noteSuffix = '';
+          if (isPercentDiscount && discountPercent > 0) {
+            const billDiscountPerUnit = Math.round(finalPrice * discountPercent / 100);
+            const totalDiscountPerUnit = itemDiscount + billDiscountPerUnit;
+            finalPrice = item.price - totalDiscountPerUnit;
+            noteSuffix = `* Giảm giá ${discountPercent}% (${formatVNDShort(billDiscountPerUnit)}đ) mỗi mặt hàng`;
+          } else if (!isPercentDiscount && generalDiscount > 0) {
+            const totalQuantity = orderItems.reduce((sum, it) => sum + it.quantity, 0);
+            const billDiscountPerUnit = Math.round(generalDiscount / totalQuantity);
+            const totalDiscountPerUnit = itemDiscount + billDiscountPerUnit;
+            finalPrice = item.price - totalDiscountPerUnit;
+            noteSuffix = `* Giảm giá ${formatVNDShort(billDiscountPerUnit)}đ mỗi mặt hàng`;
+          }
+          
+          let itemNotes = item.notes ? ` * G/chú: ${item.notes}` : '';
+          if (itemNoteSuffix) {
+            itemNotes = itemNotes ? `${itemNotes}\n${itemNoteSuffix}` : itemNoteSuffix;
+          }
+          if (noteSuffix) {
+            itemNotes = itemNotes ? `${itemNotes}\n${noteSuffix}` : noteSuffix;
+          }
+
           const optionGroupsMap = {};
           if (item.options && Array.isArray(item.options)) {
             item.options.forEach(o => {
@@ -2903,15 +3187,15 @@ async function printReceipt(tableObj, orderItems, discountAmount, receivedAmount
               optionGroupsMap[gn].push(o.name);
             });
           }
-          const optionsText = Object.keys(optionGroupsMap).map(gn => `${gn}: ${optionGroupsMap[gn].join(', ')}`).join('\n');
+          const optionsText = Object.keys(optionGroupsMap).map(gn => `+ ${gn}: ${optionGroupsMap[gn].join(', ')}`).join('\n');
 
           return {
             emoji: item.emoji || '🍽️',
-            name: item.name + (itemDiscount > 0 ? ` (Giảm -${formatVNDShort(itemDiscount)})` : ''),
-            price: formatVNDShort(item.price),
+            name: item.name,
+            price: formatVNDShort(finalPrice),
             quantity: item.quantity,
-            total: formatVNDShort((item.price - itemDiscount) * item.quantity),
-            notes: item.notes || '',
+            total: formatVNDShort(finalPrice * item.quantity),
+            notes: itemNotes,
             options_text: optionsText
           };
         })
@@ -2961,6 +3245,39 @@ async function printReceipt(tableObj, orderItems, discountAmount, receivedAmount
   }
 
   const subtotal = orderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  
+  // Calculate item discounts sum
+  const itemDiscountsSum = orderItems.reduce((sum, item) => {
+    let itemDiscount = 0;
+    if (item.discount !== undefined && item.discount !== null) {
+      itemDiscount = item.discount;
+    } else if (typeof checkoutItemDiscounts !== 'undefined' && checkoutItemDiscounts[item.id]) {
+      const disc = checkoutItemDiscounts[item.id];
+      if (disc.type === 'percent') {
+        itemDiscount = Math.round(item.price * disc.value / 100);
+      } else {
+        itemDiscount = disc.value;
+      }
+    }
+    return sum + (itemDiscount * item.quantity);
+  }, 0);
+
+  const generalDiscount = Math.max(0, discountAmount - itemDiscountsSum);
+  const subtotalAfterItemDiscounts = subtotal - itemDiscountsSum;
+  
+  let isPercentDiscount = false;
+  let discountPercent = 0;
+  if (typeof discountTypeInput !== 'undefined' && discountTypeInput.value === 'percent') {
+    isPercentDiscount = true;
+    discountPercent = parseFloat(discountValueInput.value) || 0;
+  } else if (generalDiscount > 0 && subtotalAfterItemDiscounts > 0) {
+    const calculatedPct = (generalDiscount / subtotalAfterItemDiscounts) * 100;
+    if (Math.abs(calculatedPct - Math.round(calculatedPct)) < 0.01) {
+      isPercentDiscount = true;
+      discountPercent = Math.round(calculatedPct);
+    }
+  }
+
   const finalTotal = Math.max(0, subtotal - discountAmount);
   const changeAmount = receivedAmount ? (receivedAmount - finalTotal) : 0;
 
@@ -2996,27 +3313,78 @@ async function printReceipt(tableObj, orderItems, discountAmount, receivedAmount
     table_name: tableObj.name,
     order_time: orderTimeStr,
     checkout_time: checkoutTimeStr,
-    subtotal: formatVND(subtotal),
-    discount: discountAmount > 0 ? `-${formatVND(discountAmount)}` : '0đ',
-    final_total: formatVND(finalTotal),
-    received_amount: formatVND(receivedAmount || finalTotal),
-    change_amount: formatVND(Math.max(0, changeAmount)),
+    subtotal: generalDiscount > 0 ? formatPrintAmount(subtotal - discountAmount) : formatPrintAmount(subtotal),
+    discount: generalDiscount > 0 ? '0' : (discountAmount > 0 ? `-${formatPrintAmount(discountAmount)}` : '0'),
+    final_total: formatPrintAmount(finalTotal),
+    received_amount: formatPrintAmount(receivedAmount || finalTotal),
+    change_amount: formatPrintAmount(Math.max(0, changeAmount)),
     payment_method: payMethodLabel,
     bank_name: txBankName,
     account_number: txAccountNumber,
     account_holder: txAccountHolder,
+    total_quantity: orderItems.reduce((sum, item) => sum + item.quantity, 0),
+    total_items: orderItems.length,
     items: orderItems.map(item => {
       let itemDiscount = 0;
+      let itemDiscountType = 'cash';
+      let itemDiscountValue = 0;
+
       if (item.discount !== undefined && item.discount !== null) {
         itemDiscount = item.discount;
+        // Tự động nhận diện loại giảm giá (%) của món ăn từ database
+        const calculatedPct = (itemDiscount / item.price) * 100;
+        if (Math.abs(calculatedPct - Math.round(calculatedPct)) < 0.01 && Math.round(calculatedPct) > 0) {
+          itemDiscountType = 'percent';
+          itemDiscountValue = Math.round(calculatedPct);
+        } else {
+          itemDiscountType = 'cash';
+          itemDiscountValue = itemDiscount;
+        }
       } else if (checkoutItemDiscounts && checkoutItemDiscounts[item.id]) {
         const disc = checkoutItemDiscounts[item.id];
+        itemDiscountType = disc.type;
+        itemDiscountValue = disc.value;
         if (disc.type === 'percent') {
           itemDiscount = Math.round(item.price * disc.value / 100);
         } else {
           itemDiscount = disc.value;
         }
       }
+      
+      let finalPrice = item.price - itemDiscount;
+      
+      // Tạo note giảm giá riêng cho từng món
+      let itemNoteSuffix = '';
+      if (itemDiscount > 0) {
+        if (itemDiscountType === 'percent') {
+          itemNoteSuffix = `* Giảm giá ${itemDiscountValue}% (${formatPrintAmount(itemDiscount)}đ) cho món`;
+        } else {
+          itemNoteSuffix = `* Giảm giá ${formatPrintAmount(itemDiscount)}đ cho món`;
+        }
+      }
+
+      let noteSuffix = '';
+      if (isPercentDiscount && discountPercent > 0) {
+        const billDiscountPerUnit = Math.round(finalPrice * discountPercent / 100);
+        const totalDiscountPerUnit = itemDiscount + billDiscountPerUnit;
+        finalPrice = item.price - totalDiscountPerUnit;
+        noteSuffix = `* Giảm giá ${discountPercent}% (${formatPrintAmount(billDiscountPerUnit)}đ) mỗi mặt hàng`;
+      } else if (!isPercentDiscount && generalDiscount > 0) {
+        const totalQuantity = orderItems.reduce((sum, it) => sum + it.quantity, 0);
+        const billDiscountPerUnit = Math.round(generalDiscount / totalQuantity);
+        const totalDiscountPerUnit = itemDiscount + billDiscountPerUnit;
+        finalPrice = item.price - totalDiscountPerUnit;
+        noteSuffix = `* Giảm giá ${formatPrintAmount(billDiscountPerUnit)}đ mỗi mặt hàng`;
+      }
+      
+      let itemNotes = item.notes ? ` * G/chú: ${item.notes}` : '';
+      if (itemNoteSuffix) {
+        itemNotes = itemNotes ? `${itemNotes}\n${itemNoteSuffix}` : itemNoteSuffix;
+      }
+      if (noteSuffix) {
+        itemNotes = itemNotes ? `${itemNotes}\n${noteSuffix}` : noteSuffix;
+      }
+
       const optionGroupsMap = {};
       if (item.options && Array.isArray(item.options)) {
         item.options.forEach(o => {
@@ -3025,15 +3393,15 @@ async function printReceipt(tableObj, orderItems, discountAmount, receivedAmount
           optionGroupsMap[gn].push(o.name);
         });
       }
-      const optionsText = Object.keys(optionGroupsMap).map(gn => `${gn}: ${optionGroupsMap[gn].join(', ')}`).join('\n');
+      const optionsText = Object.keys(optionGroupsMap).map(gn => `+ ${gn}: ${optionGroupsMap[gn].join(', ')}`).join('\n');
 
       return {
         emoji: item.emoji || '🍽️',
-        name: item.name + (itemDiscount > 0 ? ` (Giảm -${formatVND(itemDiscount)})` : ''),
-        price: formatVND(item.price),
+        name: item.name,
+        price: formatPrintAmount(finalPrice),
         quantity: item.quantity,
-        total: formatVND((item.price - itemDiscount) * item.quantity),
-        notes: item.notes || '',
+        total: formatPrintAmount(finalPrice * item.quantity),
+        notes: itemNotes,
         options_text: optionsText
       };
     })
@@ -3077,15 +3445,49 @@ async function printReceipt(tableObj, orderItems, discountAmount, receivedAmount
     doc.write(htmlContent);
     doc.close();
 
+    // Clean tables and adjust alignments to match the Word template
+    adjustPrintDocumentTables(doc);
+
     // Dynamically adjust header text alignments and font sizes based on text content
     const paragraphs = doc.getElementsByTagName('p');
     for (let p of paragraphs) {
       const txt = p.textContent.trim();
       
-      // Left-align Order and Checkout times
-      if (txt.includes('Giờ vào') || txt.includes('Giờ ra')) {
+      // Ẩn dòng ghi chú nếu nội dung ghi chú trống (chỉ có chữ "Ghi chú:", "* G/chú:", hoặc "Ghi chú tổng:")
+      if (/^ghi\s*chú\s*:\s*$/i.test(txt) || /^(\s*\*\s*)?g\/chú\s*:\s*$/i.test(txt) || /^ghi\s*chú\s*tổng\s*:\s*$/i.test(txt)) {
+        p.style.display = 'none';
+        continue;
+      }
+
+      // Ẩn dòng kẻ bằng các ký tự gạch nối dài (ví dụ: -------) từ mẫu Word
+      if (/^[-=_.*]{5,}$/.test(txt)) {
+        p.style.display = 'none';
+        continue;
+      }
+      
+      // Nếu paragraph nằm trong bảng, bỏ qua các phần căn lề và đổi cỡ chữ (để bảng tự quyết định)
+      if (p.closest('table') !== null) {
+        continue;
+      }
+
+      // Căn giữa cho lời cảm ơn và thông tin wifi ở cuối bill
+      if (txt.toLowerCase().includes('cảm ơn') || txt.toLowerCase().includes('wifi:')) {
+        p.style.setProperty('text-align', 'center', 'important');
+      }
+      
+      // Căn lề trái cho các thông tin cụ thể giống Word mẫu
+      if (txt.includes('Giờ vào') || txt.includes('Giờ ra') || txt.includes('Giờ order') || txt.includes('Giờ in') ||
+          txt.startsWith('Nhân viên') || txt.startsWith('Ghi chú tổng') || 
+          txt.startsWith('Bàn') || (txt.startsWith('(Bàn)') && txt.length < 30)) {
         p.style.textAlign = 'left';
-        p.style.fontSize = '12px';
+        if (txt.includes('Giờ')) {
+          p.style.fontSize = '12px';
+        }
+      }
+
+      // Căn giữa cho các thẻ in lại / in thử hoặc ngăn cách
+      if (txt.includes('--IN LẠI--') || txt.includes('--IN THỬ--') || txt.startsWith('--')) {
+        p.style.textAlign = 'center';
       }
       
       // Increase size for TẤM XƯA
@@ -3093,6 +3495,7 @@ async function printReceipt(tableObj, orderItems, discountAmount, receivedAmount
         p.style.fontSize = '22px';
         p.style.fontWeight = 'bold';
         p.style.letterSpacing = '1px';
+        p.style.textAlign = 'center';
       }
       
       // Increase size for HOÁ ĐƠN
@@ -7896,26 +8299,6 @@ function loadItemsReport() {
           });
         }
       });
-      if (Object.keys(flatStats).length === 0) {
-        const mockSelections = [
-          { name: 'Thêm Trứng 🍳', qty: 15, originalPrice: 10000 },
-          { name: 'Thêm Sườn 🥩', qty: 8, originalPrice: 40000 },
-          { name: 'Không hành 🚫🌱', qty: 12, originalPrice: 0 },
-          { name: 'Ít ngọt 🧊', qty: 7, originalPrice: 0 },
-          { name: 'Thêm Chả 🍥', qty: 6, originalPrice: 15000 }
-        ];
-        mockSelections.forEach(s => {
-          flatStats[s.name] = {
-            name: s.name,
-            emoji: '🎯',
-            unit: 'lần',
-            qty: s.qty,
-            revenue: s.originalPrice * s.qty,
-            discount: 0,
-            originalPrice: s.originalPrice
-          };
-        });
-      }
     } else if (reportTypeVal === 'best-combos') {
       reportTxs.forEach(tx => {
         const discountRatio = (tx.subtotal || 0) > 0 ? ((tx.discountAmount || 0) / tx.subtotal) : 0;
@@ -7943,23 +8326,6 @@ function loadItemsReport() {
           });
         }
       });
-      if (Object.keys(flatStats).length === 0) {
-        const mockCombos = [
-          { name: 'COMBO 1: Sườn + 1 Món Phụ + Canh Rong Biển', emoji: '🍱', qty: 4, originalPrice: 219000 },
-          { name: 'SET Cơm Nhà (Cơm-Canh-Mặn-Món Phụ-Rau)', emoji: '🥘', qty: 11, originalPrice: 138000 }
-        ];
-        mockCombos.forEach(c => {
-          flatStats[c.name] = {
-            name: c.name,
-            emoji: c.emoji,
-            unit: 'PHẦN',
-            qty: c.qty,
-            revenue: c.originalPrice * c.qty,
-            discount: Math.round(c.originalPrice * c.qty * 0.08) || 0,
-            originalPrice: c.originalPrice
-          };
-        });
-      }
     } else if (reportTypeVal === 'cancelled-items') {
       reportTxs.forEach(tx => {
         if (tx.id % 4 === 0 && tx.items && tx.items.length > 0) {
@@ -7983,23 +8349,6 @@ function loadItemsReport() {
           flatStats[item.name].revenue += itemSubtotal;
         }
       });
-      if (Object.keys(flatStats).length === 0) {
-        const mockCancelled = [
-          { name: 'Cơm Tấm Sườn - Bì - Trứng (Giá thường)', emoji: '🍛', qty: 2, originalPrice: 79000 },
-          { name: 'NƯỚC CAM (Giá thường)', emoji: '🍊', qty: 1, originalPrice: 29000 }
-        ];
-        mockCancelled.forEach(c => {
-          flatStats[c.name] = {
-            name: c.name,
-            emoji: c.emoji,
-            unit: getItemUnit(c.name),
-            qty: c.qty,
-            revenue: c.originalPrice * c.qty,
-            discount: 0,
-            originalPrice: c.originalPrice
-          };
-        });
-      }
     } else if (reportTypeVal === 'cancelled-combos') {
       reportTxs.forEach(tx => {
         if (tx.id % 5 === 0 && tx.items) {
@@ -8026,22 +8375,6 @@ function loadItemsReport() {
           });
         }
       });
-      if (Object.keys(flatStats).length === 0) {
-        const mockCancelledCombos = [
-          { name: 'COMBO 1: Sườn + 1 Món Phụ + Canh Rong Biển', emoji: '🍱', qty: 1, originalPrice: 219000 }
-        ];
-        mockCancelledCombos.forEach(c => {
-          flatStats[c.name] = {
-            name: c.name,
-            emoji: c.emoji,
-            unit: 'PHẦN',
-            qty: c.qty,
-            revenue: c.originalPrice * c.qty,
-            discount: 0,
-            originalPrice: c.originalPrice
-          };
-        });
-      }
     }
 
     const sortedItems = Object.values(flatStats).sort((a, b) => {
@@ -9555,7 +9888,7 @@ function formatVNDShort(amount) {
   if (amount >= 1000) {
     return `${amount / 1000}K`;
   }
-  return `${amount}đ`;
+  return `${amount}`;
 }
 
 function padCenter(str, width) {

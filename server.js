@@ -1397,12 +1397,34 @@ app.post('/api/print-docx', async (req, res) => {
       const qrUrl = `https://img.vietqr.io/image/${bankSlug}-${activeBank.account_number}-compact.png?amount=${numericAmount}&addInfo=${encodeURIComponent(description)}&accountName=${encodeURIComponent(activeBank.account_holder)}`;
       
       qrHtml = `
-        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; margin-top: 15px; border-top: 1px dashed #000; padding-top: 10px;">
-          <p style="font-weight: bold; margin-bottom: 5px; text-align: center;">MÃ QR THANH TOÁN (CHUYỂN KHOẢN)</p>
-          <img src="${qrUrl}" style="width: 240px; height: 240px; display: block; margin: 5px auto; object-fit: contain;" />
-          <p style="font-size: 11px; margin-top: 3px; font-style: italic; text-align: center; color: #555;">Quét để tự động điền thông tin & số tiền</p>
+        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; margin-top: 10px; margin-bottom: 15px; border-bottom: 1px dashed #000; padding-bottom: 10px;">
+          <img src="${qrUrl}" style="width: 160px; height: 160px; display: block; margin: 5px auto; object-fit: contain;" />
         </div>
       `;
+    }
+
+    // Định vị mã QR nằm trên dòng "Tấm xin cảm ơn..." và "Wifi: Tam xua..."
+    let finalBodyHtml = bodyHtml;
+    if (qrHtml) {
+      const targetText = "Tấm xin cảm ơn";
+      const targetTextAlt = "Wifi: Tam xua";
+      let targetIdx = bodyHtml.indexOf(targetText);
+      if (targetIdx === -1) {
+        targetIdx = bodyHtml.indexOf(targetTextAlt);
+      }
+      
+      if (targetIdx !== -1) {
+        // Tìm thẻ <p> mở gần nhất phía trước nội dung đích để chèn mã QR lên trước thẻ đó
+        const pStartIdx = bodyHtml.lastIndexOf('<p', targetIdx);
+        if (pStartIdx !== -1) {
+          finalBodyHtml = bodyHtml.substring(0, pStartIdx) + qrHtml + bodyHtml.substring(pStartIdx);
+        } else {
+          finalBodyHtml = bodyHtml.substring(0, targetIdx) + qrHtml + bodyHtml.substring(targetIdx);
+        }
+      } else {
+        // Nếu không tìm thấy, mặc định nối vào cuối cùng như cũ
+        finalBodyHtml = bodyHtml + qrHtml;
+      }
     }
 
     // Wrap with print styling optimized for thermal K80 paper
@@ -1483,8 +1505,7 @@ app.post('/api/print-docx', async (req, res) => {
           </style>
         </head>
         <body>
-          ${bodyHtml}
-          ${qrHtml}
+          ${finalBodyHtml}
         </body>
       </html>
     `;
@@ -1904,7 +1925,7 @@ function formatVNDShort(amount) {
   if (amount >= 1000) {
     return `${amount / 1000}K`;
   }
-  return `${amount}đ`;
+  return `${amount}`;
 }
 
 function padCenter(str, width) {
@@ -2153,7 +2174,7 @@ io.on('connection', async (socket) => {
           const templateData = {
             table_name: data.tableName,
             order_time: orderTimeStr,
-            general_note: data.notes || '',
+            general_note: data.notes ? `Ghi chú tổng: ${data.notes}` : '',
             items: data.items.map(item => {
               const optionGroupsMap = {};
               if (item.options && Array.isArray(item.options)) {
@@ -2163,12 +2184,12 @@ io.on('connection', async (socket) => {
                   optionGroupsMap[gn].push(o.name);
                 });
               }
-              const optionsText = Object.keys(optionGroupsMap).map(gn => `${gn}: ${optionGroupsMap[gn].join(', ')}`).join('\n');
+              const optionsText = Object.keys(optionGroupsMap).map(gn => `+ ${gn}: ${optionGroupsMap[gn].join(', ')}`).join('\n');
               
               return {
                 name: item.name,
                 quantity: item.quantity,
-                notes: item.notes || '',
+                notes: item.notes ? ` * G/chú: ${item.notes}` : '',
                 options_text: optionsText
               };
             })
@@ -2233,6 +2254,25 @@ io.on('connection', async (socket) => {
 
         if (type === 'system') {
           const subtotal = data.orderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+          
+          // Calculate item discounts sum
+          const itemDiscountsSum = data.orderItems.reduce((sum, item) => {
+            return sum + ((item.discount || 0) * item.quantity);
+          }, 0);
+
+          const generalDiscount = Math.max(0, data.discountAmount - itemDiscountsSum);
+          const subtotalAfterItemDiscounts = subtotal - itemDiscountsSum;
+          
+          let isPercentDiscount = false;
+          let discountPercent = 0;
+          if (generalDiscount > 0 && subtotalAfterItemDiscounts > 0) {
+            const calculatedPct = (generalDiscount / subtotalAfterItemDiscounts) * 100;
+            if (Math.abs(calculatedPct - Math.round(calculatedPct)) < 0.01) {
+              isPercentDiscount = true;
+              discountPercent = Math.round(calculatedPct);
+            }
+          }
+
           const finalTotal = Math.max(0, subtotal - data.discountAmount);
           const changeAmount = data.receivedAmount ? (data.receivedAmount - finalTotal) : 0;
           
@@ -2250,12 +2290,14 @@ io.on('connection', async (socket) => {
             table_name: data.tableObj.name,
             order_time: orderTimeStr,
             checkout_time: checkoutTimeStr,
-            subtotal: formatVNDShort(subtotal),
-            discount: data.discountAmount > 0 ? `-${formatVNDShort(data.discountAmount)}` : '0đ',
+            subtotal: generalDiscount > 0 ? formatVNDShort(subtotal - data.discountAmount) : formatVNDShort(subtotal),
+            discount: generalDiscount > 0 ? '0' : (data.discountAmount > 0 ? `-${formatVNDShort(data.discountAmount)}` : '0'),
             final_total: formatVNDShort(finalTotal),
             received_amount: formatVNDShort(data.receivedAmount || finalTotal),
             change_amount: formatVNDShort(Math.max(0, changeAmount)),
             payment_method: payMethodLabel,
+            total_quantity: data.orderItems.reduce((sum, item) => sum + item.quantity, 0),
+            total_items: data.orderItems.length,
             items: data.orderItems.map(item => {
               const optionGroupsMap = {};
               if (item.options && Array.isArray(item.options)) {
@@ -2265,15 +2307,64 @@ io.on('connection', async (socket) => {
                   optionGroupsMap[gn].push(o.name);
                 });
               }
-              const optionsText = Object.keys(optionGroupsMap).map(gn => `${gn}: ${optionGroupsMap[gn].join(', ')}`).join('\n');
+              const optionsText = Object.keys(optionGroupsMap).map(gn => `+ ${gn}: ${optionGroupsMap[gn].join(', ')}`).join('\n');
               
+              const itemDiscount = item.discount || 0;
+              let itemDiscountType = 'cash';
+              let itemDiscountValue = 0;
+              
+              if (itemDiscount > 0) {
+                const calculatedPct = (itemDiscount / item.price) * 100;
+                if (Math.abs(calculatedPct - Math.round(calculatedPct)) < 0.01) {
+                  itemDiscountType = 'percent';
+                  itemDiscountValue = Math.round(calculatedPct);
+                } else {
+                  itemDiscountType = 'cash';
+                  itemDiscountValue = itemDiscount;
+                }
+              }
+              
+              let finalPrice = item.price - itemDiscount;
+              
+              // Tạo note giảm giá riêng cho từng món
+              let itemNoteSuffix = '';
+              if (itemDiscount > 0) {
+                if (itemDiscountType === 'percent') {
+                  itemNoteSuffix = `* Giảm giá ${itemDiscountValue}% (${formatVNDShort(itemDiscount)}đ) cho món`;
+                } else {
+                  itemNoteSuffix = `* Giảm giá ${formatVNDShort(itemDiscount)}đ cho món`;
+                }
+              }
+
+              let noteSuffix = '';
+              if (isPercentDiscount && discountPercent > 0) {
+                const billDiscountPerUnit = Math.round(finalPrice * discountPercent / 100);
+                const totalDiscountPerUnit = itemDiscount + billDiscountPerUnit;
+                finalPrice = item.price - totalDiscountPerUnit;
+                noteSuffix = `* Giảm giá ${discountPercent}% (${formatVNDShort(billDiscountPerUnit)}đ) mỗi mặt hàng`;
+              } else if (!isPercentDiscount && generalDiscount > 0) {
+                const totalQuantity = data.orderItems.reduce((sum, it) => sum + it.quantity, 0);
+                const billDiscountPerUnit = Math.round(generalDiscount / totalQuantity);
+                const totalDiscountPerUnit = itemDiscount + billDiscountPerUnit;
+                finalPrice = item.price - totalDiscountPerUnit;
+                noteSuffix = `* Giảm giá ${formatVNDShort(billDiscountPerUnit)}đ mỗi mặt hàng`;
+              }
+              
+              let itemNotes = item.notes ? ` * G/chú: ${item.notes}` : '';
+              if (itemNoteSuffix) {
+                itemNotes = itemNotes ? `${itemNotes}\n${itemNoteSuffix}` : itemNoteSuffix;
+              }
+              if (noteSuffix) {
+                itemNotes = itemNotes ? `${itemNotes}\n${noteSuffix}` : noteSuffix;
+              }
+
               return {
                 emoji: item.emoji || '🍽️',
                 name: item.name,
-                price: formatVNDShort(item.price),
+                price: formatVNDShort(finalPrice),
                 quantity: item.quantity,
-                total: formatVNDShort(item.price * item.quantity),
-                notes: item.notes || '',
+                total: formatVNDShort(finalPrice * item.quantity),
+                notes: itemNotes,
                 options_text: optionsText
               };
             })
