@@ -2547,7 +2547,7 @@ function getVietQrBankSlug(bankName) {
   if (name.includes('TCB') || name.includes('TECHCOMBANK')) return 'TCB';
   if (name.includes('BIDV') || name.includes('ĐẦU TƯ')) return 'BIDV';
   if (name.includes('MB') || name.includes('MILITARY') || name.includes('QUÂN ĐỘI')) return 'MB';
-  if (name.includes('CTG') || name.includes('VIETINBANK') || name.includes('VIETIN')) return 'CTG';
+  if (name.includes('CTG') || name.includes('VIETINBANK') || name.includes('VIETIN') || name.includes('ICB')) return 'ICB';
   if (name.includes('ACB') || name.includes('Á CHÂU')) return 'ACB';
   if (name.includes('VPBANK') || name.includes('VPB') || name.includes('THỊNH VƯỢNG')) return 'VPB';
   if (name.includes('SACOMBANK') || name.includes('STB')) return 'STB';
