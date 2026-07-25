@@ -3123,7 +3123,18 @@ async function printReceipt(tableObj, orderItems, discountAmount, receivedAmount
           let itemDiscountType = 'cash';
           let itemDiscountValue = 0;
 
-          if (item.discount !== undefined && item.discount !== null) {
+          const isCheckoutActive = (typeof checkoutModal !== 'undefined' && checkoutModal && checkoutModal.style.display === 'flex');
+
+          if (isCheckoutActive && typeof checkoutItemDiscounts !== 'undefined' && checkoutItemDiscounts[item.id]) {
+            const disc = checkoutItemDiscounts[item.id];
+            itemDiscountType = disc.type;
+            itemDiscountValue = disc.value;
+            if (disc.type === 'percent') {
+              itemDiscount = Math.round(item.price * disc.value / 100);
+            } else {
+              itemDiscount = disc.value;
+            }
+          } else if (item.discount !== undefined && item.discount !== null) {
             itemDiscount = item.discount;
             // Tự động nhận diện loại giảm giá (%) của món ăn từ database
             const calculatedPct = (itemDiscount / item.price) * 100;
@@ -3133,15 +3144,6 @@ async function printReceipt(tableObj, orderItems, discountAmount, receivedAmount
             } else {
               itemDiscountType = 'cash';
               itemDiscountValue = itemDiscount;
-            }
-          } else if (checkoutItemDiscounts && checkoutItemDiscounts[item.id]) {
-            const disc = checkoutItemDiscounts[item.id];
-            itemDiscountType = disc.type;
-            itemDiscountValue = disc.value;
-            if (disc.type === 'percent') {
-              itemDiscount = Math.round(item.price * disc.value / 100);
-            } else {
-              itemDiscount = disc.value;
             }
           }
           
@@ -3329,7 +3331,18 @@ async function printReceipt(tableObj, orderItems, discountAmount, receivedAmount
       let itemDiscountType = 'cash';
       let itemDiscountValue = 0;
 
-      if (item.discount !== undefined && item.discount !== null) {
+      const isCheckoutActive = (typeof checkoutModal !== 'undefined' && checkoutModal && checkoutModal.style.display === 'flex');
+
+      if (isCheckoutActive && typeof checkoutItemDiscounts !== 'undefined' && checkoutItemDiscounts[item.id]) {
+        const disc = checkoutItemDiscounts[item.id];
+        itemDiscountType = disc.type;
+        itemDiscountValue = disc.value;
+        if (disc.type === 'percent') {
+          itemDiscount = Math.round(item.price * disc.value / 100);
+        } else {
+          itemDiscount = disc.value;
+        }
+      } else if (item.discount !== undefined && item.discount !== null) {
         itemDiscount = item.discount;
         // Tự động nhận diện loại giảm giá (%) của món ăn từ database
         const calculatedPct = (itemDiscount / item.price) * 100;
@@ -3339,15 +3352,6 @@ async function printReceipt(tableObj, orderItems, discountAmount, receivedAmount
         } else {
           itemDiscountType = 'cash';
           itemDiscountValue = itemDiscount;
-        }
-      } else if (checkoutItemDiscounts && checkoutItemDiscounts[item.id]) {
-        const disc = checkoutItemDiscounts[item.id];
-        itemDiscountType = disc.type;
-        itemDiscountValue = disc.value;
-        if (disc.type === 'percent') {
-          itemDiscount = Math.round(item.price * disc.value / 100);
-        } else {
-          itemDiscount = disc.value;
         }
       }
       

@@ -1234,7 +1234,7 @@ app.post('/api/checkout', async (req, res) => {
 
     // 2. Create Transaction Items
     for (const item of orderItems) {
-      const itemDiscount = parseInt((itemDiscounts && itemDiscounts[item.menu_id]) || 0);
+      const itemDiscount = parseInt((itemDiscounts && itemDiscounts[item.id]) || 0);
       await client.query(`
         INSERT INTO transaction_items (transaction_id, name, emoji, price, quantity, notes, discount, options)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
