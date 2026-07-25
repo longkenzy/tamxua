@@ -1435,9 +1435,9 @@ app.post('/api/print-docx', async (req, res) => {
           <meta charset="utf-8">
           <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
           <style>
-            body {
+             body {
               font-family: 'Roboto', Arial, sans-serif;
-              font-size: 13px;
+              font-size: 14px;
               width: 80mm;
               margin: 0 auto;
               padding: 2mm 4mm;
@@ -1467,7 +1467,7 @@ app.post('/api/print-docx', async (req, res) => {
             }
             th, td {
               padding: 4px 6px;
-              font-size: 12px;
+              font-size: 13px;
               vertical-align: middle;
             }
             td p, th p {
