@@ -3044,15 +3044,16 @@ async function printReceipt(tableObj, orderItems, discountAmount, receivedAmount
       // Calculate item discounts sum
       const itemDiscountsSum = orderItems.reduce((sum, item) => {
         let itemDiscount = 0;
-        if (item.discount !== undefined && item.discount !== null) {
-          itemDiscount = item.discount;
-        } else if (typeof checkoutItemDiscounts !== 'undefined' && checkoutItemDiscounts[item.id]) {
+        const isCheckoutActive = (typeof checkoutModal !== 'undefined' && checkoutModal && checkoutModal.style.display === 'flex');
+        if (isCheckoutActive && typeof checkoutItemDiscounts !== 'undefined' && checkoutItemDiscounts[item.id]) {
           const disc = checkoutItemDiscounts[item.id];
           if (disc.type === 'percent') {
             itemDiscount = Math.round(item.price * disc.value / 100);
           } else {
             itemDiscount = disc.value;
           }
+        } else if (item.discount !== undefined && item.discount !== null) {
+          itemDiscount = item.discount;
         }
         return sum + (itemDiscount * item.quantity);
       }, 0);
@@ -3251,15 +3252,16 @@ async function printReceipt(tableObj, orderItems, discountAmount, receivedAmount
   // Calculate item discounts sum
   const itemDiscountsSum = orderItems.reduce((sum, item) => {
     let itemDiscount = 0;
-    if (item.discount !== undefined && item.discount !== null) {
-      itemDiscount = item.discount;
-    } else if (typeof checkoutItemDiscounts !== 'undefined' && checkoutItemDiscounts[item.id]) {
+    const isCheckoutActive = (typeof checkoutModal !== 'undefined' && checkoutModal && checkoutModal.style.display === 'flex');
+    if (isCheckoutActive && typeof checkoutItemDiscounts !== 'undefined' && checkoutItemDiscounts[item.id]) {
       const disc = checkoutItemDiscounts[item.id];
       if (disc.type === 'percent') {
         itemDiscount = Math.round(item.price * disc.value / 100);
       } else {
         itemDiscount = disc.value;
       }
+    } else if (item.discount !== undefined && item.discount !== null) {
+      itemDiscount = item.discount;
     }
     return sum + (itemDiscount * item.quantity);
   }, 0);
