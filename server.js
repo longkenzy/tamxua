@@ -1465,9 +1465,9 @@ app.post('/api/print-docx', async (req, res) => {
             table, th, td {
               border: 1px solid #000;
             }
-            th, td {
+             th, td {
               padding: 4px 6px;
-              font-size: 13px;
+              font-size: 15px;
               vertical-align: middle;
             }
             td p, th p {
