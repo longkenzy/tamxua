@@ -215,6 +215,9 @@ async function init() {
     // Initialize invoices tab selectors sync
     initInvoicesFilter();
 
+    // Initialize report calendars (Sapo style)
+    initReportCalendars();
+
     // Prepare audio context on user gesture to bypass autoplay blocks
     initAudioOnUserInteraction();
     
@@ -1007,6 +1010,11 @@ function renderTables() {
               Vào: ${getFormattedTime(table.updatedAt)} (${getSittingTimeText(table.updatedAt)})
             </span>
           ` : ''}
+          ${isOccupied && table.orderedBy ? `
+            <span style="font-size: 11px; color: var(--primary); font-weight: 600; margin-top: 2px; display: flex; align-items: center; gap: 4px;">
+              👤 Order: ${table.orderedBy}
+            </span>
+          ` : ''}
         </div>
         <span class="table-card-badge ${isOccupied ? 'occupied' : 'empty'}">
           ${isOccupied ? 'Đang dùng' : 'Trống'}
@@ -1142,6 +1150,7 @@ function renderTableDetails(table) {
       <div class="panel-header-title">
         <h2>${table.name}</h2>
         <p>Phục vụ cập nhật: ${formatTime(table.updatedAt)}</p>
+        ${table.orderedBy ? `<p style="margin-top: 2px; color: var(--primary); font-weight: 600; display: flex; align-items: center; gap: 4px;">👤 Nhân viên order: ${table.orderedBy}</p>` : ''}
       </div>
       <div class="panel-header-price">
         <div class="panel-price-amount">${formatVND(totalAmount)}</div>
@@ -4295,9 +4304,12 @@ function openTransactionDetail(txIdOrIndex) {
         <span style="color: #64748b;">Khu vực:</span>
         <span style="font-weight: 600; color: #0f172a;">${khuvuc}</span>
       </div>
-      <div style="display: flex; justify-content: space-between;">
+      <div style="display: flex; justify-content: space-between; align-items: center;">
         <span style="color: #64748b;">Phương thức thanh toán:</span>
-        <span style="font-weight: 600; color: #0f172a;">${paymentMethodLabel}</span>
+        <select id="edit-payment-method" onchange="changeTransactionPaymentMethod('${tx.id}', this.value)" style="padding: 6px 12px; border-radius: 8px; border: 1.5px solid ${tx.paymentMethod === 'bank' ? '#bfdbfe' : '#a7f3d0'}; font-size: 13px; font-weight: 700; cursor: pointer; background: ${tx.paymentMethod === 'bank' ? '#eff6ff' : '#ecfdf5'}; color: ${tx.paymentMethod === 'bank' ? '#1e40af' : '#065f46'}; outline: none; transition: all 0.2s ease-in-out; box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); font-family: inherit;">
+          <option value="cash" ${tx.paymentMethod === 'cash' ? 'selected' : ''} style="background: #ffffff; color: #0f172a; font-weight: 600;">💵 Tiền mặt</option>
+          <option value="bank" ${tx.paymentMethod === 'bank' ? 'selected' : ''} style="background: #ffffff; color: #0f172a; font-weight: 600;">💳 Chuyển khoản</option>
+        </select>
       </div>
       ${tx.notes ? `
       <div style="display: flex; justify-content: space-between;">
@@ -4389,8 +4401,57 @@ function closeTransactionDetailModal() {
   activeDetailTx = null;
 }
 
+async function changeTransactionPaymentMethod(txId, newMethod) {
+  const label = newMethod === 'bank' ? 'Chuyển khoản' : 'Tiền mặt';
+  if (!confirm(`Bạn có chắc chắn muốn thay đổi phương thức thanh toán của hóa đơn #${txId} sang "${label}"?`)) {
+    const selectEl = document.getElementById('edit-payment-method');
+    if (selectEl && activeDetailTx) {
+      selectEl.value = activeDetailTx.paymentMethod || 'cash';
+    }
+    return;
+  }
+
+  try {
+    const res = await fetch(`/api/transactions/${txId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ paymentMethod: newMethod })
+    });
+    
+    const result = await res.json();
+    if (result.success) {
+      showToast('✅ Đã cập nhật phương thức thanh toán thành công!');
+      if (activeDetailTx && activeDetailTx.id === txId) {
+        activeDetailTx.paymentMethod = newMethod;
+        const txObj = transactions.find(t => t.id === txId);
+        if (txObj) txObj.paymentMethod = newMethod;
+        const ftObj = filteredTransactions.find(t => t.id === txId);
+        if (ftObj) ftObj.paymentMethod = newMethod;
+        
+        openTransactionDetail(txId);
+      }
+    } else {
+      alert(`Lỗi: ${result.error}`);
+      const selectEl = document.getElementById('edit-payment-method');
+      if (selectEl && activeDetailTx) {
+        selectEl.value = activeDetailTx.paymentMethod || 'cash';
+      }
+    }
+  } catch (err) {
+    console.error(err);
+    alert('Không thể kết nối đến máy chủ.');
+    const selectEl = document.getElementById('edit-payment-method');
+    if (selectEl && activeDetailTx) {
+      selectEl.value = activeDetailTx.paymentMethod || 'cash';
+    }
+  }
+}
+
 window.openTransactionDetail = openTransactionDetail;
 window.closeTransactionDetailModal = closeTransactionDetailModal;
+window.changeTransactionPaymentMethod = changeTransactionPaymentMethod;
 
 // Render detailed page for a selected transaction record (No-op as details are shown in modal)
 function renderTransactionDetails(tx) {}
@@ -4451,6 +4512,26 @@ let tempRangeEnd = new Date(2026, 5, 30);
 let rangeStart = new Date(2026, 5, 30);
 let rangeEnd = new Date(2026, 5, 30);
 let activeChartTab = 'revenue'; // 'revenue' or 'orders'
+
+// Calendar state for Revenue Report
+let revTimePreset = 'today';
+let revCalState = {
+  currentDate: new Date(2026, 5, 30),
+  tempRangeStart: new Date(2026, 5, 30),
+  tempRangeEnd: new Date(2026, 5, 30),
+  rangeStart: new Date(2026, 5, 30),
+  rangeEnd: new Date(2026, 5, 30)
+};
+
+// Calendar state for Items Report
+let itmTimePreset = 'today';
+let itmCalState = {
+  currentDate: new Date(2026, 5, 30),
+  tempRangeStart: new Date(2026, 5, 30),
+  tempRangeEnd: new Date(2026, 5, 30),
+  rangeStart: new Date(2026, 5, 30),
+  rangeEnd: new Date(2026, 5, 30)
+};
 
 // Sync Sapo custom select dropdown & calendar picker
 function initOverviewControls() {
@@ -5187,8 +5268,33 @@ function updateAnalytics() {
   if (elIncompleteTotalAmount) elIncompleteTotalAmount.textContent = formatVND(totalIncompleteAmount);
 
   // 2. Staff Revenue Calculation
-  const elStaffOwnerAmount = document.getElementById('staff-owner-amount');
-  if (elStaffOwnerAmount) elStaffOwnerAmount.textContent = formatVND(totalRevenue);
+  const staffRevenueBody = document.getElementById('staff-revenue-body');
+  if (staffRevenueBody) {
+    const staffRevenueMap = {};
+    filteredTransactions.forEach(tx => {
+      const staffName = tx.orderedBy || 'Nhân viên';
+      const amount = tx.subtotal - (tx.discountAmount || 0);
+      staffRevenueMap[staffName] = (staffRevenueMap[staffName] || 0) + amount;
+    });
+
+    const sortedStaff = Object.entries(staffRevenueMap).sort((a, b) => b[1] - a[1]);
+
+    if (sortedStaff.length === 0) {
+      staffRevenueBody.innerHTML = `
+        <tr>
+          <td style="padding: 12px 8px; color: var(--muted);">Chưa có dữ liệu</td>
+          <td style="text-align: right; font-weight: 600; padding: 12px 8px;">0 đ</td>
+        </tr>
+      `;
+    } else {
+      staffRevenueBody.innerHTML = sortedStaff.map(([name, amount]) => `
+        <tr>
+          <td style="padding: 12px 8px; font-weight: 500;">👥 ${name}</td>
+          <td style="text-align: right; font-weight: 600; padding: 12px 8px;">${formatVND(amount)}</td>
+        </tr>
+      `).join('');
+    }
+  }
 
   // 3. Payment Methods Data Calculation
   let payBankRevenue = 0;
@@ -7511,7 +7617,7 @@ let reportBankAccountChartInstance = null;
 let reportBankAccountActiveTab = 'count'; // 'count' or 'revenue'
 
 function loadRevenueReport() {
-  const timePreset = document.getElementById('report-time-preset').value;
+  const timePreset = revTimePreset;
   const now = new Date();
   const filterByHour = (tx) => {
     if (!tx.timestamp) return false;
@@ -7543,6 +7649,21 @@ function loadRevenueReport() {
       const d = new Date(tx.timestamp);
       return d.getMonth() === thisMonth && d.getFullYear() === thisYear && filterByHour(tx);
     });
+  } else if (timePreset === 'custom') {
+    if (revCalState.rangeStart && revCalState.rangeEnd) {
+      const startDate = new Date(revCalState.rangeStart);
+      startDate.setHours(0, 0, 0, 0);
+      const endDate = new Date(revCalState.rangeEnd);
+      endDate.setHours(23, 59, 59, 999);
+      
+      reportTxs = transactions.filter(tx => {
+        if (!tx.timestamp) return false;
+        const txTime = new Date(tx.timestamp).getTime();
+        return txTime >= startDate.getTime() && txTime <= endDate.getTime() && filterByHour(tx);
+      });
+    } else {
+      reportTxs = [];
+    }
   }
 
   // Calculate metrics
@@ -8125,7 +8246,7 @@ function getItemUnit(name) {
 }
 
 function loadItemsReport() {
-  const timePreset = document.getElementById('report-items-time').value;
+  const timePreset = itmTimePreset;
   const reportTypeVal = document.getElementById('report-items-type').value;
   const now = new Date();
   const filterByHour = (tx) => {
@@ -8157,6 +8278,21 @@ function loadItemsReport() {
       const d = new Date(tx.timestamp);
       return d.getMonth() === thisMonth && d.getFullYear() === thisYear && filterByHour(tx);
     });
+  } else if (timePreset === 'custom') {
+    if (itmCalState.rangeStart && itmCalState.rangeEnd) {
+      const startDate = new Date(itmCalState.rangeStart);
+      startDate.setHours(0, 0, 0, 0);
+      const endDate = new Date(itmCalState.rangeEnd);
+      endDate.setHours(23, 59, 59, 999);
+      
+      reportTxs = transactions.filter(tx => {
+        if (!tx.timestamp) return false;
+        const txTime = new Date(tx.timestamp).getTime();
+        return txTime >= startDate.getTime() && txTime <= endDate.getTime() && filterByHour(tx);
+      });
+    } else {
+      reportTxs = [];
+    }
   }
 
   // Update time label matching screenshot format
@@ -8643,6 +8779,14 @@ async function exportRevenueReportToExcel(filteredTxs, totalRevenue, totalDiscou
       const endStr = `${pad(lastDay)}/${pad(now.getMonth() + 1)}/${now.getFullYear()}`;
       startDateStr = `00:00 ${startStr}`;
       endDateStr = `23:59 ${endStr}`;
+    } else if (timePreset === 'custom') {
+      if (revCalState.rangeStart && revCalState.rangeEnd) {
+        startDateStr = `00:00 ${pad(revCalState.rangeStart.getDate())}/${pad(revCalState.rangeStart.getMonth() + 1)}/${revCalState.rangeStart.getFullYear()}`;
+        endDateStr = `23:59 ${pad(revCalState.rangeEnd.getDate())}/${pad(revCalState.rangeEnd.getMonth() + 1)}/${revCalState.rangeEnd.getFullYear()}`;
+      } else {
+        startDateStr = '00:00';
+        endDateStr = '23:59';
+      }
     } else {
       startDateStr = '00:00';
       endDateStr = '23:59';
@@ -9313,19 +9457,11 @@ const reportType = document.getElementById('report-type');
 if (reportType) {
   reportType.addEventListener('change', loadRevenueReport);
 }
-const reportTimePreset = document.getElementById('report-time-preset');
-if (reportTimePreset) {
-  reportTimePreset.addEventListener('change', loadRevenueReport);
-}
 const btnViewReport = document.getElementById('btn-view-report');
 if (btnViewReport) {
   btnViewReport.addEventListener('click', loadRevenueReport);
 }
 
-const reportItemsTime = document.getElementById('report-items-time');
-if (reportItemsTime) {
-  reportItemsTime.addEventListener('change', loadItemsReport);
-}
 const reportItemsType = document.getElementById('report-items-type');
 if (reportItemsType) {
   reportItemsType.addEventListener('change', loadItemsReport);
@@ -9333,6 +9469,276 @@ if (reportItemsType) {
 const btnViewItemsReport = document.getElementById('btn-view-items-report');
 if (btnViewItemsReport) {
   btnViewItemsReport.addEventListener('click', loadItemsReport);
+}
+
+// Sapo Custom Calendar Library for Reports
+function initSapoCalendarInstance({
+  triggerId,
+  menuId,
+  popupId,
+  labelId,
+  prevBtnId,
+  nextBtnId,
+  leftMonthLabelId,
+  rightMonthLabelId,
+  leftPaneId,
+  rightPaneId,
+  rangeDisplayId,
+  cancelBtnId,
+  submitBtnId,
+  dropdownOptionsClass,
+  state,
+  onApplyPreset,
+  onApplyCustom
+}) {
+  const trigger = document.getElementById(triggerId);
+  const menu = document.getElementById(menuId);
+  const popup = document.getElementById(popupId);
+  
+  if (!trigger || !menu || !popup) return;
+
+  // Toggle dropdown menu
+  trigger.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (menu.style.display === 'none') {
+      menu.style.display = 'flex';
+      popup.style.display = 'none'; // Close calendar popup
+    } else {
+      menu.style.display = 'none';
+    }
+  });
+
+  // Handle dropdown option click
+  document.querySelectorAll('.' + dropdownOptionsClass).forEach(opt => {
+    opt.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const val = opt.getAttribute('data-value');
+      
+      // Update active class
+      document.querySelectorAll('.' + dropdownOptionsClass).forEach(o => o.classList.remove('active'));
+      opt.classList.add('active');
+      
+      menu.style.display = 'none';
+      
+      if (val === 'custom') {
+        popup.style.display = 'flex';
+        renderLocalCalendar();
+      } else {
+        popup.style.display = 'none';
+        document.getElementById(labelId).textContent = opt.textContent;
+        onApplyPreset(val);
+      }
+    });
+  });
+
+  // Prev/Next month navigation click handlers
+  document.getElementById(prevBtnId).addEventListener('click', (e) => {
+    e.stopPropagation();
+    state.currentDate.setMonth(state.currentDate.getMonth() - 1);
+    renderLocalCalendar();
+  });
+  
+  document.getElementById(nextBtnId).addEventListener('click', (e) => {
+    e.stopPropagation();
+    state.currentDate.setMonth(state.currentDate.getMonth() + 1);
+    renderLocalCalendar();
+  });
+
+  // Calendar footer action click handlers
+  document.getElementById(cancelBtnId).addEventListener('click', (e) => {
+    e.stopPropagation();
+    popup.style.display = 'none';
+    // Restore selection from saved range
+    state.tempRangeStart = state.rangeStart ? new Date(state.rangeStart) : null;
+    state.tempRangeEnd = state.rangeEnd ? new Date(state.rangeEnd) : null;
+  });
+
+  document.getElementById(submitBtnId).addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (!state.tempRangeStart) return;
+    
+    if (!state.tempRangeEnd) {
+      state.tempRangeEnd = new Date(state.tempRangeStart);
+    }
+    
+    state.rangeStart = new Date(state.tempRangeStart);
+    state.rangeEnd = new Date(state.tempRangeEnd);
+    
+    const formatToDDMMYYYY = (d) => {
+      const date = String(d.getDate()).padStart(2, '0');
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const year = d.getFullYear();
+      return `${date}/${month}/${year}`;
+    };
+    
+    const rangeText = `${formatToDDMMYYYY(state.rangeStart)} - ${formatToDDMMYYYY(state.rangeEnd)}`;
+    document.getElementById(labelId).textContent = rangeText;
+    popup.style.display = 'none';
+    
+    onApplyCustom();
+  });
+
+  // Close popup and menu on clicking outside
+  document.addEventListener('click', (e) => {
+    const container = trigger.parentElement;
+    if (container && !container.contains(e.target)) {
+      menu.style.display = 'none';
+      popup.style.display = 'none';
+    }
+  });
+
+  function renderLocalCalendar() {
+    const leftMonth = new Date(state.currentDate.getFullYear(), state.currentDate.getMonth() - 1, 1);
+    const rightMonth = new Date(state.currentDate.getFullYear(), state.currentDate.getMonth(), 1);
+    
+    const monthNames = ['Tháng 1', 'Tháng 2', 'Tháng 3', 'Tháng 4', 'Tháng 5', 'Tháng 6', 'Tháng 7', 'Tháng 8', 'Tháng 9', 'Tháng 10', 'Tháng 11', 'Tháng 12'];
+    document.getElementById(leftMonthLabelId).textContent = `${monthNames[leftMonth.getMonth()]} ${leftMonth.getFullYear()}`;
+    document.getElementById(rightMonthLabelId).textContent = `${monthNames[rightMonth.getMonth()]} ${rightMonth.getFullYear()}`;
+    
+    renderLocalPane(leftPaneId, leftMonth);
+    renderLocalPane(rightPaneId, rightMonth);
+    
+    updateLocalRangeDisplay();
+  }
+
+  function renderLocalPane(paneId, monthDate) {
+    const container = document.getElementById(paneId);
+    if (!container) return;
+    container.innerHTML = '';
+    
+    const year = monthDate.getFullYear();
+    const month = monthDate.getMonth();
+    
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const numDays = lastDay.getDate();
+    
+    let startDayIndex = firstDay.getDay();
+    startDayIndex = startDayIndex === 0 ? 6 : startDayIndex - 1; // Mon=0, Sun=6
+    
+    const prevMonthLastDay = new Date(year, month, 0).getDate();
+    for (let i = startDayIndex - 1; i >= 0; i--) {
+      const cell = document.createElement('div');
+      cell.className = 'calendar-day-cell overflow-day';
+      cell.textContent = prevMonthLastDay - i;
+      container.appendChild(cell);
+    }
+    
+    for (let d = 1; d <= numDays; d++) {
+      const cell = document.createElement('div');
+      cell.className = 'calendar-day-cell';
+      cell.textContent = d;
+      
+      const dateObj = new Date(year, month, d);
+      
+      if (state.tempRangeStart && isSameDay(dateObj, state.tempRangeStart)) {
+        cell.classList.add('selected-start');
+      } else if (state.tempRangeEnd && isSameDay(dateObj, state.tempRangeEnd)) {
+        cell.classList.add('selected-end');
+      } else if (state.tempRangeStart && state.tempRangeEnd && dateObj > state.tempRangeStart && dateObj < state.tempRangeEnd) {
+        cell.classList.add('in-range');
+      }
+      
+      cell.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (!state.tempRangeStart || (state.tempRangeStart && state.tempRangeEnd)) {
+          state.tempRangeStart = dateObj;
+          state.tempRangeEnd = null;
+        } else if (state.tempRangeStart && !state.tempRangeEnd) {
+          if (dateObj < state.tempRangeStart) {
+            state.tempRangeStart = dateObj;
+          } else {
+            state.tempRangeEnd = dateObj;
+          }
+        }
+        renderLocalCalendar();
+      });
+      
+      container.appendChild(cell);
+    }
+    
+    const totalRendered = startDayIndex + numDays;
+    const nextMonthDaysNeeded = totalRendered % 7 === 0 ? 0 : 7 - (totalRendered % 7);
+    for (let i = 1; i <= nextMonthDaysNeeded; i++) {
+      const cell = document.createElement('div');
+      cell.className = 'calendar-day-cell overflow-day';
+      cell.textContent = i;
+      container.appendChild(cell);
+    }
+  }
+
+  function updateLocalRangeDisplay() {
+    const formatToDDMMYYYY = (d) => {
+      const date = String(d.getDate()).padStart(2, '0');
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const year = d.getFullYear();
+      return `${date}/${month}/${year}`;
+    };
+    const display = document.getElementById(rangeDisplayId);
+    if (display) {
+      if (state.tempRangeStart && state.tempRangeEnd) {
+        display.textContent = `${formatToDDMMYYYY(state.tempRangeStart)} - ${formatToDDMMYYYY(state.tempRangeEnd)}`;
+      } else if (state.tempRangeStart) {
+        display.textContent = `${formatToDDMMYYYY(state.tempRangeStart)} - ${formatToDDMMYYYY(state.tempRangeStart)}`;
+      } else {
+        display.textContent = '';
+      }
+    }
+  }
+}
+
+function initReportCalendars() {
+  initSapoCalendarInstance({
+    triggerId: 'report-revenue-date-trigger',
+    menuId: 'report-revenue-date-menu',
+    popupId: 'report-revenue-calendar-popup',
+    labelId: 'report-revenue-date-label',
+    prevBtnId: 'rev-cal-prev-btn',
+    nextBtnId: 'rev-cal-next-btn',
+    leftMonthLabelId: 'rev-cal-month-left-label',
+    rightMonthLabelId: 'rev-cal-month-right-label',
+    leftPaneId: 'rev-cal-days-left',
+    rightPaneId: 'rev-cal-days-right',
+    rangeDisplayId: 'rev-cal-range-display',
+    cancelBtnId: 'rev-cal-cancel-btn',
+    submitBtnId: 'rev-cal-select-btn',
+    dropdownOptionsClass: 'report-revenue-dropdown-option',
+    state: revCalState,
+    onApplyPreset: (val) => {
+      revTimePreset = val;
+      loadRevenueReport();
+    },
+    onApplyCustom: () => {
+      revTimePreset = 'custom';
+      loadRevenueReport();
+    }
+  });
+
+  initSapoCalendarInstance({
+    triggerId: 'report-items-date-trigger',
+    menuId: 'report-items-date-menu',
+    popupId: 'report-items-calendar-popup',
+    labelId: 'report-items-date-label',
+    prevBtnId: 'itm-cal-prev-btn',
+    nextBtnId: 'itm-cal-next-btn',
+    leftMonthLabelId: 'itm-cal-month-left-label',
+    rightMonthLabelId: 'itm-cal-month-right-label',
+    leftPaneId: 'itm-cal-days-left',
+    rightPaneId: 'itm-cal-days-right',
+    rangeDisplayId: 'itm-cal-range-display',
+    cancelBtnId: 'itm-cal-cancel-btn',
+    submitBtnId: 'itm-cal-select-btn',
+    dropdownOptionsClass: 'report-items-dropdown-option',
+    state: itmCalState,
+    onApplyPreset: (val) => {
+      itmTimePreset = val;
+      loadItemsReport();
+    },
+    onApplyCustom: () => {
+      itmTimePreset = 'custom';
+      loadItemsReport();
+    }
+  });
 }
 
 // Hook item report chart tabs click handlers
@@ -11100,11 +11506,11 @@ function getVietQrBankSlug(bankName) {
   if (name.includes('VCB') || name.includes('VIETCOMBANK')) return 'VCB';
   if (name.includes('TCB') || name.includes('TECHCOMBANK')) return 'TCB';
   if (name.includes('BIDV') || name.includes('ĐẦU TƯ')) return 'BIDV';
+  if (name.includes('SACOMBANK') || name.includes('STB')) return 'STB';
   if (name.includes('MB') || name.includes('MILITARY') || name.includes('QUÂN ĐỘI')) return 'MB';
   if (name.includes('CTG') || name.includes('VIETINBANK') || name.includes('VIETIN') || name.includes('ICB')) return 'ICB';
   if (name.includes('ACB') || name.includes('Á CHÂU')) return 'ACB';
   if (name.includes('VPBANK') || name.includes('VPB') || name.includes('THỊNH VƯỢNG')) return 'VPB';
-  if (name.includes('SACOMBANK') || name.includes('STB')) return 'STB';
   if (name.includes('AGRIBANK') || name.includes('VBA') || name.includes('NÔNG NGHIỆP')) return 'VBA';
   if (name.includes('SHB')) return 'SHB';
   if (name.includes('HDBANK') || name.includes('HDB')) return 'HDB';

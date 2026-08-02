@@ -5681,13 +5681,56 @@
             <option value="bank-account">Theo số tài khoản</option>
           </select>
         </div>
-        <div style="width: 240px;">
-          <select id="report-time-preset">
-            <option value="today" selected>Hôm nay</option>
-            <option value="yesterday">Hôm qua</option>
-            <option value="7days">7 ngày qua</option>
-            <option value="thismonth">Tháng này</option>
-          </select>
+        <div class="sapo-dropdown-container custom-select-wrapper" id="report-revenue-date-dropdown" style="width: fit-content; position: relative; z-index: 120;">
+          <div class="sapo-dropdown-trigger custom-select-trigger" id="report-revenue-date-trigger" style="min-width: 260px; height: 56px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: center; align-items: flex-start; padding: 10px 36px 10px 16px; border: 1px solid var(--border-strong); border-radius: var(--rounded-md); background-color: var(--canvas); transition: border-color 0.2s ease, box-shadow 0.2s ease; cursor: pointer; user-select: none;">
+            <span class="custom-select-label" style="font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px;">Thời gian</span>
+            <span id="report-revenue-date-label" class="custom-select-value" style="font-size: 14px; font-weight: 500; color: var(--ink);">Hôm nay</span>
+            <span class="custom-select-chevron" style="position: absolute; right: 16px; top: 50%; transform: translateY(-50%); font-size: 10px; color: var(--muted); pointer-events: none;">▼</span>
+          </div>
+          
+          <!-- Dropdown options list -->
+          <div class="sapo-dropdown-menu" id="report-revenue-date-menu" style="display: none; width: 240px; position: absolute; top: calc(100% + 4px); left: 0; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); z-index: 130; flex-direction: column; padding: 4px 0; box-sizing: border-box;">
+            <div class="report-revenue-dropdown-option active" data-value="today" style="padding: 10px 16px; font-size: 13px; color: var(--ink); cursor: pointer;">Hôm nay</div>
+            <div class="report-revenue-dropdown-option" data-value="yesterday" style="padding: 10px 16px; font-size: 13px; color: var(--ink); cursor: pointer;">Hôm qua</div>
+            <div class="report-revenue-dropdown-option" data-value="7days" style="padding: 10px 16px; font-size: 13px; color: var(--ink); cursor: pointer;">7 ngày qua</div>
+            <div class="report-revenue-dropdown-option" data-value="thismonth" style="padding: 10px 16px; font-size: 13px; color: var(--ink); cursor: pointer;">Tháng này</div>
+            <div class="report-revenue-dropdown-option" data-value="custom" style="padding: 10px 16px; font-size: 13px; color: var(--ink); cursor: pointer;">Khoảng thời gian khác</div>
+          </div>
+          
+          <!-- Dual Pane Calendar Popup -->
+          <div class="sapo-calendar-popup" id="report-revenue-calendar-popup" style="display: none; top: calc(100% + 8px); left: 0; z-index: 140;">
+            <div class="calendar-header">
+              <button type="button" class="calendar-nav-btn" id="rev-cal-prev-btn">❮</button>
+              <div class="calendar-month-titles">
+                <span class="month-title-left" id="rev-cal-month-left-label">Tháng 5 2026</span>
+                <span class="month-title-right" id="rev-cal-month-right-label">Tháng 6 2026</span>
+              </div>
+              <button type="button" class="calendar-nav-btn" id="rev-cal-next-btn">❯</button>
+            </div>
+            
+            <div class="calendar-panes">
+              <div class="calendar-pane">
+                <div class="calendar-weekdays">
+                  <span>T2</span><span>T3</span><span>T4</span><span>T5</span><span>T6</span><span>T7</span><span>CN</span>
+                </div>
+                <div class="calendar-days" id="rev-cal-days-left"></div>
+              </div>
+              <div class="calendar-pane">
+                <div class="calendar-weekdays">
+                  <span>T2</span><span>T3</span><span>T4</span><span>T5</span><span>T6</span><span>T7</span><span>CN</span>
+                </div>
+                <div class="calendar-days" id="rev-cal-days-right"></div>
+              </div>
+            </div>
+            
+            <div class="calendar-footer">
+              <div class="selected-range-display" id="rev-cal-range-display">30/06/2026 - 30/06/2026</div>
+              <div class="calendar-actions">
+                <button type="button" class="btn-cal-action btn-cal-cancel" id="rev-cal-cancel-btn">Hủy</button>
+                <button type="button" class="btn-cal-action btn-cal-submit" id="rev-cal-select-btn">Chọn</button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -5839,13 +5882,56 @@
             <option value="cancelled-combos">Combo đã huỷ</option>
           </select>
         </div>
-        <div style="width: 240px;">
-          <select id="report-items-time">
-            <option value="today" selected>Hôm nay</option>
-            <option value="yesterday">Hôm qua</option>
-            <option value="7days">7 ngày qua</option>
-            <option value="thismonth">Tháng này</option>
-          </select>
+        <div class="sapo-dropdown-container custom-select-wrapper" id="report-items-date-dropdown" style="width: fit-content; position: relative; z-index: 120;">
+          <div class="sapo-dropdown-trigger custom-select-trigger" id="report-items-date-trigger" style="min-width: 260px; height: 56px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: center; align-items: flex-start; padding: 10px 36px 10px 16px; border: 1px solid var(--border-strong); border-radius: var(--rounded-md); background-color: var(--canvas); transition: border-color 0.2s ease, box-shadow 0.2s ease; cursor: pointer; user-select: none;">
+            <span class="custom-select-label" style="font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px;">Thời gian</span>
+            <span id="report-items-date-label" class="custom-select-value" style="font-size: 14px; font-weight: 500; color: var(--ink);">Hôm nay</span>
+            <span class="custom-select-chevron" style="position: absolute; right: 16px; top: 50%; transform: translateY(-50%); font-size: 10px; color: var(--muted); pointer-events: none;">▼</span>
+          </div>
+          
+          <!-- Dropdown options list -->
+          <div class="sapo-dropdown-menu" id="report-items-date-menu" style="display: none; width: 240px; position: absolute; top: calc(100% + 4px); left: 0; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); z-index: 130; flex-direction: column; padding: 4px 0; box-sizing: border-box;">
+            <div class="report-items-dropdown-option active" data-value="today" style="padding: 10px 16px; font-size: 13px; color: var(--ink); cursor: pointer;">Hôm nay</div>
+            <div class="report-items-dropdown-option" data-value="yesterday" style="padding: 10px 16px; font-size: 13px; color: var(--ink); cursor: pointer;">Hôm qua</div>
+            <div class="report-items-dropdown-option" data-value="7days" style="padding: 10px 16px; font-size: 13px; color: var(--ink); cursor: pointer;">7 ngày qua</div>
+            <div class="report-items-dropdown-option" data-value="thismonth" style="padding: 10px 16px; font-size: 13px; color: var(--ink); cursor: pointer;">Tháng này</div>
+            <div class="report-items-dropdown-option" data-value="custom" style="padding: 10px 16px; font-size: 13px; color: var(--ink); cursor: pointer;">Khoảng thời gian khác</div>
+          </div>
+          
+          <!-- Dual Pane Calendar Popup -->
+          <div class="sapo-calendar-popup" id="report-items-calendar-popup" style="display: none; top: calc(100% + 8px); left: 0; z-index: 140;">
+            <div class="calendar-header">
+              <button type="button" class="calendar-nav-btn" id="itm-cal-prev-btn">❮</button>
+              <div class="calendar-month-titles">
+                <span class="month-title-left" id="itm-cal-month-left-label">Tháng 5 2026</span>
+                <span class="month-title-right" id="itm-cal-month-right-label">Tháng 6 2026</span>
+              </div>
+              <button type="button" class="calendar-nav-btn" id="itm-cal-next-btn">❯</button>
+            </div>
+            
+            <div class="calendar-panes">
+              <div class="calendar-pane">
+                <div class="calendar-weekdays">
+                  <span>T2</span><span>T3</span><span>T4</span><span>T5</span><span>T6</span><span>T7</span><span>CN</span>
+                </div>
+                <div class="calendar-days" id="itm-cal-days-left"></div>
+              </div>
+              <div class="calendar-pane">
+                <div class="calendar-weekdays">
+                  <span>T2</span><span>T3</span><span>T4</span><span>T5</span><span>T6</span><span>T7</span><span>CN</span>
+                </div>
+                <div class="calendar-days" id="itm-cal-days-right"></div>
+              </div>
+            </div>
+            
+            <div class="calendar-footer">
+              <div class="selected-range-display" id="itm-cal-range-display">30/06/2026 - 30/06/2026</div>
+              <div class="calendar-actions">
+                <button type="button" class="btn-cal-action btn-cal-cancel" id="itm-cal-cancel-btn">Hủy</button>
+                <button type="button" class="btn-cal-action btn-cal-submit" id="itm-cal-select-btn">Chọn</button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 

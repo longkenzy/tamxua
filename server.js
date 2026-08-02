@@ -94,7 +94,7 @@ app.use('/templates', express.static(path.join(__dirname, 'templates'), {
 // Database helper functions to format data for client
 async function getTablesWithOrders() {
   const res = await db.query(`
-    SELECT t.id, t.name, t.status, t.location, t.updated_at, t.notes,
+    SELECT t.id, t.name, t.status, t.location, t.updated_at, t.notes, t.ordered_by,
            COALESCE(
              json_agg(
                json_build_object(
@@ -114,7 +114,7 @@ async function getTablesWithOrders() {
     FROM tables t
     LEFT JOIN order_items oi ON t.id = oi.table_id
     LEFT JOIN menu m ON oi.menu_id = m.id
-    GROUP BY t.id, t.name, t.status, t.location, t.updated_at, t.notes
+    GROUP BY t.id, t.name, t.status, t.location, t.updated_at, t.notes, t.ordered_by
     ORDER BY t.id;
   `);
 
@@ -125,6 +125,7 @@ async function getTablesWithOrders() {
     location: row.location || 'trệt',
     updatedAt: row.updated_at ? row.updated_at.toISOString() : '',
     notes: row.notes || '',
+    orderedBy: row.ordered_by || '',
     order: row.order
   }));
 }
@@ -136,7 +137,7 @@ async function getTransactionsWithItems() {
            tx.change_amount as "changeAmount", tx.discount_amount as "discountAmount", 
            tx.payment_method as "paymentMethod", 
            tx.bank_name as "bankName", tx.account_number as "accountNumber", tx.account_holder as "accountHolder",
-           tx.timestamp, tx.notes,
+           tx.timestamp, tx.notes, tx.ordered_by as "orderedBy",
            COALESCE(
              json_agg(
                json_build_object(
@@ -153,7 +154,7 @@ async function getTransactionsWithItems() {
            ) as items
     FROM transactions tx
     LEFT JOIN transaction_items ti ON tx.id = ti.transaction_id
-    GROUP BY tx.id, tx.table_id, tx.table_name, tx.subtotal, tx.received_amount, tx.change_amount, tx.discount_amount, tx.payment_method, tx.bank_name, tx.account_number, tx.account_holder, tx.timestamp, tx.notes
+    GROUP BY tx.id, tx.table_id, tx.table_name, tx.subtotal, tx.received_amount, tx.change_amount, tx.discount_amount, tx.payment_method, tx.bank_name, tx.account_number, tx.account_holder, tx.timestamp, tx.notes, tx.ordered_by
     ORDER BY tx.timestamp DESC;
   `);
 
@@ -171,6 +172,7 @@ async function getTransactionsWithItems() {
     accountHolder: row.accountHolder,
     timestamp: row.timestamp ? row.timestamp.toISOString() : '',
     notes: row.notes || '',
+    orderedBy: row.orderedBy || 'Nhân viên',
     items: row.items
   }));
 }
@@ -556,7 +558,7 @@ app.delete('/api/menu-all', requireManager, async (req, res) => {
     await db.query('DELETE FROM order_items');
 
     // 2. Reset all table statuses to empty
-    await db.query("UPDATE tables SET status = 'empty', updated_at = NULL");
+    await db.query("UPDATE tables SET status = 'empty', updated_at = NULL, ordered_by = NULL");
 
     // 3. Delete all menu items (will cascade to menu_group_items)
     await db.query('DELETE FROM menu');
@@ -943,6 +945,10 @@ app.put('/api/bank-accounts/:id/active', requireAuth, async (req, res) => {
   const { id } = req.params;
   const { is_active } = req.body;
   try {
+    if (is_active) {
+      // Deactivate all other bank accounts to ensure only one is active at a time
+      await db.query('UPDATE bank_accounts SET is_active = false WHERE id != $1', [parseInt(id)]);
+    }
     const updateRes = await db.query('UPDATE bank_accounts SET is_active = $1 WHERE id = $2 RETURNING *', [!!is_active, parseInt(id)]);
     if (updateRes.rows.length > 0) {
       res.json(updateRes.rows[0]);
@@ -1082,6 +1088,74 @@ app.delete('/api/transactions/:id', requireManager, async (req, res) => {
     res.status(500).json({ error: 'Lỗi hệ thống.' });
   }
 });
+
+// Edit transaction payment method
+app.put('/api/transactions/:id', requireManager, async (req, res) => {
+  const { id } = req.params;
+  const { paymentMethod } = req.body;
+
+  if (!paymentMethod || (paymentMethod !== 'cash' && paymentMethod !== 'bank')) {
+    return res.status(400).json({ error: 'Phương thức thanh toán không hợp lệ.' });
+  }
+
+  try {
+    const txRes = await db.query('SELECT subtotal, discount_amount FROM transactions WHERE id = $1', [id]);
+    if (txRes.rows.length === 0) {
+      return res.status(404).json({ error: 'Không tìm thấy hóa đơn.' });
+    }
+    const tx = txRes.rows[0];
+    const finalPaid = tx.subtotal - (tx.discount_amount || 0);
+
+    // If updating to bank, get active bank details if available
+    let txBankName = null;
+    let txAccountNumber = null;
+    let txAccountHolder = null;
+    let receivedAmount = finalPaid;
+    let changeAmount = 0;
+
+    if (paymentMethod === 'bank') {
+      const activeBankRes = await db.query('SELECT * FROM bank_accounts WHERE is_active = true LIMIT 1');
+      if (activeBankRes.rows.length > 0) {
+        txBankName = activeBankRes.rows[0].bank_name;
+        txAccountNumber = activeBankRes.rows[0].account_number;
+        txAccountHolder = activeBankRes.rows[0].account_holder;
+      }
+    }
+
+    let updateQuery;
+    let queryParams;
+
+    if (paymentMethod === 'bank') {
+      updateQuery = `
+        UPDATE transactions 
+        SET payment_method = $1, received_amount = $2, change_amount = $3, bank_name = $4, account_number = $5, account_holder = $6 
+        WHERE id = $7
+      `;
+      queryParams = [paymentMethod, receivedAmount, changeAmount, txBankName, txAccountNumber, txAccountHolder, id];
+    } else {
+      updateQuery = `
+        UPDATE transactions 
+        SET payment_method = $1, bank_name = NULL, account_number = NULL, account_holder = NULL 
+        WHERE id = $2
+      `;
+      queryParams = [paymentMethod, id];
+    }
+
+    const updateRes = await db.query(updateQuery, queryParams);
+    if (updateRes.rowCount === 0) {
+      return res.status(404).json({ error: 'Không tìm thấy hóa đơn.' });
+    }
+
+    // Broadcast updated transactions to all clients
+    const txList = await getTransactionsWithItems();
+    io.emit('transactions_updated', txList);
+
+    res.json({ success: true, message: 'Đã cập nhật phương thức thanh toán thành công.' });
+  } catch (error) {
+    console.error('Lỗi khi cập nhật hóa đơn:', error);
+    res.status(500).json({ error: 'Lỗi hệ thống.' });
+  }
+});
 // Bulk delete transactions
 app.delete('/api/transactions-bulk', requireManager, async (req, res) => {
   const { ids } = req.body;
@@ -1126,16 +1200,18 @@ app.post('/api/order', async (req, res) => {
 
     if (items.length === 0) {
       // If order is cleared, reset table to empty
-      await client.query("UPDATE tables SET status = 'empty', updated_at = NULL, notes = NULL WHERE id = $1", [tableId]);
+      await client.query("UPDATE tables SET status = 'empty', updated_at = NULL, notes = NULL, ordered_by = NULL WHERE id = $1", [tableId]);
     } else {
       // Update table to eating
+      const orderer = req.signedCookies.username || 'Nhân viên';
       await client.query(`
         UPDATE tables 
         SET status = 'eating', 
             updated_at = COALESCE(updated_at, NOW()),
-            notes = $2
+            notes = $2,
+            ordered_by = $3
         WHERE id = $1
-      `, [tableId, notes !== undefined ? notes : (table.notes || null)]);
+      `, [tableId, notes !== undefined ? notes : (table.notes || null), orderer]);
 
       // Insert all updated items
       for (const item of items) {
@@ -1228,9 +1304,9 @@ app.post('/api/checkout', async (req, res) => {
 
     // 1. Create Transaction
     await client.query(`
-      INSERT INTO transactions (id, table_id, table_name, subtotal, received_amount, change_amount, discount_amount, payment_method, bank_name, account_number, account_holder, timestamp, notes)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), $12)
-    `, [txId, table.id, table.name, subtotal, parseFloat(receivedAmount), changeAmount, discount, paymentMethod || 'cash', txBankName, txAccountNumber, txAccountHolder, table.notes]);
+      INSERT INTO transactions (id, table_id, table_name, subtotal, received_amount, change_amount, discount_amount, payment_method, bank_name, account_number, account_holder, timestamp, notes, ordered_by)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), $12, $13)
+    `, [txId, table.id, table.name, subtotal, parseFloat(receivedAmount), changeAmount, discount, paymentMethod || 'cash', txBankName, txAccountNumber, txAccountHolder, table.notes, table.ordered_by || 'Nhân viên']);
 
     // 2. Create Transaction Items
     for (const item of orderItems) {
@@ -1246,7 +1322,7 @@ app.post('/api/checkout', async (req, res) => {
 
     // 4. Reset Table status
     await client.query(`
-      UPDATE tables SET status = 'empty', updated_at = NULL, notes = NULL WHERE id = $1
+      UPDATE tables SET status = 'empty', updated_at = NULL, notes = NULL, ordered_by = NULL WHERE id = $1
     `, [tableId]);
 
     await client.query('COMMIT');
@@ -2286,8 +2362,31 @@ io.on('connection', async (socket) => {
 
           const payMethodLabel = data.payMethod === 'bank' ? 'Chuyển khoản' : 'Tiền mặt';
 
+          let txBankName = null;
+          let txAccountNumber = null;
+          let txAccountHolder = null;
+          if (data.tableObj && data.tableObj.bankName) {
+            txBankName = data.tableObj.bankName;
+            txAccountNumber = data.tableObj.accountNumber;
+            txAccountHolder = data.tableObj.accountHolder;
+          } else if (data.payMethod === 'bank') {
+            try {
+              const activeBankRes = await db.query('SELECT * FROM bank_accounts WHERE is_active = true LIMIT 1');
+              if (activeBankRes.rows.length > 0) {
+                txBankName = activeBankRes.rows[0].bank_name;
+                txAccountNumber = activeBankRes.rows[0].account_number;
+                txAccountHolder = activeBankRes.rows[0].account_holder;
+              }
+            } catch (err) {
+              console.error('Error loading active bank account for socket print:', err);
+            }
+          }
+
           const templateData = {
             table_name: data.tableObj.name,
+            bank_name: txBankName,
+            account_number: txAccountNumber,
+            account_holder: txAccountHolder,
             order_time: orderTimeStr,
             checkout_time: checkoutTimeStr,
             subtotal: generalDiscount > 0 ? formatVNDShort(subtotal - data.discountAmount) : formatVNDShort(subtotal),
@@ -2546,11 +2645,11 @@ function getVietQrBankSlug(bankName) {
   if (name.includes('VCB') || name.includes('VIETCOMBANK')) return 'VCB';
   if (name.includes('TCB') || name.includes('TECHCOMBANK')) return 'TCB';
   if (name.includes('BIDV') || name.includes('ĐẦU TƯ')) return 'BIDV';
+  if (name.includes('SACOMBANK') || name.includes('STB')) return 'STB';
   if (name.includes('MB') || name.includes('MILITARY') || name.includes('QUÂN ĐỘI')) return 'MB';
   if (name.includes('CTG') || name.includes('VIETINBANK') || name.includes('VIETIN') || name.includes('ICB')) return 'ICB';
   if (name.includes('ACB') || name.includes('Á CHÂU')) return 'ACB';
   if (name.includes('VPBANK') || name.includes('VPB') || name.includes('THỊNH VƯỢNG')) return 'VPB';
-  if (name.includes('SACOMBANK') || name.includes('STB')) return 'STB';
   if (name.includes('AGRIBANK') || name.includes('VBA') || name.includes('NÔNG NGHIỆP')) return 'VBA';
   if (name.includes('SHB')) return 'SHB';
   if (name.includes('HDBANK') || name.includes('HDB')) return 'HDB';
