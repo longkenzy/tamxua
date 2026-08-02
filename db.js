@@ -106,13 +106,17 @@ async function setupDatabase() {
         status VARCHAR(20) DEFAULT 'empty',
         updated_at TIMESTAMP WITH TIME ZONE
       )
-    `);    // Add location column if not exists
+    `);
     await client.query(`
       ALTER TABLE tables ADD COLUMN IF NOT EXISTS location VARCHAR(50) DEFAULT 'trệt'
     `);
     await client.query(`
       ALTER TABLE tables ADD COLUMN IF NOT EXISTS notes TEXT
     `);
+    await client.query(`
+      ALTER TABLE tables ADD COLUMN IF NOT EXISTS ordered_by VARCHAR(50)
+    `);
+
 
     // 4. Create order_items table
     await client.query(`
@@ -162,6 +166,9 @@ async function setupDatabase() {
     `);
     await client.query(`
       ALTER TABLE transactions ADD COLUMN IF NOT EXISTS notes TEXT
+    `);
+    await client.query(`
+      ALTER TABLE transactions ADD COLUMN IF NOT EXISTS ordered_by VARCHAR(50)
     `);
 
     // Add bank account columns if not exists
