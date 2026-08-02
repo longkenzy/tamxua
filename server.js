@@ -1555,6 +1555,19 @@ app.post('/api/print-docx', async (req, res) => {
               background-color: #f9f9f9;
               text-align: center !important;
             }
+            /* Tăng cỡ chữ trong bảng mặt hàng */
+            table:nth-of-type(2) th,
+            table:nth-of-type(2) td,
+            table:nth-of-type(2) td p,
+            table:nth-of-type(2) th p {
+              font-size: 18px !important;
+            }
+            /* Tăng cỡ chữ của Thanh toán và số tiền thanh toán */
+            table:nth-of-type(3) tr:nth-child(2) td,
+            table:nth-of-type(3) tr:nth-child(2) td p,
+            table:nth-of-type(3) tr:nth-child(2) td p strong {
+              font-size: 22px !important;
+            }
             /* Column alignments */
             td:nth-child(1), th:nth-child(1) {
               text-align: left;
