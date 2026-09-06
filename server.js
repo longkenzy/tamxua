@@ -21,7 +21,7 @@ try {
   console.error('Không thể ghi file server.pid:', err.message);
 }
 
-// Multer memory storage configuration to support base64 conversion (avoiding read-only filesystem errors on Vercel)
+// Multer memory storage configuration to support base64 conversion
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
@@ -1819,13 +1819,13 @@ app.post('/api/printer-settings', requireAuth, async (req, res) => {
 app.post('/api/print-raw', requireAuth, async (req, res) => {
   const { printerType, ip, port, sharedPath, content } = req.body;
 
-  // Cloud/Vercel environments cannot reach private local network IPs (e.g. 192.168.x.x)
-  const isCloud = process.env.VERCEL || process.env.NODE_ENV === 'production' || (req.headers.host && !req.headers.host.includes('localhost') && !req.headers.host.includes('127.0.0.1') && !req.headers.host.includes('192.168.'));
+  // Cloud environments cannot reach private local network IPs (e.g. 192.168.x.x)
+  const isCloud = process.env.NODE_ENV === 'production' && (req.headers.host && !req.headers.host.includes('localhost') && !req.headers.host.includes('127.0.0.1') && !req.headers.host.includes('192.168.'));
   if (isCloud && printerType === 'wifi') {
     const isPrivateIP = ip && (ip.startsWith('192.168.') || ip.startsWith('10.') || ip.startsWith('172.'));
     if (isPrivateIP) {
       return res.status(400).json({ 
-        error: `Kết nối đến máy in Wifi tại ${ip}:${port || 9100} bị quá hạn (Timeout). Máy chủ Cloud (Vercel) không thể kết nối trực tiếp đến IP mạng nội bộ Wifi của bạn. Bạn vẫn có thể lưu cài đặt này và in hóa đơn bình thường qua hộp thoại in của máy tính thu ngân.`
+        error: `Kết nối đến máy in Wifi tại ${ip}:${port || 9100} bị quá hạn (Timeout). Máy chủ Cloud không thể kết nối trực tiếp đến IP mạng nội bộ Wifi của bạn. Bạn vẫn có thể lưu cài đặt này và in hóa đơn bình thường qua hộp thoại in của máy tính thu ngân.`
       });
     }
   }
@@ -1838,7 +1838,7 @@ app.post('/api/print-raw', requireAuth, async (req, res) => {
   }
 });
 
-// Create a print job (for Vercel polling fallback)
+// Create a print job (for print polling fallback)
 app.post('/api/print-jobs', requireAuth, async (req, res) => {
   const { printerId, type, payload } = req.body;
   try {
@@ -2764,17 +2764,15 @@ app.get('/api/system/apply-update', async (req, res) => {
   }
 });
 
-// Start Server with Database Setup (Only run setupDatabase and server.listen if not on Vercel)
-if (!process.env.VERCEL) {
-  db.setupDatabase().then(() => {
-    server.listen(PORT, () => {
-      console.log(`Server is running in real-time at http://localhost:${PORT}`);
-    });
-  }).catch(err => {
-    console.error('Database connection failed. Exiting...', err);
-    process.exit(1);
+// Start Server with Database Setup
+db.setupDatabase().then(() => {
+  server.listen(PORT, () => {
+    console.log(`Server is running in real-time at http://localhost:${PORT}`);
   });
-}
+}).catch(err => {
+  console.error('Database connection failed. Exiting...', err);
+  process.exit(1);
+});
 
 module.exports = app;
 
