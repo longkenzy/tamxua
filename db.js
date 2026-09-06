@@ -210,6 +210,9 @@ async function setupDatabase() {
         name VARCHAR(255) UNIQUE NOT NULL
       )
     `);
+    await client.query(`
+      ALTER TABLE menu_groups ADD COLUMN IF NOT EXISTS sort_order INT DEFAULT 0
+    `);
 
     // 8. Create menu_group_items table
     await client.query(`

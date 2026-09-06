@@ -194,8 +194,8 @@ app.post('/api/login', async (req, res) => {
     }
 
     // Set signed cookies for session (expire in 365 days for local restaurant usage convenience)
-    res.cookie('role', user.role, { signed: true, httpOnly: true, maxAge: 365 * 24 * 60 * 60 * 1000 });
-    res.cookie('username', user.username, { signed: true, httpOnly: true, maxAge: 365 * 24 * 60 * 60 * 1000 });
+    res.cookie('role', user.role, { signed: true, httpOnly: true, maxAge: 365 * 24 * 60 * 60 * 1000, path: '/' });
+    res.cookie('username', user.username, { signed: true, httpOnly: true, maxAge: 365 * 24 * 60 * 60 * 1000, path: '/' });
 
     res.json({ success: true, role: user.role, username: user.username });
   } catch (error) {
@@ -206,8 +206,8 @@ app.post('/api/login', async (req, res) => {
 
 // Logout Endpoint
 app.post('/api/logout', (req, res) => {
-  res.clearCookie('role');
-  res.clearCookie('username');
+  res.clearCookie('role', { path: '/' });
+  res.clearCookie('username', { path: '/' });
   res.json({ success: true });
 });
 
@@ -771,7 +771,7 @@ app.delete('/api/option-groups/:id', requireManager, async (req, res) => {
 // Get menu groups
 app.get('/api/menu-groups', async (req, res) => {
   try {
-    const groupsRes = await db.query('SELECT * FROM menu_groups ORDER BY id');
+    const groupsRes = await db.query('SELECT * FROM menu_groups ORDER BY sort_order ASC, id ASC');
     const itemsRes = await db.query(`
       SELECT mgi.menu_group_id, m.* 
       FROM menu_group_items mgi 
@@ -831,6 +831,37 @@ app.post('/api/menu-groups', requireManager, async (req, res) => {
     } else {
       res.status(500).json({ error: 'Lỗi hệ thống.' });
     }
+  } finally {
+    client.release();
+  }
+});
+
+// Reorder menu groups
+app.put('/api/menu-groups/reorder', requireManager, async (req, res) => {
+  const { ids } = req.body;
+  if (!ids || !Array.isArray(ids)) {
+    return res.status(400).json({ error: 'Danh sách ID không hợp lệ.' });
+  }
+
+  const client = await db.pool.connect();
+  try {
+    await client.query('BEGIN');
+    for (let i = 0; i < ids.length; i++) {
+      await client.query(
+        'UPDATE menu_groups SET sort_order = $1 WHERE id = $2',
+        [i, parseInt(ids[i])]
+      );
+    }
+    await client.query('COMMIT');
+
+    // Broadcast updated groups to all clients
+    io.emit('menu_groups_updated');
+
+    res.json({ success: true });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Lỗi sắp xếp thực đơn:', error);
+    res.status(500).json({ error: 'Lỗi hệ thống.' });
   } finally {
     client.release();
   }
@@ -899,6 +930,7 @@ app.delete('/api/menu-groups/:id', requireManager, async (req, res) => {
     res.status(500).json({ error: 'Lỗi hệ thống.' });
   }
 });
+
 
 // Bank Accounts management APIs
 app.get('/api/bank-accounts', requireAuth, async (req, res) => {
@@ -1365,15 +1397,23 @@ function generateDocxBuffer(templateName, templateData) {
   });
 }
 
+// Sequential print queue to prevent concurrent COM / printer hardware collisions
+let printQueue = Promise.resolve();
+function enqueuePrint(taskFn) {
+  const currentTask = printQueue.then(() => taskFn(), () => taskFn());
+  printQueue = currentTask.catch(() => {});
+  return currentTask;
+}
+
 // Silent direct system print using Word in the background
-function printDocxOnServer(printerName, templateName, templateData) {
+function printDocxOnServer(printerName, templateName, templateData, copies = 1) {
   return new Promise((resolve, reject) => {
     const scratchDir = path.join(__dirname, 'scratch');
     if (!fs.existsSync(scratchDir)) {
       fs.mkdirSync(scratchDir, { recursive: true });
     }
     
-    const tempFile = path.join(scratchDir, `print_job_${Date.now()}.docx`);
+    const tempFile = path.join(scratchDir, `print_job_${Date.now()}_${Math.random().toString(36).substring(2, 7)}.docx`);
     
     try {
       const buf = generateDocxBuffer(templateName, templateData);
@@ -1382,6 +1422,7 @@ function printDocxOnServer(printerName, templateName, templateData) {
       return reject(e);
     }
 
+    const printCopies = Math.max(1, parseInt(copies) || 1);
     // Escape single quotes for PowerShell
     const escapedPrinterName = printerName ? printerName.replace(/'/g, "''") : '';
     const escapedTempFile = tempFile.replace(/'/g, "''");
@@ -1390,7 +1431,8 @@ function printDocxOnServer(printerName, templateName, templateData) {
     if (escapedPrinterName) {
       psCommand += `$word.ActivePrinter = '${escapedPrinterName}'; `;
     }
-    psCommand += `$doc.PrintOut($false); $doc.Close(); } finally { $word.Quit(); }`;
+    psCommand += `for ($i = 0; $i -lt ${printCopies}; $i++) { $doc.PrintOut($false); } `;
+    psCommand += `$doc.Close(); } finally { $word.Quit(); [System.Runtime.InteropServices.Marshal]::ReleaseComObject($word) | Out-Null; [System.GC]::Collect(); [System.GC]::WaitForPendingFinalizers(); }`;
     
     const { execFile } = require('child_process');
     execFile('powershell', ['-NoProfile', '-Command', psCommand], { encoding: 'utf8', windowsHide: true }, (err, stdout, stderr) => {
@@ -1400,7 +1442,7 @@ function printDocxOnServer(printerName, templateName, templateData) {
         console.error('Lỗi in DOCX qua Word:', err, stderr);
         return reject(new Error(`Lỗi khi in qua Word: ${err.message}`));
       }
-      resolve({ success: true, message: `Đã in file mẫu thành công qua Word` });
+      resolve({ success: true, message: `Đã in file mẫu thành công qua Word (${printCopies} bản)` });
     });
   });
 }
@@ -1410,18 +1452,13 @@ app.post('/api/print-docx-silent', requireAuth, async (req, res) => {
   const { sharedPath, template, templateData, printerId } = req.body;
   const templateName = (template === 'hoadonbep.docx' || template === 'hoadonthem.docx' || template === 'hoadonnuoc.docx') ? template : 'hoadon.docx';
   
+  // Phiếu bếp chính in 2 bản, phiếu nước (kitchen_bar hoặc template hoadonnuoc.docx) in 1 bản, hóa đơn thanh toán in 1 bản
+  const isKitchenFood = (templateName === 'hoadonbep.docx' || templateName === 'hoadonthem.docx') && printerId !== 'kitchen_bar';
+  const copies = isKitchenFood ? 2 : 1;
+
   try {
-    if (templateName === 'hoadonbep.docx' || templateName === 'hoadonthem.docx' || templateName === 'hoadonnuoc.docx') {
-      // In 2 bản cho hóa đơn bếp, nước (kitchen_bar) thì in 1 bản
-      const result = await printDocxOnServer(sharedPath, templateName, templateData);
-      if (printerId !== 'kitchen_bar') {
-        await printDocxOnServer(sharedPath, templateName, templateData);
-      }
-      res.json(result);
-    } else {
-      const result = await printDocxOnServer(sharedPath, templateName, templateData);
-      res.json(result);
-    }
+    const result = await enqueuePrint(() => printDocxOnServer(sharedPath, templateName, templateData, copies));
+    res.json(result);
   } catch (error) {
     console.error('Silent print docx error:', error);
     res.status(500).json({ error: error.message });
@@ -1625,25 +1662,32 @@ app.get('/api/system-printers', requireAuth, (req, res) => {
 });
 
 // Helper function to print raw commands directly on server
-function printRawOnServer(printerType, sharedPath, ip, port, content) {
+function printRawOnServer(printerType, sharedPath, ip, port, content, copies = 1) {
   return new Promise((resolve, reject) => {
+    const printCopies = Math.max(1, parseInt(copies) || 1);
+
     if (printerType === 'wifi') {
       if (!ip) {
         return reject(new Error('Địa chỉ IP máy in Wifi không được trống.'));
       }
       const printerPort = parseInt(port) || 9100;
       const client = new net.Socket();
-      client.setTimeout(4000); // 4 seconds timeout
+      client.setTimeout(6000); // 6 seconds timeout
 
-      let printContent = content;
-      if (!printContent.endsWith('\x1b\x69')) {
-        printContent += '\n\n\n\n\n\x1b\x69';
+      let singleSlip = content;
+      if (!singleSlip.endsWith('\x1b\x69')) {
+        singleSlip += '\n\n\n\n\n\x1b\x69';
+      }
+
+      let printContent = '';
+      for (let i = 0; i < printCopies; i++) {
+        printContent += singleSlip;
       }
 
       client.connect(printerPort, ip, () => {
         client.write(Buffer.from(printContent, 'utf-8'), () => {
           client.end();
-          resolve({ success: true, message: `Đã gửi lệnh in đến máy in Wifi ${ip}:${printerPort}` });
+          resolve({ success: true, message: `Đã gửi lệnh in (${printCopies} bản) đến máy in Wifi ${ip}:${printerPort}` });
         });
       });
 
@@ -1668,11 +1712,16 @@ function printRawOnServer(printerType, sharedPath, ip, port, content) {
         fs.mkdirSync(scratchDir, { recursive: true });
       }
       
-      const tempFile = path.join(scratchDir, `print_job_${Date.now()}.txt`);
+      const tempFile = path.join(scratchDir, `print_job_${Date.now()}_${Math.random().toString(36).substring(2, 7)}.txt`);
       
-      let printContent = content;
-      if (!printContent.endsWith('\x1b\x69')) {
-        printContent += '\n\n\n\n\n\x1b\x69';
+      let singleSlip = content;
+      if (!singleSlip.endsWith('\x1b\x69')) {
+        singleSlip += '\n\n\n\n\n\x1b\x69';
+      }
+
+      let printContent = '';
+      for (let i = 0; i < printCopies; i++) {
+        printContent += singleSlip;
       }
 
       try {
@@ -1685,7 +1734,7 @@ function printRawOnServer(printerType, sharedPath, ip, port, content) {
             console.error('Lỗi in Shared Printer:', err, stderr);
             return reject(new Error(`Lỗi khi in qua máy in chia sẻ: ${err.message}`));
           }
-          resolve({ success: true, message: `Đã gửi lệnh in đến máy in chia sẻ ${sharedPath}` });
+          resolve({ success: true, message: `Đã gửi lệnh in (${printCopies} bản) đến máy in chia sẻ ${sharedPath}` });
         });
       } catch (e) {
         reject(e);
@@ -1697,15 +1746,19 @@ function printRawOnServer(printerType, sharedPath, ip, port, content) {
         fs.mkdirSync(scratchDir, { recursive: true });
       }
       
-      const tempFile = path.join(scratchDir, `print_job_${Date.now()}.txt`);
+      const tempFile = path.join(scratchDir, `print_job_${Date.now()}_${Math.random().toString(36).substring(2, 7)}.txt`);
       
       let printContent = content.replace(/\x1b\x69/g, '');
 
       try {
         fs.writeFileSync(tempFile, printContent, 'utf-8');
-        const psCommand = sharedPath
-          ? `Get-Content -LiteralPath '${tempFile}' -Encoding utf8 | Out-Printer -Name '${sharedPath.replace(/'/g, "''")}'`
-          : `Get-Content -LiteralPath '${tempFile}' -Encoding utf8 | Out-Printer`;
+        const escapedSharedPath = sharedPath ? sharedPath.replace(/'/g, "''") : '';
+        let psCommand = '';
+        for (let i = 0; i < printCopies; i++) {
+          psCommand += escapedSharedPath
+            ? `Get-Content -LiteralPath '${tempFile}' -Encoding utf8 | Out-Printer -Name '${escapedSharedPath}'; `
+            : `Get-Content -LiteralPath '${tempFile}' -Encoding utf8 | Out-Printer; `;
+        }
         
         const { execFile } = require('child_process');
         execFile('powershell', ['-NoProfile', '-Command', psCommand], { encoding: 'utf8', windowsHide: true }, (err, stdout, stderr) => {
@@ -1715,7 +1768,7 @@ function printRawOnServer(printerType, sharedPath, ip, port, content) {
             console.error('Lỗi in System Printer:', err, stderr);
             return reject(new Error(`Lỗi khi in qua máy in hệ thống: ${err.message}`));
           }
-          resolve({ success: true, message: sharedPath ? `Đã gửi lệnh in đến máy in hệ thống ${sharedPath}` : 'Đã gửi lệnh in đến máy in mặc định' });
+          resolve({ success: true, message: sharedPath ? `Đã gửi lệnh in (${printCopies} bản) đến máy in hệ thống ${sharedPath}` : `Đã gửi lệnh in (${printCopies} bản) đến máy in mặc định` });
         });
       } catch (e) {
         reject(e);
@@ -2291,18 +2344,16 @@ io.on('connection', async (socket) => {
             selectedTemplate = 'hoadonnuoc.docx';
           }
           
-          // In 2 bản cho hóa đơn bếp, nước (kitchen_bar) thì in 1 bản
-          await printDocxOnServer(sharedPath, selectedTemplate, templateData);
-          if (data.printerId !== 'kitchen_bar') {
-            await printDocxOnServer(sharedPath, selectedTemplate, templateData);
-          }
+          // Bếp chính in 2 bản (1 bản bếp, 1 bản lưu), Quầy nước (kitchen_bar) in 1 bản
+          const isKitchenFood = data.printerId !== 'kitchen_bar' && selectedTemplate !== 'hoadonnuoc.docx';
+          const copies = isKitchenFood ? 2 : 1;
+
+          await enqueuePrint(() => printDocxOnServer(sharedPath, selectedTemplate, templateData, copies));
         } else {
           const plainText = formatPlainKitchenSlipServer(data.tableName, data.items, data.title, data.notes);
-          // In 2 bản cho hóa đơn bếp dạng thô (raw), nước (kitchen_bar) thì in 1 bản
-          await printRawOnServer(type, sharedPath, printer ? printer.ip : '', printer ? printer.port : null, plainText);
-          if (data.printerId !== 'kitchen_bar') {
-            await printRawOnServer(type, sharedPath, printer ? printer.ip : '', printer ? printer.port : null, plainText);
-          }
+          const isKitchenFood = data.printerId !== 'kitchen_bar';
+          const copies = isKitchenFood ? 2 : 1;
+          await enqueuePrint(() => printRawOnServer(type, sharedPath, printer ? printer.ip : '', printer ? printer.port : null, plainText, copies));
         }
         
         // Broadcast to all clients that server has printed it successfully
@@ -2482,10 +2533,10 @@ io.on('connection', async (socket) => {
             })
           };
           
-          await printDocxOnServer(sharedPath, 'hoadon.docx', templateData);
+          await enqueuePrint(() => printDocxOnServer(sharedPath, 'hoadon.docx', templateData, 1));
         } else {
           const plainText = formatPlainReceiptServer(data.tableObj, data.orderItems, data.discountAmount, data.receivedAmount, data.timestamp, data.payMethod);
-          await printRawOnServer(type, sharedPath, printer ? printer.ip : '', printer ? printer.port : null, plainText);
+          await enqueuePrint(() => printRawOnServer(type, sharedPath, printer ? printer.ip : '', printer ? printer.port : null, plainText, 1));
         }
         
         io.emit('print_receipt', {
@@ -2510,7 +2561,7 @@ io.on('connection', async (socket) => {
   });
 });
 
-// System Update Endpoints (Git-based auto-update)
+// System Update Endpoints (Git-based auto-update & rollback)
 app.post('/api/system/check-update', async (req, res) => {
   const { exec } = require('child_process');
   const util = require('util');
@@ -2524,30 +2575,83 @@ app.post('/api/system/check-update', async (req, res) => {
       return res.json({ hasUpdate: false, error: 'Thư mục ứng dụng không phải là một kho chứa Git (Git repository).' });
     }
 
-    // 2. Fetch du lieu tu origin main
-    await execPromise('git fetch origin main');
+    // 2. Xac dinh branch hien tai
+    let currentBranch = 'main';
+    try {
+      const branchRes = await execPromise('git rev-parse --abbrev-ref HEAD');
+      const b = branchRes.stdout.trim();
+      if (b && b !== 'HEAD') {
+        currentBranch = b;
+      }
+    } catch (e) {}
 
-    // 3. Lay commit hash local va remote origin/main
+    // 3. Fetch du lieu tu origin
+    try {
+      await execPromise(`git fetch origin ${currentBranch}`);
+    } catch (fetchErr) {
+      try { await execPromise('git fetch origin'); } catch (e) {}
+    }
+
+    // 4. Lay commit hash local va remote
     const localCommitRes = await execPromise('git rev-parse HEAD');
     const localCommit = localCommitRes.stdout.trim();
 
-    const remoteCommitRes = await execPromise('git rev-parse origin/main');
-    const remoteCommit = remoteCommitRes.stdout.trim();
+    let remoteCommit = localCommit;
+    try {
+      const remoteCommitRes = await execPromise(`git rev-parse origin/${currentBranch}`);
+      remoteCommit = remoteCommitRes.stdout.trim();
+    } catch (e) {}
 
-    if (localCommit === remoteCommit) {
-      return res.json({ hasUpdate: false, branch: 'main', localCommit });
+    // 5. Lay danh sach commit moi hon HEAD
+    let newCommits = [];
+    if (localCommit !== remoteCommit) {
+      try {
+        const logRes = await execPromise(`git log HEAD..origin/${currentBranch} --oneline`);
+        newCommits = logRes.stdout.trim().split('\n').filter(c => c);
+      } catch (e) {}
     }
 
-    // 4. Lay danh sach commit moi
-    const logRes = await execPromise(`git log HEAD..origin/main --oneline`);
-    const commits = logRes.stdout.trim().split('\n').filter(c => c);
+    // 6. Lay lich su 15 commit gan nhat (bao gom ca commit hien tai va commit cu)
+    let history = [];
+    try {
+      let historyRaw = '';
+      try {
+        const histRes = await execPromise(`git log -n 15 origin/${currentBranch} --pretty=format:"%h:::%H:::%s:::%ci:::%cr"`);
+        historyRaw = histRes.stdout.trim();
+      } catch (e) {
+        const histRes = await execPromise(`git log -n 15 HEAD --pretty=format:"%h:::%H:::%s:::%ci:::%cr"`);
+        historyRaw = histRes.stdout.trim();
+      }
+
+      if (historyRaw) {
+        history = historyRaw.split('\n').filter(l => l).map(line => {
+          const parts = line.split(':::');
+          const hash = parts[0] || '';
+          const fullHash = parts[1] || '';
+          const subject = parts[2] || '';
+          const date = parts[3] || '';
+          const relativeDate = parts[4] || '';
+          return {
+            hash,
+            fullHash,
+            subject,
+            date,
+            relativeDate,
+            isCurrent: fullHash === localCommit || localCommit.startsWith(hash)
+          };
+        });
+      }
+    } catch (histErr) {
+      console.error('Loi lay lich su commit:', histErr);
+    }
 
     return res.json({
-      hasUpdate: true,
-      branch: 'main',
+      hasUpdate: localCommit !== remoteCommit && newCommits.length > 0,
+      branch: currentBranch,
       localCommit,
       remoteCommit,
-      commits
+      commits: newCommits,
+      history
     });
 
   } catch (err) {
@@ -2556,9 +2660,11 @@ app.post('/api/system/check-update', async (req, res) => {
   }
 });
 
-app.get('/api/system/apply-update', (req, res) => {
+app.get('/api/system/apply-update', async (req, res) => {
   const { exec, spawn } = require('child_process');
   const path = require('path');
+  const util = require('util');
+  const execPromise = util.promisify(exec);
 
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
@@ -2568,16 +2674,36 @@ app.get('/api/system/apply-update', (req, res) => {
     res.write(`data: ${JSON.stringify({ step, percent, message })}\n\n`);
   };
 
-  sendProgress('START', 10, 'Bắt đầu quá trình cập nhật...');
-  sendProgress('GIT_PULL_START', 20, 'Đang kéo mã nguồn mới nhất từ Git (git pull origin main)...');
+  // Kiem tra tham so rollback commit
+  const rawTarget = req.query.targetCommit ? req.query.targetCommit.toString().trim() : '';
+  const safeTarget = /^[a-zA-Z0-9_.-]+$/.test(rawTarget) ? rawTarget : '';
+
+  let currentBranch = 'main';
+  try {
+    const branchRes = await execPromise('git rev-parse --abbrev-ref HEAD');
+    const b = branchRes.stdout.trim();
+    if (b && b !== 'HEAD') {
+      currentBranch = b;
+    }
+  } catch (e) {}
+
+  const isRollback = !!safeTarget;
+  const targetLabel = safeTarget ? safeTarget.substring(0, 7) : `origin/${currentBranch}`;
+
+  sendProgress('START', 10, isRollback ? `Bắt đầu quay về phiên bản cũ: ${targetLabel}...` : 'Bắt đầu quá trình cập nhật...');
+  sendProgress('GIT_PULL_START', 20, isRollback ? `Đang khôi phục mã nguồn về commit [${targetLabel}]...` : `Đang kéo mã nguồn mới nhất từ Git (origin/${currentBranch})...`);
   
-  exec('git fetch origin main && git reset --hard origin/main && git clean -fd', async (pullErr, stdout, stderr) => {
+  const gitCommand = safeTarget 
+    ? `git fetch origin && git reset --hard ${safeTarget} && git clean -fd`
+    : `git fetch origin ${currentBranch} && git reset --hard origin/${currentBranch} && git clean -fd`;
+
+  exec(gitCommand, async (pullErr, stdout, stderr) => {
     if (pullErr) {
-      sendProgress('ERROR', 0, `Lỗi khi chạy cập nhật Git: ${pullErr.message}\n${stderr}`);
+      sendProgress('ERROR', 0, `Lỗi khi chạy lệnh Git: ${pullErr.message}\n${stderr}`);
       return res.end();
     }
 
-    sendProgress('GIT_PULL_SUCCESS', 45, `Tải code mới thành công:\n${stdout}`);
+    sendProgress('GIT_PULL_SUCCESS', 45, isRollback ? `Đã khôi phục mã nguồn về [${targetLabel}] thành công:\n${stdout}` : `Tải code mới thành công:\n${stdout}`);
 
     // Kiem tra package.json co thay doi hay khong
     let needsNpmInstall = false;

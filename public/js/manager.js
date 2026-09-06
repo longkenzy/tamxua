@@ -314,32 +314,23 @@ function initConnection() {
       });
       
       socket.on('print_kitchen_slip', (data) => {
-        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-        if (!isMobile) {
-          if (data.printedByServer) {
-            showToast(`✅ Đã tự động in ngầm ${data.title} tại ${data.printerId === 'kitchen_default' ? 'Bếp chính' : 'Quầy nước'} cho ${data.tableName}!`);
-          } else {
-            printDocxSlip(data.printerId, data.tableName, data.items, data.title, data.notes);
-          }
+        if (data.printedByServer) {
+          showToast(`✅ Đã tự động in ngầm ${data.title} tại ${data.printerId === 'kitchen_default' ? 'Bếp chính' : 'Quầy nước'} cho ${data.tableName}!`);
+        } else {
+          printDocxSlip(data.printerId, data.tableName, data.items, data.title, data.notes);
         }
       });
 
       socket.on('print_receipt', (data) => {
-        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-        if (!isMobile) {
-          if (data.printedByServer) {
-            showToast(`✅ Đã tự động in ngầm hóa đơn thanh toán cho ${data.tableObj.name} thành công!`);
-          } else {
-            printReceipt(data.tableObj, data.orderItems, data.discountAmount, data.receivedAmount, data.transactionId, data.timestamp, data.payMethod);
-          }
+        if (data.printedByServer) {
+          showToast(`✅ Đã tự động in ngầm hóa đơn thanh toán cho ${data.tableObj.name} thành công!`);
+        } else {
+          printReceipt(data.tableObj, data.orderItems, data.discountAmount, data.receivedAmount, data.transactionId, data.timestamp, data.payMethod);
         }
       });
 
       socket.on('print_test', (data) => {
-        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-        if (!isMobile) {
-          printTestIframe(data.printerType, data.targetStr);
-        }
+        printTestIframe(data.printerType, data.targetStr);
       });
       
       socket.on('connect_error', () => {
@@ -436,27 +427,24 @@ async function fetchDataPoll() {
     }
 
     // Print Queue Polling for Cashier / Desktop Client
-    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-    if (!isMobile) {
-      const printJobsRes = await fetch('/api/print-jobs/pending');
-      if (printJobsRes.ok) {
-        const data = await printJobsRes.json();
-        if (data.success && data.jobs && data.jobs.length > 0) {
-          for (const job of data.jobs) {
-            try {
-              const payload = JSON.parse(job.payload);
-              if (job.type === 'kitchen') {
-                await printDocxSlip(payload.printerId, payload.tableName, payload.items, payload.title, payload.notes);
-              } else if (job.type === 'receipt') {
-                await printReceipt(payload.tableObj, payload.orderItems, payload.discountAmount, payload.receivedAmount, payload.transactionId, payload.timestamp, payload.payMethod);
-              } else if (job.type === 'test') {
-                printTestIframe(payload.printerType, payload.targetStr);
-              }
-              // Mark job as completed
-              await fetch(`/api/print-jobs/${job.id}/complete`, { method: 'POST' });
-            } catch (err) {
-              console.error('Error processing print job:', err);
+    const printJobsRes = await fetch('/api/print-jobs/pending');
+    if (printJobsRes.ok) {
+      const data = await printJobsRes.json();
+      if (data.success && data.jobs && data.jobs.length > 0) {
+        for (const job of data.jobs) {
+          try {
+            const payload = JSON.parse(job.payload);
+            if (job.type === 'kitchen') {
+              await printDocxSlip(payload.printerId, payload.tableName, payload.items, payload.title, payload.notes);
+            } else if (job.type === 'receipt') {
+              await printReceipt(payload.tableObj, payload.orderItems, payload.discountAmount, payload.receivedAmount, payload.transactionId, payload.timestamp, payload.payMethod);
+            } else if (job.type === 'test') {
+              printTestIframe(payload.printerType, payload.targetStr);
             }
+            // Mark job as completed
+            await fetch(`/api/print-jobs/${job.id}/complete`, { method: 'POST' });
+          } catch (err) {
+            console.error('Error processing print job:', err);
           }
         }
       }
@@ -2828,7 +2816,7 @@ async function printDocxSlip(printerId, tableName, items, title = 'HOÁ ĐƠN B�
   }
 
   const type = localStorage.getItem(`printer_${printerId}_type`) || 'browser';
-  const sharedPath = localStorage.getItem(`printer_${printerId}_shared`) || '';
+  const sharedPath = localStorage.getItem(`printer_${printerId}_shared`) || localStorage.getItem(`printer_${printerId}_shared_path`) || '';
 
   let selectedTemplate = 'hoadonbep.docx';
   if (title && (title.toUpperCase().includes('THÊM') || title.toUpperCase().includes('THEM'))) {
@@ -3045,7 +3033,7 @@ async function printReceipt(tableObj, orderItems, discountAmount, receivedAmount
     }
 
     const type = localStorage.getItem('printer_receipt_default_type') || 'browser';
-    const sharedPath = localStorage.getItem('printer_receipt_default_shared') || '';
+    const sharedPath = localStorage.getItem('printer_receipt_default_shared') || localStorage.getItem('printer_receipt_default_shared_path') || '';
 
     if (type === 'system') {
       const subtotal = orderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
@@ -7059,72 +7047,157 @@ function renderMenuGroups() {
   
   if (menuGroups.length === 0) {
     container.innerHTML = `
-      <div style="grid-column: 1/-1; text-align: center; background: #ffffff; border: 1.5px dashed var(--hairline-strong); border-radius: var(--rounded-md); padding: 40px; color: var(--muted); font-size: 14px;">
+      <div style="text-align: center; background: var(--canvas, #ffffff); border: 1.5px dashed var(--hairline-strong); border-radius: var(--rounded-md); padding: 40px; color: var(--muted); font-size: 14px; width: 100%; box-sizing: border-box;">
         Chưa có thực đơn nào được tạo. Click "Tạo thực đơn mới" để bắt đầu!
       </div>
     `;
     return;
   }
   
-  menuGroups.forEach(group => {
-    const card = document.createElement('div');
-    card.className = 'overview-card-panel';
-    card.style.cssText = 'padding: 24px; display: flex; flex-direction: column; justify-content: space-between; min-height: 280px; background: #ffffff; border-radius: 12px; border: 1.5px solid var(--border-soft); box-shadow: 0 4px 12px rgba(0,0,0,0.02); transition: all 0.2s ease-in-out; cursor: default;';
+  menuGroups.forEach((group, index) => {
+    const row = document.createElement('div');
+    row.className = 'menu-group-row';
+    row.style.animationDelay = `${index * 0.05}s`;
     
-    // Smooth premium hover scaling and border highlights
-    card.addEventListener('mouseenter', () => {
-      card.style.transform = 'translateY(-4px)';
-      card.style.boxShadow = '0 10px 25px rgba(0,0,0,0.06)';
-      card.style.borderColor = 'var(--primary-disabled)';
-    });
-    card.addEventListener('mouseleave', () => {
-      card.style.transform = 'none';
-      card.style.boxShadow = '0 4px 12px rgba(0,0,0,0.02)';
-      card.style.borderColor = 'var(--border-soft)';
-    });
-
     let itemsListHtml = '';
     if (group.items && group.items.length > 0) {
       itemsListHtml = group.items.map(item => `
-        <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 12px; background-color: var(--canvas-soft); border: 1px solid var(--hairline); border-radius: var(--rounded-sm); transition: background-color 0.15s;">
-          <div style="display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0;">
-            <img src="${item.image_url || 'images/logo.png'}" style="width: 24px; height: 24px; object-fit: cover; border-radius: 4px; border: 1px solid var(--hairline); flex-shrink: 0;" onerror="this.src='images/logo.png'">
-            <span style="font-size: 13px; font-weight: 600; color: var(--ink); word-break: break-word; white-space: normal; line-height: 1.3;">${item.name}</span>
-          </div>
-          <span style="font-size: 12px; font-weight: 700; color: var(--primary); flex-shrink: 0; background-color: rgba(2, 74, 216, 0.05); padding: 2px 6px; border-radius: 4px;">${formatVND(item.price)}</span>
+        <div class="menu-group-item-pill" title="${item.name} - ${formatVND(item.price)}">
+          <img class="menu-group-item-img" src="${item.image_url || 'images/logo.png'}" onerror="this.src='images/logo.png'">
+          <span class="menu-group-item-name">${item.name}</span>
+          <span class="menu-group-item-price">${formatVND(item.price)}</span>
         </div>
       `).join('');
     } else {
-      itemsListHtml = `<div style="font-size: 12px; color: var(--muted); font-style: italic; text-align: center; padding: 20px 0;">Chưa có món ăn nào trong thực đơn này.</div>`;
+      itemsListHtml = `<div style="font-size: 12.5px; color: var(--muted); font-style: italic; padding-left: 10px;">Chưa có món ăn nào trong thực đơn này.</div>`;
     }
     
-    card.innerHTML = `
-      <div>
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 1.5px dashed var(--hairline-soft); padding-bottom: 12px;">
-          <div style="display: flex; align-items: center; gap: 8px;">
-            <span style="font-size: 20px; line-height: 1;">📂</span>
-            <h3 style="font-size: 16px; font-weight: 700; color: var(--ink); margin: 0; letter-spacing: -0.3px;">${group.name}</h3>
-          </div>
-          <span style="font-size: 11px; font-weight: 700; color: var(--primary); background-color: rgba(2, 74, 216, 0.08); padding: 4px 10px; border-radius: var(--rounded-full); text-transform: uppercase; letter-spacing: 0.5px;">${group.items ? group.items.length : 0} món</span>
+    row.innerHTML = `
+      <!-- Order Controls Section -->
+      <div class="menu-group-order-controls">
+        <button class="btn-order-arrow" onclick="moveGroup(${group.id}, 'up')" ${index === 0 ? 'disabled' : ''} title="Di chuyển lên">▲</button>
+        <button class="btn-order-arrow" onclick="moveGroup(${group.id}, 'down')" ${index === menuGroups.length - 1 ? 'disabled' : ''} title="Di chuyển xuống">▼</button>
+      </div>
+
+      <!-- Folder Info Section -->
+      <div class="menu-group-info">
+        <div class="menu-group-title-wrapper">
+          <div class="menu-group-folder-icon">📂</div>
+          <h3 class="menu-group-name">${group.name}</h3>
         </div>
-        
-        <div style="display: flex; flex-direction: column; gap: 8px; max-height: 190px; overflow-y: auto; padding-right: 4px;">
-          ${itemsListHtml}
-        </div>
+        <span class="menu-group-badge">${group.items ? group.items.length : 0} món</span>
       </div>
       
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 16px; border-top: 1.5px solid var(--hairline-soft); padding-top: 12px; gap: 8px;">
-        <button class="btn btn-secondary btn-pill" onclick="editMenuGroup(${group.id})" style="border-color: var(--border-strong); color: var(--ink-soft); height: 32px; font-size: 12px; padding: 0 12px; font-weight: 600; background: transparent; display: flex; align-items: center; gap: 4px; transition: all 0.2s;">
-          <svg style="width: 13px; height: 13px;" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4z"></path></svg>
-          Sửa thực đơn
+      <!-- Horizontal Scrollable Items Section -->
+      <div class="menu-group-items-row">
+        ${itemsListHtml}
+      </div>
+      
+      <!-- Actions Section -->
+      <div class="menu-group-actions">
+        <button class="btn-action-edit" onclick="editMenuGroup(${group.id})" title="Sửa thực đơn">
+          <svg style="width: 14px; height: 14px;" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+            <path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4z"></path>
+          </svg>
+          Sửa
         </button>
-        <button class="btn btn-secondary btn-pill" onclick="deleteMenuGroup(${group.id})" style="border-color: #fca5a5; color: #ef4444; height: 32px; font-size: 12px; padding: 0 12px; font-weight: 600; background: transparent; display: flex; align-items: center; gap: 4px; transition: all 0.2s;">
-          <svg style="width: 13px; height: 13px;" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
-          Xóa thực đơn
+        <button class="btn-action-delete" onclick="deleteMenuGroup(${group.id})" title="Xóa thực đơn">
+          <svg style="width: 14px; height: 14px;" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+            <polyline points="3 6 5 6 21 6"></polyline>
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+            <line x1="10" y1="11" x2="10" y2="17"></line>
+            <line x1="14" y1="11" x2="14" y2="17"></line>
+          </svg>
+          Xóa
         </button>
       </div>
     `;
-    container.appendChild(card);
+    container.appendChild(row);
+  });
+}
+
+async function moveGroup(id, direction) {
+  const index = menuGroups.findIndex(g => g.id === id);
+  if (index === -1) return;
+  
+  if (direction === 'up' && index > 0) {
+    const temp = menuGroups[index];
+    menuGroups[index] = menuGroups[index - 1];
+    menuGroups[index - 1] = temp;
+  } else if (direction === 'down' && index < menuGroups.length - 1) {
+    const temp = menuGroups[index];
+    menuGroups[index] = menuGroups[index + 1];
+    menuGroups[index + 1] = temp;
+  } else {
+    return;
+  }
+  
+  // Render instantly for optimistic feedback
+  renderMenuGroups();
+  
+  try {
+    const ids = menuGroups.map(g => g.id);
+    const res = await fetch('/api/menu-groups/reorder', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids })
+    });
+    
+    if (!res.ok) {
+      console.error('Lỗi lưu thứ tự thực đơn');
+      loadMenuGroups();
+    }
+  } catch (error) {
+    console.error('Lỗi kết nối khi lưu thứ tự:', error);
+    loadMenuGroups();
+  }
+}
+window.moveGroup = moveGroup;
+
+function updateSelectedItemsDisplay() {
+  const selectValue = document.getElementById('menu-group-select-value');
+  if (!selectValue) return;
+  selectValue.innerHTML = '';
+  
+  if (selectedGroupItemIds.size === 0) {
+    selectValue.innerHTML = `<span style="color: var(--muted); font-style: italic; font-size: 13.5px;">Chưa chọn mặt hàng nào.</span>`;
+    return;
+  }
+  
+  const selectedItems = menuItems.filter(m => selectedGroupItemIds.has(m.id));
+  
+  selectedItems.forEach(item => {
+    const chip = document.createElement('div');
+    chip.className = 'selected-item-chip';
+    chip.innerHTML = `
+      <img src="${item.image_url || 'images/logo.png'}" onerror="this.src='images/logo.png'">
+      <span class="chip-name" title="${item.name}">${item.name}</span>
+      <button type="button" class="btn-remove-chip" data-id="${item.id}">&times;</button>
+    `;
+    
+    chip.querySelector('.btn-remove-chip').addEventListener('click', (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      selectedGroupItemIds.delete(item.id);
+      
+      // Sync checkbox in checklist
+      const checklist = document.getElementById('menu-group-items-checklist');
+      if (checklist) {
+        const checkbox = checklist.querySelector(`input[value="${item.id}"]`);
+        if (checkbox) {
+          checkbox.checked = false;
+          const card = checkbox.closest('.checklist-item-card');
+          if (card) {
+            card.classList.remove('selected');
+          }
+        }
+      }
+      
+      updateSelectedItemsDisplay();
+    });
+    
+    selectValue.appendChild(chip);
   });
 }
 
@@ -7147,42 +7220,54 @@ function renderItemsChecklist() {
   
   filtered.forEach(item => {
     const label = document.createElement('label');
+    label.className = 'checklist-item-card';
+    if (selectedGroupItemIds.has(item.id)) {
+      label.classList.add('selected');
+    }
     
     const checkbox = document.createElement('input');
     checkbox.type = 'checkbox';
     checkbox.value = item.id;
     checkbox.name = 'group-items';
     checkbox.checked = selectedGroupItemIds.has(item.id);
+    checkbox.style.display = 'none';
     
     checkbox.addEventListener('change', () => {
       if (checkbox.checked) {
         selectedGroupItemIds.add(item.id);
+        label.classList.add('selected');
       } else {
         selectedGroupItemIds.delete(item.id);
+        label.classList.remove('selected');
       }
-      
-      // Update select value text
-      const selectValue = document.getElementById('menu-group-select-value');
-      if (selectValue) {
-        if (selectedGroupItemIds.size === 0) {
-          selectValue.textContent = 'Chọn mặt hàng...';
-          selectValue.style.color = 'var(--muted)';
-        } else {
-          const selectedNames = menuItems
-            .filter(m => selectedGroupItemIds.has(m.id))
-            .map(m => `• ${m.name}`);
-          selectValue.textContent = selectedNames.join('\n');
-          selectValue.style.color = 'var(--ink)';
-        }
-      }
+      updateSelectedItemsDisplay();
     });
     
-    const span = document.createElement('span');
-    span.style.color = 'var(--ink)';
-    span.textContent = item.name;
+    const img = document.createElement('img');
+    img.src = item.image_url || 'images/logo.png';
+    img.onerror = () => { img.src = 'images/logo.png'; };
+    
+    const info = document.createElement('div');
+    info.className = 'checklist-item-info';
+    
+    const nameSpan = document.createElement('span');
+    nameSpan.className = 'checklist-item-name';
+    nameSpan.textContent = item.name;
+    
+    const priceSpan = document.createElement('span');
+    priceSpan.className = 'checklist-item-price';
+    priceSpan.textContent = formatVND(item.price);
+    
+    info.appendChild(nameSpan);
+    info.appendChild(priceSpan);
+    
+    const customCheckbox = document.createElement('div');
+    customCheckbox.className = 'custom-checkbox-indicator';
     
     label.appendChild(checkbox);
-    label.appendChild(span);
+    label.appendChild(img);
+    label.appendChild(info);
+    label.appendChild(customCheckbox);
     
     container.appendChild(label);
   });
@@ -7263,10 +7348,7 @@ function initMenuGroupControls() {
       // Reset search-select dropdown state
       selectedGroupItemIds.clear();
       if (searchInput) searchInput.value = '';
-      if (selectValue) {
-        selectValue.textContent = 'Chọn mặt hàng...';
-        selectValue.style.color = 'var(--muted)';
-      }
+      updateSelectedItemsDisplay();
       if (selectWrapper) selectWrapper.classList.remove('open');
       
       renderItemsChecklist();
@@ -7371,19 +7453,7 @@ function editMenuGroup(id) {
     });
   }
   
-  const selectValue = document.getElementById('menu-group-select-value');
-  if (selectValue) {
-    if (selectedGroupItemIds.size === 0) {
-      selectValue.textContent = 'Chọn mặt hàng...';
-      selectValue.style.color = 'var(--muted)';
-    } else {
-      const selectedNames = menuItems
-        .filter(m => selectedGroupItemIds.has(m.id))
-        .map(m => `• ${m.name}`);
-      selectValue.textContent = selectedNames.join('\n');
-      selectValue.style.color = 'var(--ink)';
-    }
-  }
+  updateSelectedItemsDisplay();
   
   const searchInput = document.getElementById('menu-group-search-input');
   if (searchInput) searchInput.value = '';
@@ -10650,6 +10720,7 @@ document.addEventListener('click', (e) => {
 init();
 
 // --- SYSTEM UPDATE LOGIC ---
+// --- SYSTEM UPDATE & VERSION ROLLBACK LOGIC ---
 async function checkSystemUpdate(showModal = false) {
   const btnCheckUpdate = document.getElementById('btn-check-update');
   const systemUpdateModal = document.getElementById('system-update-modal');
@@ -10659,17 +10730,20 @@ async function checkSystemUpdate(showModal = false) {
   const btnCloseUpdateModal = document.getElementById('btn-close-update-modal');
   const updateCommitsContainer = document.getElementById('update-commits-container');
   const updateCommitsList = document.getElementById('update-commits-list');
+  const updateHistoryContainer = document.getElementById('update-history-container');
+  const updateHistoryList = document.getElementById('update-history-list');
   const updateProgressWrapper = document.getElementById('update-progress-wrapper');
   const updateProgressBar = document.getElementById('update-progress-bar');
   const updateLogConsole = document.getElementById('update-log-console');
 
   if (showModal) {
     if (systemUpdateModal) systemUpdateModal.style.display = 'flex';
-    if (updateStatusText) updateStatusText.textContent = 'Đang kiểm tra bản cập nhật trên Git...';
+    if (updateStatusText) updateStatusText.textContent = 'Đang kiểm tra phiên bản trên Git...';
     if (btnStartUpdate) btnStartUpdate.style.display = 'none';
     if (btnCancelUpdate) btnCancelUpdate.style.display = 'inline-block';
     if (btnCloseUpdateModal) btnCloseUpdateModal.style.display = 'inline-block';
     if (updateCommitsContainer) updateCommitsContainer.style.display = 'none';
+    if (updateHistoryContainer) updateHistoryContainer.style.display = 'none';
     if (updateProgressWrapper) updateProgressWrapper.style.display = 'none';
     if (updateLogConsole) updateLogConsole.style.display = 'none';
   }
@@ -10685,25 +10759,33 @@ async function checkSystemUpdate(showModal = false) {
       return;
     }
 
+    const shortCommit = data.localCommit ? data.localCommit.substring(0, 7) : '';
+
     if (data.hasUpdate) {
       if (showModal) {
-        if (updateStatusText) updateStatusText.innerHTML = `📢 <strong>Phát hiện bản cập nhật mới!</strong><br><span style="font-size: 13px; color: #475569;">Nhánh hiện tại: <code>${data.branch}</code></span>`;
-        if (updateCommitsList) {
+        if (updateStatusText) {
+          updateStatusText.innerHTML = `📢 <strong>Phát hiện bản cập nhật mới trên nhánh <code>${data.branch}</code>!</strong><br><span style="font-size: 13px; color: #475569;">Phiên bản hiện tại của bạn: <code>${shortCommit}</code></span>`;
+        }
+        if (updateCommitsList && data.commits) {
           updateCommitsList.innerHTML = '';
           data.commits.forEach(commit => {
             const item = document.createElement('div');
             item.style.padding = '6px 10px';
-            item.style.backgroundColor = '#f1f5f9';
+            item.style.backgroundColor = '#ffffff';
             item.style.borderRadius = '6px';
             item.style.fontFamily = 'monospace';
             item.style.fontSize = '12px';
-            item.style.borderLeft = '3px solid #0066cc';
+            item.style.borderLeft = '3px solid #0284c7';
+            item.style.boxShadow = '0 1px 2px rgba(0,0,0,0.05)';
             item.textContent = commit;
             updateCommitsList.appendChild(item);
           });
         }
         if (updateCommitsContainer) updateCommitsContainer.style.display = 'flex';
-        if (btnStartUpdate) btnStartUpdate.style.display = 'inline-block';
+        if (btnStartUpdate) {
+          btnStartUpdate.style.display = 'inline-block';
+          btnStartUpdate.onclick = () => applySystemUpdate();
+        }
       }
       
       // Update topbar button styling
@@ -10716,7 +10798,7 @@ async function checkSystemUpdate(showModal = false) {
       }
     } else {
       if (showModal && updateStatusText) {
-        updateStatusText.innerHTML = `✨ <strong>Hệ thống đã là phiên bản mới nhất!</strong><br><span style="font-size: 13px; color: #475569;">Nhánh hiện tại: <code>${data.branch}</code></span>`;
+        updateStatusText.innerHTML = `✨ <strong>Hệ thống đang chạy phiên bản mới nhất!</strong><br><span style="font-size: 13px; color: #475569;">Nhánh: <code>${data.branch}</code> • Mã commit: <code>${shortCommit}</code></span>`;
       }
       if (btnStartUpdate) btnStartUpdate.style.display = 'none';
       if (btnCheckUpdate) {
@@ -10727,6 +10809,132 @@ async function checkSystemUpdate(showModal = false) {
         btnCheckUpdate.classList.remove('has-update');
       }
     }
+
+    // Render danh sách lịch sử commit (Rollback)
+    if (showModal && data.history && data.history.length > 0 && updateHistoryList) {
+      updateHistoryList.innerHTML = '';
+      data.history.forEach(item => {
+        const row = document.createElement('div');
+        row.style.display = 'flex';
+        row.style.alignItems = 'center';
+        row.style.justifyContent = 'space-between';
+        row.style.padding = '10px 14px';
+        row.style.backgroundColor = item.isCurrent ? '#f0fdf4' : '#ffffff';
+        row.style.border = item.isCurrent ? '1.5px solid #22c55e' : '1px solid #e2e8f0';
+        row.style.borderRadius = '8px';
+        row.style.gap = '12px';
+        row.style.transition = 'all 0.15s ease';
+
+        // Left: hash, subject, time
+        const leftCol = document.createElement('div');
+        leftCol.style.display = 'flex';
+        leftCol.style.flexDirection = 'column';
+        leftCol.style.gap = '3px';
+        leftCol.style.flex = '1';
+        leftCol.style.minWidth = '0';
+
+        const topRow = document.createElement('div');
+        topRow.style.display = 'flex';
+        topRow.style.alignItems = 'center';
+        topRow.style.gap = '8px';
+
+        const hashBadge = document.createElement('span');
+        hashBadge.textContent = item.hash;
+        hashBadge.style.fontFamily = 'monospace';
+        hashBadge.style.fontSize = '11px';
+        hashBadge.style.fontWeight = '700';
+        hashBadge.style.padding = '2px 6px';
+        hashBadge.style.borderRadius = '4px';
+        hashBadge.style.backgroundColor = item.isCurrent ? '#dcfce7' : '#f1f5f9';
+        hashBadge.style.color = item.isCurrent ? '#15803d' : '#475569';
+        hashBadge.style.flexShrink = '0';
+
+        const subjectEl = document.createElement('span');
+        subjectEl.textContent = item.subject;
+        subjectEl.style.fontSize = '13px';
+        subjectEl.style.fontWeight = '600';
+        subjectEl.style.color = '#1e293b';
+        subjectEl.style.whiteSpace = 'nowrap';
+        subjectEl.style.overflow = 'hidden';
+        subjectEl.style.textOverflow = 'ellipsis';
+        subjectEl.title = item.subject;
+
+        topRow.appendChild(hashBadge);
+        topRow.appendChild(subjectEl);
+
+        const dateEl = document.createElement('span');
+        let dateDisplay = item.date;
+        try {
+          const d = new Date(item.date);
+          if (!isNaN(d.getTime())) {
+            dateDisplay = d.toLocaleDateString('vi-VN') + ' ' + d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+          }
+        } catch (e) {}
+        dateEl.textContent = `${dateDisplay} (${item.relativeDate})`;
+        dateEl.style.fontSize = '11px';
+        dateEl.style.color = '#94a3b8';
+
+        leftCol.appendChild(topRow);
+        leftCol.appendChild(dateEl);
+
+        // Right: Current badge or Rollback button
+        const rightCol = document.createElement('div');
+        rightCol.style.flexShrink = '0';
+
+        if (item.isCurrent) {
+          const currentBadge = document.createElement('span');
+          currentBadge.innerHTML = '✓ Bản hiện tại';
+          currentBadge.style.fontSize = '11.5px';
+          currentBadge.style.fontWeight = '700';
+          currentBadge.style.color = '#15803d';
+          currentBadge.style.backgroundColor = '#dcfce7';
+          currentBadge.style.padding = '4px 10px';
+          currentBadge.style.borderRadius = '6px';
+          currentBadge.style.display = 'inline-flex';
+          currentBadge.style.alignItems = 'center';
+          rightCol.appendChild(currentBadge);
+        } else {
+          const btnRollback = document.createElement('button');
+          btnRollback.innerHTML = '↩️ Quay lại';
+          btnRollback.title = `Quay về phiên bản [${item.hash}]`;
+          btnRollback.style.fontSize = '12px';
+          btnRollback.style.fontWeight = '600';
+          btnRollback.style.padding = '5px 12px';
+          btnRollback.style.borderRadius = '6px';
+          btnRollback.style.border = '1px solid #cbd5e1';
+          btnRollback.style.backgroundColor = '#ffffff';
+          btnRollback.style.color = '#334155';
+          btnRollback.style.cursor = 'pointer';
+          btnRollback.style.transition = 'all 0.15s ease';
+
+          btnRollback.onmouseover = () => {
+            btnRollback.style.backgroundColor = '#f8fafc';
+            btnRollback.style.borderColor = '#0284c7';
+            btnRollback.style.color = '#0284c7';
+          };
+          btnRollback.onmouseout = () => {
+            btnRollback.style.backgroundColor = '#ffffff';
+            btnRollback.style.borderColor = '#cbd5e1';
+            btnRollback.style.color = '#334155';
+          };
+
+          btnRollback.onclick = () => {
+            const confirmed = confirm(`Bạn có chắc chắn muốn quay về phiên bản cũ:\n\n[${item.hash}] ${item.subject}\n(${dateDisplay})\n\nHệ thống sẽ khôi phục mã nguồn và tự động khởi động lại.`);
+            if (confirmed) {
+              applySystemUpdate(item.fullHash, item.hash);
+            }
+          };
+          rightCol.appendChild(btnRollback);
+        }
+
+        row.appendChild(leftCol);
+        row.appendChild(rightCol);
+        updateHistoryList.appendChild(row);
+      });
+
+      if (updateHistoryContainer) updateHistoryContainer.style.display = 'flex';
+    }
+
   } catch (err) {
     console.error('Lỗi kiểm tra cập nhật:', err);
     if (showModal && updateStatusText) {
@@ -10735,7 +10943,7 @@ async function checkSystemUpdate(showModal = false) {
   }
 }
 
-function applySystemUpdate() {
+function applySystemUpdate(targetCommit = null, targetLabel = '') {
   const systemUpdateModal = document.getElementById('system-update-modal');
   const updateStatusText = document.getElementById('update-status-text');
   const btnStartUpdate = document.getElementById('btn-start-update');
@@ -10745,12 +10953,14 @@ function applySystemUpdate() {
   const updateProgressBar = document.getElementById('update-progress-bar');
   const updateLogConsole = document.getElementById('update-log-console');
   const updateCommitsContainer = document.getElementById('update-commits-container');
+  const updateHistoryContainer = document.getElementById('update-history-container');
 
   // Khóa đóng modal
   if (btnCancelUpdate) btnCancelUpdate.style.display = 'none';
   if (btnCloseUpdateModal) btnCloseUpdateModal.style.display = 'none';
   if (btnStartUpdate) btnStartUpdate.style.display = 'none';
   if (updateCommitsContainer) updateCommitsContainer.style.display = 'none';
+  if (updateHistoryContainer) updateHistoryContainer.style.display = 'none';
 
   // Hiện loader và log console
   if (updateProgressWrapper) updateProgressWrapper.style.display = 'block';
@@ -10759,10 +10969,19 @@ function applySystemUpdate() {
     updateLogConsole.style.display = 'block';
     updateLogConsole.textContent = '';
   }
-  if (updateStatusText) updateStatusText.textContent = 'Đang tiến hành cập nhật hệ thống...';
+  
+  const isRollback = !!targetCommit;
+  if (updateStatusText) {
+    updateStatusText.textContent = isRollback 
+      ? `Đang tiến hành quay về phiên bản [${targetLabel || targetCommit.substring(0, 7)}]...`
+      : 'Đang tiến hành cập nhật hệ thống lên bản mới nhất...';
+  }
 
   // Sử dụng SSE để lắng nghe logs
-  const eventSource = new EventSource('/api/system/apply-update');
+  const url = targetCommit 
+    ? `/api/system/apply-update?targetCommit=${encodeURIComponent(targetCommit)}`
+    : '/api/system/apply-update';
+  const eventSource = new EventSource(url);
 
   eventSource.onmessage = (event) => {
     try {
@@ -10786,7 +11005,7 @@ function applySystemUpdate() {
 
       if (data.step === 'ERROR') {
         eventSource.close();
-        if (updateStatusText) updateStatusText.innerHTML = `<span style="color: #ef4444;">❌ Cập nhật thất bại. Vui lòng kiểm tra log bên dưới.</span>`;
+        if (updateStatusText) updateStatusText.innerHTML = `<span style="color: #ef4444;">❌ Thao tác thất bại. Vui lòng kiểm tra log bên dưới.</span>`;
         if (btnCancelUpdate) btnCancelUpdate.style.display = 'inline-block';
         if (btnCloseUpdateModal) btnCloseUpdateModal.style.display = 'inline-block';
       }
@@ -10794,10 +11013,10 @@ function applySystemUpdate() {
       if (data.step === 'DONE') {
         eventSource.close();
         
-        let countdown = 5;
+        let countdown = 4;
         const interval = setInterval(() => {
           if (updateStatusText) {
-            updateStatusText.innerHTML = `<span style="color: #10b981;">🎉 Cập nhật thành công! Trình duyệt sẽ tự tải lại trang sau ${countdown} giây...</span>`;
+            updateStatusText.innerHTML = `<span style="color: #10b981;">🎉 ${isRollback ? 'Khôi phục phiên bản' : 'Cập nhật'} thành công! Trình duyệt sẽ tự tải lại trang sau ${countdown} giây...</span>`;
           }
           countdown--;
           if (countdown < 0) {
@@ -10816,7 +11035,7 @@ function applySystemUpdate() {
     eventSource.close();
     
     // Khi server restart, luồng SSE sẽ bị ngắt đột ngột. Điều này là bình thường nếu đang ở bước Restarting.
-    if (updateProgressBar && parseInt(updateProgressBar.style.width) >= 90) {
+    if (updateProgressBar && parseInt(updateProgressBar.style.width) >= 80) {
       if (updateLogConsole) updateLogConsole.textContent += `[HỆ THỐNG] Đang kết nối lại tới Server vừa khởi động...\n`;
       if (updateStatusText) updateStatusText.textContent = 'Đang khởi động lại Server, vui lòng đợi...';
       
@@ -10835,7 +11054,7 @@ function applySystemUpdate() {
         }, 1500);
       }, 2000);
     } else {
-      if (updateStatusText) updateStatusText.innerHTML = `<span style="color: #ef4444;">❌ Mất kết nối đột ngột với Server trong quá trình cập nhật.</span>`;
+      if (updateStatusText) updateStatusText.innerHTML = `<span style="color: #ef4444;">❌ Mất kết nối đột ngột với Server trong quá trình xử lý.</span>`;
       if (btnCancelUpdate) btnCancelUpdate.style.display = 'inline-block';
       if (btnCloseUpdateModal) btnCloseUpdateModal.style.display = 'inline-block';
     }
@@ -10846,7 +11065,6 @@ function setupSystemUpdateListeners() {
   const btnCheckUpdate = document.getElementById('btn-check-update');
   const btnCloseUpdateModal = document.getElementById('btn-close-update-modal');
   const btnCancelUpdate = document.getElementById('btn-cancel-update');
-  const btnStartUpdate = document.getElementById('btn-start-update');
   const systemUpdateModal = document.getElementById('system-update-modal');
 
   if (btnCheckUpdate) {
@@ -10861,10 +11079,6 @@ function setupSystemUpdateListeners() {
 
   if (btnCloseUpdateModal) btnCloseUpdateModal.addEventListener('click', closeModal);
   if (btnCancelUpdate) btnCancelUpdate.addEventListener('click', closeModal);
-
-  if (btnStartUpdate) {
-    btnStartUpdate.addEventListener('click', applySystemUpdate);
-  }
 }
 
 // Chạy khởi tạo lắng nghe cập nhật
