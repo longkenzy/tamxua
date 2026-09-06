@@ -126,18 +126,31 @@ function loadSocketScript(callback) {
   document.head.appendChild(script);
 }
 
+let pollInterval = null;
+
 // Initialize WebSockets or HTTP Polling Fallback
 function initConnection() {
   if (typeof io !== 'undefined') {
     try {
       socket = io({
-        reconnectionAttempts: 2,
-        timeout: 3000
+        reconnection: true,
+        reconnectionAttempts: Infinity,
+        reconnectionDelay: 1000,
+        reconnectionDelayMax: 5000,
+        timeout: 10000,
+        transports: ['websocket', 'polling']
       });
       
       socket.on('connect', () => {
         connectionDot.className = 'status-dot';
         console.log('⚡ Connected via WebSockets.');
+        if (isPollingMode) {
+          isPollingMode = false;
+          if (pollInterval) {
+            clearInterval(pollInterval);
+            pollInterval = null;
+          }
+        }
       });
       
       socket.on('disconnect', () => {
@@ -213,7 +226,7 @@ function initConnection() {
       });
       
       socket.on('connect_error', () => {
-        console.warn('WebSocket connection failed. Switching to Polling.');
+        console.warn('WebSocket connection attempt failed. Polling backup active.');
         activatePolling();
       });
     } catch (e) {
@@ -231,16 +244,43 @@ function activatePolling() {
   isPollingMode = true;
   connectionDot.className = 'status-dot offline';
   
-  if (socket) {
-    socket.disconnect();
-  }
+  // Không ngắt socket để Socket.IO tự động thử kết nối lại khi có mạng
   
   // Initial fetch
   fetchDataPoll();
   
   // Periodic poll every 4 seconds
-  setInterval(fetchDataPoll, 4000);
+  if (!pollInterval) {
+    pollInterval = setInterval(fetchDataPoll, 4000);
+  }
 }
+
+// Tự động kết nối lại Socket và làm mới dữ liệu khi mở lại màn hình điện thoại hoặc có mạng
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') {
+    if (socket && !socket.connected) {
+      console.log('📱 Khôi phục màn hình / quay lại ứng dụng: Đang kết nối lại Socket...');
+      socket.connect();
+    }
+    // Cập nhật lại danh sách bàn mới nhất từ máy chủ
+    fetch('/api/tables').then(res => res.ok ? res.json() : null).then(newTables => {
+      if (newTables) {
+        tables = newTables;
+        if (menuOrderingView && menuOrderingView.style.display === 'none') {
+          if (activeTab === 'orders') renderOrders();
+          else if (activeTab === 'tables') renderTables();
+          else if (activeTab === 'checkout') renderCheckoutOrders();
+        }
+      }
+    }).catch(() => {});
+  }
+});
+
+window.addEventListener('online', () => {
+  if (socket && !socket.connected) {
+    socket.connect();
+  }
+});
 
 async function fetchDataPoll() {
   try {
@@ -1452,20 +1492,59 @@ function removeAccents(str) {
 // Helper to calculate difference between old order and new cart
 function getOrderDifference(oldOrder, newCart) {
   const diffItems = [];
-  
-  newCart.forEach(newItem => {
-    const oldItem = (oldOrder || []).find(o => o.name === newItem.name);
-    const oldQty = oldItem ? oldItem.quantity : 0;
-    const diffQty = newItem.quantity - oldQty;
-    
-    if (diffQty > 0) {
+  const remainingOldItems = (oldOrder || []).map(o => ({
+    ...o,
+    quantity: parseInt(o.quantity || 0)
+  }));
+
+  const areOptionsEqual = (opt1, opt2) => {
+    const arr1 = Array.isArray(opt1) ? opt1 : [];
+    const arr2 = Array.isArray(opt2) ? opt2 : [];
+    if (arr1.length !== arr2.length) return false;
+    const str1 = arr1.map(x => x.id || x.name).sort().join('|');
+    const str2 = arr2.map(x => x.id || x.name).sort().join('|');
+    return str1 === str2;
+  };
+
+  (newCart || []).forEach(newItem => {
+    const itemQty = parseInt(newItem.quantity || 0);
+    if (itemQty <= 0) return;
+
+    // 1. Tìm món khớp chính xác: Cùng ID/Name, cùng options, cùng ghi chú
+    let matchedOld = remainingOldItems.find(o =>
+      (o.id === newItem.id || o.name === newItem.name) &&
+      (o.notes || '').trim() === (newItem.notes || '').trim() &&
+      areOptionsEqual(o.options, newItem.options) &&
+      o.quantity > 0
+    );
+
+    // 2. Nếu không có dòng khớp ghi chú/options, tìm theo ID hoặc Name có số lượng còn lại
+    if (!matchedOld) {
+      matchedOld = remainingOldItems.find(o =>
+        (o.id === newItem.id || o.name === newItem.name) &&
+        o.quantity > 0
+      );
+    }
+
+    if (matchedOld) {
+      const deductQty = Math.min(matchedOld.quantity, itemQty);
+      matchedOld.quantity -= deductQty;
+      const diffQty = itemQty - deductQty;
+      if (diffQty > 0) {
+        diffItems.push({
+          ...newItem,
+          quantity: diffQty
+        });
+      }
+    } else {
+      // Món mới hoàn toàn
       diffItems.push({
         ...newItem,
-        quantity: diffQty
+        quantity: itemQty
       });
     }
   });
-  
+
   return diffItems;
 }
 
@@ -1591,7 +1670,7 @@ async function printDocxSlip(printerId, tableName, items, title = 'HOÁ ĐƠN B�
       showSuccessToast(`📤 Đã gửi lệnh in ${title} cho ${tableName} tới máy chủ.`);
     }
   } else {
-    // Fallback: Enqueue print job in the database for polling cashier to print
+    // Fallback: Gửi thẳng tới /api/print-jobs (Server sẽ in ngay lập tức trên máy chủ)
     try {
       const response = await fetch('/api/print-jobs', {
         method: 'POST',
@@ -1603,15 +1682,16 @@ async function printDocxSlip(printerId, tableName, items, title = 'HOÁ ĐƠN B�
         })
       });
       if (response.ok) {
+        const resData = await response.json();
         if (typeof showSuccessToast === 'function') {
-          showSuccessToast(`📤 Đã gửi lệnh in ${title} cho ${tableName} tới hàng đợi in.`);
+          showSuccessToast(`📤 ${resData.message || `Đã gửi lệnh in ${title} cho ${tableName} tới máy chủ.`}`);
         }
       } else {
         throw new Error('Server error');
       }
     } catch (err) {
       console.error('Failed to queue print job:', err);
-      alert('Không thể chuyển lệnh in (Socket offline và hàng đợi in lỗi).');
+      alert('Không thể chuyển lệnh in (Máy chủ không phản hồi).');
     }
   }
 }
@@ -1646,7 +1726,7 @@ async function printReceipt(tableObj, orderItems, discountAmount, receivedAmount
       showSuccessToast(`📤 Đã gửi yêu cầu in hóa đơn ${tableObj.name} tới quầy thu ngân.`);
     }
   } else {
-    // Fallback: Enqueue print job in the database
+    // Fallback: Gửi thẳng tới /api/print-jobs (Server sẽ in ngay lập tức trên máy chủ)
     try {
       const response = await fetch('/api/print-jobs', {
         method: 'POST',
@@ -1658,15 +1738,16 @@ async function printReceipt(tableObj, orderItems, discountAmount, receivedAmount
         })
       });
       if (response.ok) {
+        const resData = await response.json();
         if (typeof showSuccessToast === 'function') {
-          showSuccessToast(`📤 Đã gửi yêu cầu in hóa đơn ${tableObj.name} tới hàng đợi in.`);
+          showSuccessToast(`📤 ${resData.message || `Đã gửi yêu cầu in hóa đơn ${tableObj.name} tới quầy thu ngân.`}`);
         }
       } else {
         throw new Error('Server error');
       }
     } catch (err) {
       console.error('Failed to queue print job:', err);
-      alert('Không thể chuyển lệnh in (Socket offline và hàng đợi in lỗi).');
+      alert('Không thể chuyển lệnh in hóa đơn (Máy chủ không phản hồi).');
     }
   }
 }

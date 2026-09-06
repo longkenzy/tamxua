@@ -255,18 +255,31 @@ function loadSocketScript(callback) {
   document.head.appendChild(script);
 }
 
+let pollInterval = null;
+
 // Initialize WebSockets or HTTP Polling Fallback
 function initConnection() {
   if (typeof io !== 'undefined') {
     try {
       socket = io({
-        reconnectionAttempts: 2,
-        timeout: 3000
+        reconnection: true,
+        reconnectionAttempts: Infinity,
+        reconnectionDelay: 1000,
+        reconnectionDelayMax: 5000,
+        timeout: 10000,
+        transports: ['websocket', 'polling']
       });
       
       socket.on('connect', () => {
         connectionDot.className = 'status-dot';
         console.log('⚡ Connected via WebSockets.');
+        if (isPollingMode) {
+          isPollingMode = false;
+          if (pollInterval) {
+            clearInterval(pollInterval);
+            pollInterval = null;
+          }
+        }
       });
       
       socket.on('disconnect', () => {
@@ -329,7 +342,7 @@ function initConnection() {
       });
       
       socket.on('connect_error', () => {
-        console.warn('WebSocket connection failed. Switching to Polling.');
+        console.warn('WebSocket connection attempt failed. Polling backup active.');
         activatePolling();
       });
     } catch (e) {
@@ -347,16 +360,36 @@ function activatePolling() {
   isPollingMode = true;
   connectionDot.className = 'status-dot offline';
   
-  if (socket) {
-    socket.disconnect();
-  }
+  // Không gọi socket.disconnect() để socket tự động thử kết nối lại khi có mạng
   
   // Initial fetch
   fetchDataPoll();
   
   // Periodic poll every 4 seconds
-  setInterval(fetchDataPoll, 4000);
+  if (!pollInterval) {
+    pollInterval = setInterval(fetchDataPoll, 4000);
+  }
 }
+
+// Tự động kết nối lại Socket và làm mới dữ liệu khi người dùng mở lại màn hình máy tính hoặc chuyển lại tab
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') {
+    if (socket && !socket.connected) {
+      console.log('💻 Khôi phục tab / màn hình: Đang kết nối lại Socket...');
+      socket.connect();
+    }
+    // Cập nhật lại dữ liệu từ server
+    if (typeof fetchInitialData === 'function') {
+      fetchInitialData();
+    }
+  }
+});
+
+window.addEventListener('online', () => {
+  if (socket && !socket.connected) {
+    socket.connect();
+  }
+});
 
 async function fetchDataPoll() {
   try {

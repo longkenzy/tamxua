@@ -1435,7 +1435,7 @@ function printDocxOnServer(printerName, templateName, templateData, copies = 1) 
     psCommand += `$doc.Close(); } finally { $word.Quit(); [System.Runtime.InteropServices.Marshal]::ReleaseComObject($word) | Out-Null; [System.GC]::Collect(); [System.GC]::WaitForPendingFinalizers(); }`;
     
     const { execFile } = require('child_process');
-    execFile('powershell', ['-NoProfile', '-Command', psCommand], { encoding: 'utf8', windowsHide: true }, (err, stdout, stderr) => {
+    execFile('powershell', ['-NoProfile', '-Command', psCommand], { encoding: 'utf8', windowsHide: true, timeout: 15000 }, (err, stdout, stderr) => {
       try { fs.unlinkSync(tempFile); } catch (e) {}
       
       if (err) {
@@ -1838,15 +1838,58 @@ app.post('/api/print-raw', requireAuth, async (req, res) => {
   }
 });
 
-// Create a print job (for print polling fallback)
+// Create a print job (for print polling fallback) - Server executes immediately
 app.post('/api/print-jobs', requireAuth, async (req, res) => {
   const { printerId, type, payload } = req.body;
   try {
+    const rawPayload = typeof payload === 'string' ? JSON.parse(payload) : (payload || {});
+    let printError = null;
+
+    try {
+      if (type === 'kitchen') {
+        await executeKitchenPrint(
+          rawPayload.printerId || printerId,
+          rawPayload.tableName,
+          rawPayload.items,
+          rawPayload.title,
+          rawPayload.notes
+        );
+        io.emit('print_kitchen_slip', {
+          ...rawPayload,
+          printedByServer: true
+        });
+      } else if (type === 'receipt') {
+        await executeReceiptPrint(
+          rawPayload.tableObj,
+          rawPayload.orderItems,
+          rawPayload.discountAmount,
+          rawPayload.receivedAmount,
+          rawPayload.transactionId,
+          rawPayload.timestamp,
+          rawPayload.payMethod
+        );
+        io.emit('print_receipt', {
+          ...rawPayload,
+          printedByServer: true
+        });
+      }
+    } catch (pe) {
+      console.error('Lỗi khi in trực tiếp từ print-jobs fallback:', pe);
+      printError = pe.message;
+    }
+
+    const jobStatus = printError ? 'pending' : 'completed';
     const result = await db.query(
-      'INSERT INTO print_jobs (printer_id, type, payload) VALUES ($1, $2, $3) RETURNING *',
-      [printerId, type, JSON.stringify(payload)]
+      'INSERT INTO print_jobs (printer_id, type, payload, status) VALUES ($1, $2, $3, $4) RETURNING *',
+      [printerId, type, JSON.stringify(rawPayload), jobStatus]
     );
-    res.status(201).json({ success: true, job: result.rows[0] });
+
+    res.status(201).json({
+      success: true,
+      job: result.rows[0],
+      printed: !printError,
+      message: printError ? `Đã lưu vào hàng đợi in (chờ in lại: ${printError})` : 'Đã in thành công trên máy chủ'
+    });
   } catch (error) {
     console.error('Error creating print job:', error);
     res.status(500).json({ error: 'Lỗi khi tạo lệnh in.' });
@@ -1880,6 +1923,31 @@ app.post('/api/print-jobs/:id/complete', requireAuth, async (req, res) => {
     res.status(500).json({ error: 'Lỗi khi cập nhật trạng thái lệnh in.' });
   }
 });
+
+// Background Worker: Tự động quét và in bù các lệnh in pending còn tồn đọng (mỗi 5 giây)
+setInterval(async () => {
+  try {
+    const pendingJobs = await db.query("SELECT * FROM print_jobs WHERE status = 'pending' ORDER BY created_at ASC LIMIT 5");
+    for (const job of pendingJobs.rows) {
+      try {
+        const payload = JSON.parse(job.payload);
+        if (job.type === 'kitchen') {
+          await executeKitchenPrint(payload.printerId || job.printer_id, payload.tableName, payload.items, payload.title, payload.notes);
+          io.emit('print_kitchen_slip', { ...payload, printedByServer: true });
+        } else if (job.type === 'receipt') {
+          await executeReceiptPrint(payload.tableObj, payload.orderItems, payload.discountAmount, payload.receivedAmount, payload.transactionId, payload.timestamp, payload.payMethod);
+          io.emit('print_receipt', { ...payload, printedByServer: true });
+        }
+        await db.query("UPDATE print_jobs SET status = 'completed' WHERE id = $1", [job.id]);
+        console.log(`[PrintWorker] Đã in bù thành công print job #${job.id} (${job.type})`);
+      } catch (err) {
+        console.error(`[PrintWorker] Không thể in bù job #${job.id}:`, err.message);
+      }
+    }
+  } catch (err) {
+    // Không log lỗi DB định kỳ để tránh làm rác log
+  }
+}, 5000);
 
 // Scan local network for TCP printers listening on Port 9100
 app.get('/api/scan-printers', requireAuth, async (req, res) => {
@@ -2281,6 +2349,249 @@ function formatPlainReceiptServer(tableObj, orderItems, discountAmount, received
   return text;
 }
 
+// Shared print executor for kitchen slips
+async function executeKitchenPrint(printerId, tableName, items, title = 'HOÁ ĐƠN BẾP', notes = '') {
+  if (!items || !Array.isArray(items) || items.length === 0) {
+    return { success: true, skipped: true, message: 'Danh sách món trống' };
+  }
+
+  // Look up printer settings from database
+  const printerRes = await db.query('SELECT * FROM printer_settings WHERE printer_id = $1', [printerId]);
+  const printer = printerRes.rows[0];
+
+  const isConnected = printer ? printer.connected : true;
+  if (!isConnected) {
+    console.log(`Printer ${printerId} is disabled. Skipping print.`);
+    return { success: true, skipped: true, message: `Máy in ${printerId} đang tắt` };
+  }
+
+  let type = printer ? printer.type : 'system';
+  let sharedPath = printer ? printer.shared_path : '';
+  
+  // Force silent printing to default system printer if configured as browser
+  if (type === 'browser') {
+    type = 'system';
+    sharedPath = '';
+  }
+
+  if (type === 'system') {
+    const orderTimeStr = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) + ' • ' + new Date().toLocaleDateString('vi-VN');
+    const templateData = {
+      table_name: tableName,
+      order_time: orderTimeStr,
+      general_note: notes ? `Ghi chú tổng: ${notes}` : '',
+      items: items.map(item => {
+        const optionGroupsMap = {};
+        if (item.options && Array.isArray(item.options)) {
+          item.options.forEach(o => {
+            const gn = o.group_name || 'Lựa chọn';
+            if (!optionGroupsMap[gn]) optionGroupsMap[gn] = [];
+            optionGroupsMap[gn].push(o.name);
+          });
+        }
+        const optionsText = Object.keys(optionGroupsMap).map(gn => `+ ${gn}: ${optionGroupsMap[gn].join(', ')}`).join('\n');
+        
+        return {
+          name: item.name,
+          quantity: item.quantity,
+          notes: item.notes ? ` * G/chú: ${item.notes}` : '',
+          options_text: optionsText
+        };
+      })
+    };
+    
+    let selectedTemplate = 'hoadonbep.docx';
+    if (title && (title.toUpperCase().includes('THÊM') || title.toUpperCase().includes('THEM'))) {
+      selectedTemplate = 'hoadonthem.docx';
+    } else if (printerId === 'kitchen_bar' || (title && (title.toUpperCase().includes('NƯỚC') || title.toUpperCase().includes('NUOC')))) {
+      selectedTemplate = 'hoadonnuoc.docx';
+    }
+    
+    // Bếp chính in 2 bản (1 bản bếp, 1 bản lưu), Quầy nước (kitchen_bar) in 1 bản
+    const isKitchenFood = printerId !== 'kitchen_bar' && selectedTemplate !== 'hoadonnuoc.docx';
+    const copies = isKitchenFood ? 2 : 1;
+
+    return await enqueuePrint(() => printDocxOnServer(sharedPath, selectedTemplate, templateData, copies));
+  } else {
+    const plainText = formatPlainKitchenSlipServer(tableName, items, title, notes);
+    const isKitchenFood = printerId !== 'kitchen_bar';
+    const copies = isKitchenFood ? 2 : 1;
+    return await enqueuePrint(() => printRawOnServer(type, sharedPath, printer ? printer.ip : '', printer ? printer.port : null, plainText, copies));
+  }
+}
+
+// Shared print executor for receipts
+async function executeReceiptPrint(tableObj, orderItems, discountAmount = 0, receivedAmount = 0, transactionId = null, timestamp = null, payMethod = 'cash') {
+  if (!orderItems || !Array.isArray(orderItems) || orderItems.length === 0) {
+    return { success: true, skipped: true, message: 'Danh sách món trống' };
+  }
+
+  // Look up printer settings from database
+  const printerRes = await db.query("SELECT * FROM printer_settings WHERE printer_id = 'receipt_default'");
+  const printer = printerRes.rows[0];
+
+  const isConnected = printer ? printer.connected : true;
+  if (!isConnected) {
+    console.log(`Receipt printer is disabled. Skipping print.`);
+    return { success: true, skipped: true, message: 'Máy in thu ngân đang tắt' };
+  }
+
+  let type = printer ? printer.type : 'system';
+  let sharedPath = printer ? printer.shared_path : '';
+  
+  if (type === 'browser') {
+    type = 'system';
+    sharedPath = '';
+  }
+
+  if (type === 'system') {
+    const subtotal = orderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    
+    // Calculate item discounts sum
+    const itemDiscountsSum = orderItems.reduce((sum, item) => {
+      return sum + ((item.discount || 0) * item.quantity);
+    }, 0);
+
+    const generalDiscount = Math.max(0, (discountAmount || 0) - itemDiscountsSum);
+    const subtotalAfterItemDiscounts = subtotal - itemDiscountsSum;
+    
+    let isPercentDiscount = false;
+    let discountPercent = 0;
+    if (generalDiscount > 0 && subtotalAfterItemDiscounts > 0) {
+      const calculatedPct = (generalDiscount / subtotalAfterItemDiscounts) * 100;
+      if (Math.abs(calculatedPct - Math.round(calculatedPct)) < 0.01) {
+        isPercentDiscount = true;
+        discountPercent = Math.round(calculatedPct);
+      }
+    }
+
+    const finalTotal = Math.max(0, subtotal - (discountAmount || 0));
+    const changeAmount = receivedAmount ? (receivedAmount - finalTotal) : 0;
+    
+    const orderTimeStr = (tableObj && (tableObj.updated_at || tableObj.updatedAt))
+      ? formatTimeServer(tableObj.updated_at || tableObj.updatedAt).replace(' - ', ' • ') 
+      : (timestamp ? formatTimeServer(timestamp).replace(' - ', ' • ') : formatTimeServer(new Date().toISOString()).replace(' - ', ' • '));
+
+    const checkoutTimeStr = timestamp 
+      ? formatTimeServer(timestamp).replace(' - ', ' • ') 
+      : formatTimeServer(new Date().toISOString()).replace(' - ', ' • ');
+
+    const payMethodLabel = payMethod === 'bank' ? 'Chuyển khoản' : 'Tiền mặt';
+
+    let txBankName = null;
+    let txAccountNumber = null;
+    let txAccountHolder = null;
+    if (tableObj && tableObj.bankName) {
+      txBankName = tableObj.bankName;
+      txAccountNumber = tableObj.accountNumber;
+      txAccountHolder = tableObj.accountHolder;
+    } else if (payMethod === 'bank') {
+      try {
+        const activeBankRes = await db.query('SELECT * FROM bank_accounts WHERE is_active = true LIMIT 1');
+        if (activeBankRes.rows.length > 0) {
+          txBankName = activeBankRes.rows[0].bank_name;
+          txAccountNumber = activeBankRes.rows[0].account_number;
+          txAccountHolder = activeBankRes.rows[0].account_holder;
+        }
+      } catch (err) {
+        console.error('Error loading active bank account for socket print:', err);
+      }
+    }
+
+    const templateData = {
+      table_name: tableObj ? tableObj.name : 'Bàn',
+      bank_name: txBankName,
+      account_number: txAccountNumber,
+      account_holder: txAccountHolder,
+      order_time: orderTimeStr,
+      checkout_time: checkoutTimeStr,
+      subtotal: generalDiscount > 0 ? formatVNDShort(subtotal - (discountAmount || 0)) : formatVNDShort(subtotal),
+      discount: generalDiscount > 0 ? '0' : ((discountAmount || 0) > 0 ? `-${formatVNDShort(discountAmount)}` : '0'),
+      final_total: formatVNDShort(finalTotal),
+      received_amount: formatVNDShort(receivedAmount || finalTotal),
+      change_amount: formatVNDShort(Math.max(0, changeAmount)),
+      payment_method: payMethodLabel,
+      total_quantity: orderItems.reduce((sum, item) => sum + item.quantity, 0),
+      total_items: orderItems.length,
+      items: orderItems.map(item => {
+        const optionGroupsMap = {};
+        if (item.options && Array.isArray(item.options)) {
+          item.options.forEach(o => {
+            const gn = o.group_name || 'Lựa chọn';
+            if (!optionGroupsMap[gn]) optionGroupsMap[gn] = [];
+            optionGroupsMap[gn].push(o.name);
+          });
+        }
+        const optionsText = Object.keys(optionGroupsMap).map(gn => `+ ${gn}: ${optionGroupsMap[gn].join(', ')}`).join('\n');
+        
+        const itemDiscount = item.discount || 0;
+        let itemDiscountType = 'cash';
+        let itemDiscountValue = 0;
+        
+        if (itemDiscount > 0) {
+          const calculatedPct = (itemDiscount / item.price) * 100;
+          if (Math.abs(calculatedPct - Math.round(calculatedPct)) < 0.01) {
+            itemDiscountType = 'percent';
+            itemDiscountValue = Math.round(calculatedPct);
+          } else {
+            itemDiscountType = 'cash';
+            itemDiscountValue = itemDiscount;
+          }
+        }
+        
+        let finalPrice = item.price - itemDiscount;
+        
+        // Tạo note giảm giá riêng cho từng món
+        let itemNoteSuffix = '';
+        if (itemDiscount > 0) {
+          if (itemDiscountType === 'percent') {
+            itemNoteSuffix = `* Giảm giá ${itemDiscountValue}% (${formatVNDShort(itemDiscount)}đ) cho món`;
+          } else {
+            itemNoteSuffix = `* Giảm giá ${formatVNDShort(itemDiscount)}đ cho món`;
+          }
+        }
+
+        let noteSuffix = '';
+        if (isPercentDiscount && discountPercent > 0) {
+          const billDiscountPerUnit = Math.round(finalPrice * discountPercent / 100);
+          const totalDiscountPerUnit = itemDiscount + billDiscountPerUnit;
+          finalPrice = item.price - totalDiscountPerUnit;
+          noteSuffix = `* Giảm giá ${discountPercent}% (${formatVNDShort(billDiscountPerUnit)}đ) mỗi mặt hàng`;
+        } else if (!isPercentDiscount && generalDiscount > 0) {
+          const totalQuantity = orderItems.reduce((sum, it) => sum + it.quantity, 0);
+          const billDiscountPerUnit = Math.round(generalDiscount / totalQuantity);
+          const totalDiscountPerUnit = itemDiscount + billDiscountPerUnit;
+          finalPrice = item.price - totalDiscountPerUnit;
+          noteSuffix = `* Giảm giá ${formatVNDShort(billDiscountPerUnit)}đ mỗi mặt hàng`;
+        }
+        
+        let itemNotes = item.notes ? ` * G/chú: ${item.notes}` : '';
+        if (itemNoteSuffix) {
+          itemNotes = itemNotes ? `${itemNotes}\n${itemNoteSuffix}` : itemNoteSuffix;
+        }
+        if (noteSuffix) {
+          itemNotes = itemNotes ? `${itemNotes}\n${noteSuffix}` : noteSuffix;
+        }
+
+        return {
+          emoji: item.emoji || '🍽️',
+          name: item.name,
+          price: formatVNDShort(finalPrice),
+          quantity: item.quantity,
+          total: formatVNDShort(finalPrice * item.quantity),
+          notes: itemNotes,
+          options_text: optionsText
+        };
+      })
+    };
+    
+    return await enqueuePrint(() => printDocxOnServer(sharedPath, 'hoadon.docx', templateData, 1));
+  } else {
+    const plainText = formatPlainReceiptServer(tableObj, orderItems, discountAmount, receivedAmount, timestamp, payMethod);
+    return await enqueuePrint(() => printRawOnServer(type, sharedPath, printer ? printer.ip : '', printer ? printer.port : null, plainText, 1));
+  }
+}
+
 // Socket.io Real-time connections
 io.on('connection', async (socket) => {
   try {
@@ -2295,75 +2606,13 @@ io.on('connection', async (socket) => {
   // Handle printer routing requests from mobile phone clients to desktop cashier client
   socket.on('request_print_kitchen_slip', async (data) => {
     try {
-      // Look up printer settings from database
-      const printerRes = await db.query('SELECT * FROM printer_settings WHERE printer_id = $1', [data.printerId]);
-      const printer = printerRes.rows[0];
-
-      const isConnected = printer ? printer.connected : true;
-
-      if (isConnected) {
-        let type = printer ? printer.type : 'system';
-        let sharedPath = printer ? printer.shared_path : '';
-        
-        // Force silent printing to default system printer if configured as browser
-        if (type === 'browser') {
-          type = 'system';
-          sharedPath = '';
-        }
-
-        if (type === 'system') {
-          const orderTimeStr = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) + ' • ' + new Date().toLocaleDateString('vi-VN');
-          const templateData = {
-            table_name: data.tableName,
-            order_time: orderTimeStr,
-            general_note: data.notes ? `Ghi chú tổng: ${data.notes}` : '',
-            items: data.items.map(item => {
-              const optionGroupsMap = {};
-              if (item.options && Array.isArray(item.options)) {
-                item.options.forEach(o => {
-                  const gn = o.group_name || 'Lựa chọn';
-                  if (!optionGroupsMap[gn]) optionGroupsMap[gn] = [];
-                  optionGroupsMap[gn].push(o.name);
-                });
-              }
-              const optionsText = Object.keys(optionGroupsMap).map(gn => `+ ${gn}: ${optionGroupsMap[gn].join(', ')}`).join('\n');
-              
-              return {
-                name: item.name,
-                quantity: item.quantity,
-                notes: item.notes ? ` * G/chú: ${item.notes}` : '',
-                options_text: optionsText
-              };
-            })
-          };
-          
-          let selectedTemplate = 'hoadonbep.docx';
-          if (data.title && (data.title.toUpperCase().includes('THÊM') || data.title.toUpperCase().includes('THEM'))) {
-            selectedTemplate = 'hoadonthem.docx';
-          } else if (data.printerId === 'kitchen_bar' || (data.title && (data.title.toUpperCase().includes('NƯỚC') || data.title.toUpperCase().includes('NUOC')))) {
-            selectedTemplate = 'hoadonnuoc.docx';
-          }
-          
-          // Bếp chính in 2 bản (1 bản bếp, 1 bản lưu), Quầy nước (kitchen_bar) in 1 bản
-          const isKitchenFood = data.printerId !== 'kitchen_bar' && selectedTemplate !== 'hoadonnuoc.docx';
-          const copies = isKitchenFood ? 2 : 1;
-
-          await enqueuePrint(() => printDocxOnServer(sharedPath, selectedTemplate, templateData, copies));
-        } else {
-          const plainText = formatPlainKitchenSlipServer(data.tableName, data.items, data.title, data.notes);
-          const isKitchenFood = data.printerId !== 'kitchen_bar';
-          const copies = isKitchenFood ? 2 : 1;
-          await enqueuePrint(() => printRawOnServer(type, sharedPath, printer ? printer.ip : '', printer ? printer.port : null, plainText, copies));
-        }
-        
-        // Broadcast to all clients that server has printed it successfully
-        io.emit('print_kitchen_slip', {
-          ...data,
-          printedByServer: true
-        });
-      } else {
-        console.log(`Printer ${data.printerId} is disabled. Skipping print.`);
-      }
+      await executeKitchenPrint(data.printerId, data.tableName, data.items, data.title, data.notes);
+      
+      // Broadcast to all clients that server has printed it successfully
+      io.emit('print_kitchen_slip', {
+        ...data,
+        printedByServer: true
+      });
     } catch (err) {
       console.error(`Error handling direct server print for ${data.printerId}:`, err);
       // Fallback: broadcast to client if printing on server failed
@@ -2377,175 +2626,20 @@ io.on('connection', async (socket) => {
 
   socket.on('request_print_receipt', async (data) => {
     try {
-      // Look up printer settings from database
-      const printerRes = await db.query("SELECT * FROM printer_settings WHERE printer_id = 'receipt_default'");
-      const printer = printerRes.rows[0];
-
-      const isConnected = printer ? printer.connected : true;
-
-      if (isConnected) {
-        let type = printer ? printer.type : 'system';
-        let sharedPath = printer ? printer.shared_path : '';
-        
-        if (type === 'browser') {
-          type = 'system';
-          sharedPath = '';
-        }
-
-        if (type === 'system') {
-          const subtotal = data.orderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-          
-          // Calculate item discounts sum
-          const itemDiscountsSum = data.orderItems.reduce((sum, item) => {
-            return sum + ((item.discount || 0) * item.quantity);
-          }, 0);
-
-          const generalDiscount = Math.max(0, data.discountAmount - itemDiscountsSum);
-          const subtotalAfterItemDiscounts = subtotal - itemDiscountsSum;
-          
-          let isPercentDiscount = false;
-          let discountPercent = 0;
-          if (generalDiscount > 0 && subtotalAfterItemDiscounts > 0) {
-            const calculatedPct = (generalDiscount / subtotalAfterItemDiscounts) * 100;
-            if (Math.abs(calculatedPct - Math.round(calculatedPct)) < 0.01) {
-              isPercentDiscount = true;
-              discountPercent = Math.round(calculatedPct);
-            }
-          }
-
-          const finalTotal = Math.max(0, subtotal - data.discountAmount);
-          const changeAmount = data.receivedAmount ? (data.receivedAmount - finalTotal) : 0;
-          
-          const orderTimeStr = data.tableObj.updatedAt 
-            ? formatTimeServer(data.tableObj.updatedAt).replace(' - ', ' • ') 
-            : (data.timestamp ? formatTimeServer(data.timestamp).replace(' - ', ' • ') : formatTimeServer(new Date().toISOString()).replace(' - ', ' • '));
-
-          const checkoutTimeStr = data.timestamp 
-            ? formatTimeServer(data.timestamp).replace(' - ', ' • ') 
-            : formatTimeServer(new Date().toISOString()).replace(' - ', ' • ');
-
-          const payMethodLabel = data.payMethod === 'bank' ? 'Chuyển khoản' : 'Tiền mặt';
-
-          let txBankName = null;
-          let txAccountNumber = null;
-          let txAccountHolder = null;
-          if (data.tableObj && data.tableObj.bankName) {
-            txBankName = data.tableObj.bankName;
-            txAccountNumber = data.tableObj.accountNumber;
-            txAccountHolder = data.tableObj.accountHolder;
-          } else if (data.payMethod === 'bank') {
-            try {
-              const activeBankRes = await db.query('SELECT * FROM bank_accounts WHERE is_active = true LIMIT 1');
-              if (activeBankRes.rows.length > 0) {
-                txBankName = activeBankRes.rows[0].bank_name;
-                txAccountNumber = activeBankRes.rows[0].account_number;
-                txAccountHolder = activeBankRes.rows[0].account_holder;
-              }
-            } catch (err) {
-              console.error('Error loading active bank account for socket print:', err);
-            }
-          }
-
-          const templateData = {
-            table_name: data.tableObj.name,
-            bank_name: txBankName,
-            account_number: txAccountNumber,
-            account_holder: txAccountHolder,
-            order_time: orderTimeStr,
-            checkout_time: checkoutTimeStr,
-            subtotal: generalDiscount > 0 ? formatVNDShort(subtotal - data.discountAmount) : formatVNDShort(subtotal),
-            discount: generalDiscount > 0 ? '0' : (data.discountAmount > 0 ? `-${formatVNDShort(data.discountAmount)}` : '0'),
-            final_total: formatVNDShort(finalTotal),
-            received_amount: formatVNDShort(data.receivedAmount || finalTotal),
-            change_amount: formatVNDShort(Math.max(0, changeAmount)),
-            payment_method: payMethodLabel,
-            total_quantity: data.orderItems.reduce((sum, item) => sum + item.quantity, 0),
-            total_items: data.orderItems.length,
-            items: data.orderItems.map(item => {
-              const optionGroupsMap = {};
-              if (item.options && Array.isArray(item.options)) {
-                item.options.forEach(o => {
-                  const gn = o.group_name || 'Lựa chọn';
-                  if (!optionGroupsMap[gn]) optionGroupsMap[gn] = [];
-                  optionGroupsMap[gn].push(o.name);
-                });
-              }
-              const optionsText = Object.keys(optionGroupsMap).map(gn => `+ ${gn}: ${optionGroupsMap[gn].join(', ')}`).join('\n');
-              
-              const itemDiscount = item.discount || 0;
-              let itemDiscountType = 'cash';
-              let itemDiscountValue = 0;
-              
-              if (itemDiscount > 0) {
-                const calculatedPct = (itemDiscount / item.price) * 100;
-                if (Math.abs(calculatedPct - Math.round(calculatedPct)) < 0.01) {
-                  itemDiscountType = 'percent';
-                  itemDiscountValue = Math.round(calculatedPct);
-                } else {
-                  itemDiscountType = 'cash';
-                  itemDiscountValue = itemDiscount;
-                }
-              }
-              
-              let finalPrice = item.price - itemDiscount;
-              
-              // Tạo note giảm giá riêng cho từng món
-              let itemNoteSuffix = '';
-              if (itemDiscount > 0) {
-                if (itemDiscountType === 'percent') {
-                  itemNoteSuffix = `* Giảm giá ${itemDiscountValue}% (${formatVNDShort(itemDiscount)}đ) cho món`;
-                } else {
-                  itemNoteSuffix = `* Giảm giá ${formatVNDShort(itemDiscount)}đ cho món`;
-                }
-              }
-
-              let noteSuffix = '';
-              if (isPercentDiscount && discountPercent > 0) {
-                const billDiscountPerUnit = Math.round(finalPrice * discountPercent / 100);
-                const totalDiscountPerUnit = itemDiscount + billDiscountPerUnit;
-                finalPrice = item.price - totalDiscountPerUnit;
-                noteSuffix = `* Giảm giá ${discountPercent}% (${formatVNDShort(billDiscountPerUnit)}đ) mỗi mặt hàng`;
-              } else if (!isPercentDiscount && generalDiscount > 0) {
-                const totalQuantity = data.orderItems.reduce((sum, it) => sum + it.quantity, 0);
-                const billDiscountPerUnit = Math.round(generalDiscount / totalQuantity);
-                const totalDiscountPerUnit = itemDiscount + billDiscountPerUnit;
-                finalPrice = item.price - totalDiscountPerUnit;
-                noteSuffix = `* Giảm giá ${formatVNDShort(billDiscountPerUnit)}đ mỗi mặt hàng`;
-              }
-              
-              let itemNotes = item.notes ? ` * G/chú: ${item.notes}` : '';
-              if (itemNoteSuffix) {
-                itemNotes = itemNotes ? `${itemNotes}\n${itemNoteSuffix}` : itemNoteSuffix;
-              }
-              if (noteSuffix) {
-                itemNotes = itemNotes ? `${itemNotes}\n${noteSuffix}` : noteSuffix;
-              }
-
-              return {
-                emoji: item.emoji || '🍽️',
-                name: item.name,
-                price: formatVNDShort(finalPrice),
-                quantity: item.quantity,
-                total: formatVNDShort(finalPrice * item.quantity),
-                notes: itemNotes,
-                options_text: optionsText
-              };
-            })
-          };
-          
-          await enqueuePrint(() => printDocxOnServer(sharedPath, 'hoadon.docx', templateData, 1));
-        } else {
-          const plainText = formatPlainReceiptServer(data.tableObj, data.orderItems, data.discountAmount, data.receivedAmount, data.timestamp, data.payMethod);
-          await enqueuePrint(() => printRawOnServer(type, sharedPath, printer ? printer.ip : '', printer ? printer.port : null, plainText, 1));
-        }
-        
-        io.emit('print_receipt', {
-          ...data,
-          printedByServer: true
-        });
-      } else {
-        console.log(`Receipt printer is disabled. Skipping print.`);
-      }
+      await executeReceiptPrint(
+        data.tableObj,
+        data.orderItems,
+        data.discountAmount,
+        data.receivedAmount,
+        data.transactionId,
+        data.timestamp,
+        data.payMethod
+      );
+      
+      io.emit('print_receipt', {
+        ...data,
+        printedByServer: true
+      });
     } catch (err) {
       console.error(`Error handling direct receipt print:`, err);
       socket.broadcast.emit('print_receipt', {
