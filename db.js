@@ -36,7 +36,7 @@ const pool = new Pool({
   connectionTimeoutMillis: 5000, // Timeout after 5 seconds instead of hanging
   idleTimeoutMillis: 10000, // Close idle clients after 10 seconds
   ssl: isLocalDb ? false : {
-    rejectUnauthorized: false // Đảm bảo SSL hoạt động đúng khi kết nối với Vercel/Neon
+    rejectUnauthorized: false // Đảm bảo SSL hoạt động đúng khi kết nối với Neon/Cloud Postgres
   }
 });
 
@@ -210,6 +210,9 @@ async function setupDatabase() {
         name VARCHAR(255) UNIQUE NOT NULL
       )
     `);
+    await client.query(`
+      ALTER TABLE menu_groups ADD COLUMN IF NOT EXISTS sort_order INT DEFAULT 0
+    `);
 
     // 8. Create menu_group_items table
     await client.query(`
@@ -228,7 +231,7 @@ async function setupDatabase() {
     await client.query('CREATE INDEX IF NOT EXISTS idx_order_items_table_id ON order_items (table_id)');
     await client.query('CREATE INDEX IF NOT EXISTS idx_order_items_menu_id ON order_items (menu_id)');
     await client.query('CREATE INDEX IF NOT EXISTS idx_transactions_timestamp ON transactions (timestamp DESC)');
-    // 9. Create print_jobs table for Cloud/Vercel print queuing fallback
+    // 9. Create print_jobs table for print queuing fallback
     await client.query(`
       CREATE TABLE IF NOT EXISTS print_jobs (
         id SERIAL PRIMARY KEY,

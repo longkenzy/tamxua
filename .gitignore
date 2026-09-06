@@ -9,3 +9,4 @@ tray_log.txt
 *.log
 ~$*
 *.lnk
+scratch/

@@ -3226,7 +3226,7 @@
       grid-template-columns: 1.2fr 1.5fr !important;
       gap: 28px !important;
       padding: 28px !important;
-      max-height: 540px !important;
+      max-height: 560px !important;
       box-sizing: border-box !important;
       overflow: hidden !important;
     }
@@ -3237,6 +3237,7 @@
       flex-direction: column;
       gap: 16px;
       justify-content: flex-start;
+      overflow: hidden;
     }
 
     #menu-group-modal .right-col {
@@ -3245,9 +3246,10 @@
       gap: 12px;
       justify-content: flex-start;
       overflow: hidden;
+      height: 100%;
     }
 
-    /* Hide the select trigger or turn it into a preview label */
+    /* Close Button */
     #menu-group-modal #btn-close-menu-group-modal {
       font-size: 24px;
       line-height: 1;
@@ -3260,20 +3262,17 @@
     }
     
     #menu-group-modal #menu-group-select-trigger {
-      min-height: 120px !important;
-      height: 180px !important;
-      max-height: 220px !important;
-      padding: 14px !important;
-      border: 1.5px dashed var(--border-strong) !important;
-      background: var(--surface-soft) !important;
-      border-radius: 8px !important;
-      flex-direction: column !important;
-      align-items: flex-start !important;
-      justify-content: flex-start !important;
-      gap: 6px !important;
-      cursor: default !important;
+      min-height: 180px !important;
+      max-height: 240px !important;
+      padding: 12px !important;
+      border: 1px solid var(--hairline, #cbd5e1) !important;
+      background: var(--canvas-soft, #f8fafc) !important;
+      border-radius: 10px !important;
+      display: block !important;
       overflow-y: auto !important;
       box-sizing: border-box !important;
+      cursor: default !important;
+      margin: 0 !important;
     }
 
     #menu-group-modal #menu-group-select-trigger .custom-select-chevron {
@@ -3281,15 +3280,79 @@
     }
 
     #menu-group-modal #menu-group-select-value {
-      font-size: 13px !important;
-      color: var(--ink) !important;
-      font-weight: 500 !important;
-      white-space: pre-line !important;
-      overflow-y: auto !important;
-      max-width: 100% !important;
-      display: block !important;
-      line-height: 1.6 !important;
-      text-align: left !important;
+      display: flex !important;
+      flex-wrap: wrap !important;
+      gap: 8px !important;
+      width: 100% !important;
+    }
+
+    /* Selected Item Chip in Edit Menu Modal */
+    .selected-item-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background-color: var(--canvas, #ffffff);
+      border: 1px solid var(--hairline-strong, #cbd5e1);
+      border-radius: 8px;
+      padding: 4px 8px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--ink, #1e293b);
+      box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+      transition: all 0.2s ease;
+      animation: scaleIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) both;
+    }
+
+    @keyframes scaleIn {
+      from {
+        opacity: 0;
+        transform: scale(0.9);
+      }
+      to {
+        opacity: 1;
+        transform: scale(1);
+      }
+    }
+
+    .selected-item-chip:hover {
+      border-color: #cbd5e1;
+      background-color: var(--canvas-soft, #f8fafc);
+      transform: translateY(-1px);
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+
+    .selected-item-chip img {
+      width: 20px !important;
+      height: 20px !important;
+      object-fit: cover !important;
+      border-radius: 4px !important;
+      border: 1px solid var(--hairline, #e2e8f0) !important;
+    }
+
+    .selected-item-chip .chip-name {
+      max-width: 120px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .selected-item-chip .btn-remove-chip {
+      background: none;
+      border: none;
+      color: var(--muted, #64748b);
+      font-size: 16px;
+      cursor: pointer;
+      padding: 0 2px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      line-height: 1;
+      transition: color 0.15s ease, transform 0.15s ease;
+    }
+
+    .selected-item-chip .btn-remove-chip:hover {
+      color: #ef4444;
+      transform: scale(1.2);
     }
 
     /* Style the select menu as the static right-hand column */
@@ -3313,6 +3376,9 @@
       width: 100% !important;
       height: 100% !important;
       z-index: 1 !important;
+      opacity: 1 !important;
+      visibility: visible !important;
+      transform: none !important;
     }
 
     /* Style the search bar inside the select menu */
@@ -3332,62 +3398,107 @@
       box-shadow: 0 0 0 3px rgba(2, 74, 216, 0.1) !important;
     }
 
-    /* Scrollable list of checkboxes */
+    /* Scrollable checklist items grid */
     #menu-group-modal #menu-group-items-checklist {
-      display: grid !important;
-      grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)) !important;
-      gap: 8px !important;
-      max-height: 320px !important;
+      display: flex !important;
+      flex-direction: column !important;
+      gap: 10px !important;
+      max-height: 340px !important;
       overflow-y: auto !important;
-      padding: 2px !important;
+      padding: 4px !important;
       box-sizing: border-box !important;
     }
 
-    /* Custom labels styling for each checkbox list item */
-    #menu-group-modal #menu-group-items-checklist label {
+    /* Checklist card design */
+    .checklist-item-card {
       display: flex !important;
       align-items: center !important;
-      gap: 10px !important;
-      padding: 8px 12px !important;
-      border: 1.5px solid var(--border-strong) !important;
-      border-radius: 6px !important;
+      gap: 12px !important;
+      padding: 10px 16px !important;
+      border: 1px solid var(--hairline, #e2e8f0) !important;
+      border-radius: 10px !important;
       background: #ffffff !important;
       cursor: pointer !important;
-      transition: all 0.2s ease !important;
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
       user-select: none !important;
       box-sizing: border-box !important;
       margin: 0 !important;
-      height: 44px !important;
+      height: 64px !important;
+      position: relative !important;
     }
 
-    #menu-group-modal #menu-group-items-checklist label:hover {
-      border-color: var(--primary) !important;
-      background: rgba(2, 74, 216, 0.02) !important;
+    .checklist-item-card:hover {
+      border-color: var(--border-strong, #cbd5e1) !important;
+      background-color: var(--canvas-soft, #f8fafc) !important;
       transform: translateY(-1px) !important;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.03) !important;
     }
 
-    #menu-group-modal #menu-group-items-checklist label input[type="checkbox"] {
-      width: 16px !important;
-      height: 16px !important;
-      border-radius: 4px !important;
-      accent-color: var(--primary) !important;
-      cursor: pointer !important;
-      margin: 0 !important;
+    .checklist-item-card.selected {
+      background-color: rgba(2, 74, 216, 0.04) !important;
+      border-color: var(--primary, #024ad8) !important;
     }
 
-    #menu-group-modal #menu-group-items-checklist label span {
-      font-size: 13px !important;
+    .checklist-item-card img {
+      width: 40px !important;
+      height: 40px !important;
+      object-fit: cover !important;
+      border-radius: 8px !important;
+      border: 1px solid var(--hairline-soft, #f1f5f9) !important;
+      flex-shrink: 0 !important;
+    }
+
+    .checklist-item-info {
+      display: flex !important;
+      flex-direction: column !important;
+      gap: 2px !important;
+      flex-grow: 1 !important;
+      min-width: 0 !important;
+    }
+
+    .checklist-item-name {
+      font-size: 13.5px !important;
       font-weight: 600 !important;
-      color: var(--ink) !important;
+      color: var(--ink, #1e293b) !important;
       white-space: nowrap !important;
       overflow: hidden !important;
       text-overflow: ellipsis !important;
+      text-align: left !important;
     }
 
-    /* Custom label for active checked elements */
-    #menu-group-modal #menu-group-items-checklist label:has(input[type="checkbox"]:checked) {
-      background: rgba(2, 74, 216, 0.06) !important;
-      border-color: var(--primary) !important;
+    .checklist-item-price {
+      font-size: 11.5px !important;
+      font-weight: 700 !important;
+      color: var(--primary, #024ad8) !important;
+      text-align: left !important;
+    }
+
+    .custom-checkbox-indicator {
+      width: 20px !important;
+      height: 20px !important;
+      border: 1.5px solid var(--border-strong, #cbd5e1) !important;
+      border-radius: 50% !important;
+      position: relative !important;
+      flex-shrink: 0 !important;
+      transition: all 0.2s ease !important;
+      background-color: #ffffff !important;
+    }
+
+    .checklist-item-card.selected .custom-checkbox-indicator {
+      background-color: var(--primary, #024ad8) !important;
+      border-color: var(--primary, #024ad8) !important;
+    }
+
+    .checklist-item-card.selected .custom-checkbox-indicator::after {
+      content: '' !important;
+      position: absolute !important;
+      left: 6px !important;
+      top: 3px !important;
+      width: 5px !important;
+      height: 9px !important;
+      border: solid white !important;
+      border-width: 0 2px 2px 0 !important;
+      transform: rotate(45deg) !important;
     }
 
     /* Animations */
@@ -5670,6 +5781,257 @@
       .compare-date-input:hover::-webkit-calendar-picker-indicator {
         opacity: 1;
       }
+
+      /* Redesigned Menu Group List Styles */
+      .menu-group-list {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        width: 100%;
+        margin-top: 8px;
+      }
+
+      .menu-group-order-controls {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        margin-right: 16px;
+        flex-shrink: 0;
+      }
+
+      .btn-order-arrow {
+        width: 24px;
+        height: 24px;
+        border: 1px solid var(--hairline, #cbd5e1);
+        background: var(--canvas, #ffffff);
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 10px;
+        color: var(--muted, #64748b);
+        cursor: pointer;
+        transition: all 0.2s ease;
+        padding: 0;
+        line-height: 1;
+      }
+
+      .btn-order-arrow:hover:not(:disabled) {
+        border-color: var(--primary, #024ad8);
+        color: var(--primary, #024ad8);
+        background-color: rgba(2, 74, 216, 0.05);
+      }
+
+      .btn-order-arrow:disabled {
+        opacity: 0.3;
+        cursor: not-allowed;
+      }
+
+      .menu-group-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: var(--canvas, #ffffff);
+        border: 1px solid var(--hairline, #e2e8f0);
+        border-radius: 12px;
+        padding: 18px 24px;
+        box-shadow: var(--shadow, 0 1px 3px rgba(0,0,0,0.02));
+        transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+        animation: slideInUp 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+        overflow: hidden;
+      }
+
+      .menu-group-row:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 12px 24px rgba(0, 0, 0, 0.04), 0 4px 12px rgba(0, 0, 0, 0.02);
+        border-color: var(--border-strong, #cbd5e1);
+      }
+
+      @keyframes slideInUp {
+        from {
+          opacity: 0;
+          transform: translateY(16px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .menu-group-info {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        min-width: 200px;
+        max-width: 240px;
+        flex-shrink: 0;
+        border-right: 1px solid var(--hairline-soft, #f1f5f9);
+        padding-right: 20px;
+      }
+
+      .menu-group-title-wrapper {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .menu-group-folder-icon {
+        font-size: 22px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 42px;
+        height: 42px;
+        background-color: var(--canvas-soft, #f1f5f9);
+        border-radius: 10px;
+        color: var(--muted, #64748b);
+        transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      }
+
+      .menu-group-row:hover .menu-group-folder-icon {
+        background-color: rgba(2, 74, 216, 0.08);
+        color: var(--primary, #024ad8);
+        transform: scale(1.08) rotate(5deg);
+      }
+
+      .menu-group-name {
+        font-size: 15px;
+        font-weight: 700;
+        color: var(--ink, #1e293b);
+        margin: 0;
+        letter-spacing: -0.3px;
+      }
+
+      .menu-group-badge {
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--primary, #024ad8);
+        background-color: rgba(2, 74, 216, 0.08);
+        padding: 4px 10px;
+        border-radius: 9999px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        width: fit-content;
+        margin-left: 54px;
+      }
+
+      /* Items container inside the row */
+      .menu-group-items-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex: 1;
+        overflow-x: auto;
+        padding: 8px 20px;
+        margin: 0 10px;
+        scrollbar-width: none;
+      }
+      .menu-group-items-row::-webkit-scrollbar {
+        display: none;
+      }
+
+      /* Individual item pill in the row */
+      .menu-group-item-pill {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 12px;
+        background-color: var(--canvas-soft, #f8fafc);
+        border: 1px solid var(--hairline-soft, #e2e8f0);
+        border-radius: 8px;
+        flex-shrink: 0;
+        transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+        max-width: 220px;
+      }
+
+      .menu-group-item-pill:hover {
+        background-color: var(--canvas, #ffffff);
+        border-color: var(--border-strong, #cbd5e1);
+        transform: scale(1.05);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.04);
+      }
+
+      .menu-group-item-img {
+        width: 26px;
+        height: 26px;
+        object-fit: cover;
+        border-radius: 6px;
+        border: 1px solid var(--hairline-soft, #e2e8f0);
+        flex-shrink: 0;
+      }
+
+      .menu-group-item-name {
+        font-size: 12.5px;
+        font-weight: 600;
+        color: var(--ink, #334155);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .menu-group-item-price {
+        font-size: 11.5px;
+        font-weight: 700;
+        color: var(--primary, #024ad8);
+        background-color: rgba(2, 74, 216, 0.05);
+        padding: 2px 6px;
+        border-radius: 4px;
+        white-space: nowrap;
+        margin-left: auto;
+      }
+
+      .menu-group-actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-shrink: 0;
+        border-left: 1px solid var(--hairline-soft, #f1f5f9);
+        padding-left: 20px;
+      }
+
+      /* Custom premium styles for actions buttons */
+      .btn-action-edit {
+        border: 1px solid var(--hairline, #e2e8f0);
+        color: var(--ink-soft, #475569);
+        height: 36px;
+        font-size: 12px;
+        padding: 0 14px;
+        border-radius: 8px;
+        font-weight: 600;
+        background: var(--canvas, #ffffff);
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        transition: all 0.2s ease;
+        cursor: pointer;
+      }
+      .btn-action-edit:hover {
+        background-color: var(--canvas-soft, #f1f5f9);
+        color: var(--ink, #1e293b);
+        border-color: var(--border-strong, #cbd5e1);
+        transform: translateY(-1px);
+      }
+
+      .btn-action-delete {
+        border: 1px solid rgba(239, 68, 68, 0.2);
+        color: #ef4444;
+        height: 36px;
+        font-size: 12px;
+        padding: 0 14px;
+        border-radius: 8px;
+        font-weight: 600;
+        background: var(--canvas, #ffffff);
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        transition: all 0.2s ease;
+        cursor: pointer;
+      }
+      .btn-action-delete:hover {
+        background-color: #fff5f5;
+        border-color: rgba(239, 68, 68, 0.4);
+        transform: translateY(-1px);
+      }
     </style>
     <div id="report-revenue-dashboard-view" class="report-view-animate" style="display: none; flex-direction: column; width: 100%; box-sizing: border-box;">
       <!-- Filters bar -->
@@ -6363,7 +6725,7 @@
       </div>
       
       <!-- List of Menu Groups -->
-      <div class="menu-groups-grid" id="menu-groups-container" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 24px;">
+      <div class="menu-group-list" id="menu-groups-container">
         <!-- Rendered dynamically -->
       </div>
     </div>
@@ -6902,7 +7264,7 @@
 
   <!-- MODAL 4: Create/Edit Menu Group -->
   <div class="modal-backdrop" id="menu-group-modal" style="display: none;">
-    <div class="modal-content" style="max-width: 600px; border-radius: var(--rounded-lg); overflow: hidden;">
+    <div class="modal-content" style="max-width: 800px; border-radius: var(--rounded-lg); overflow: hidden;">
       <div class="modal-header" style="border-bottom: 1px solid var(--hairline-soft); padding: 16px 24px;">
         <h3 class="modal-title" style="font-size: 18px; font-weight: 700;">Tạo thực đơn mới</h3>
         <button class="btn-close" id="btn-close-menu-group-modal" style="font-size: 24px;">&times;</button>
@@ -7325,42 +7687,59 @@
     </div>
   </div>
 
-  <!-- MODAL: System Update Progress -->
-  <div class="system-update-backdrop" id="system-update-modal" style="display: none; position: fixed; inset: 0; background-color: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); justify-content: center; align-items: center; z-index: 99999;">
-    <div style="width: 500px; max-width: 90%; border-radius: 16px; overflow: hidden; background-color: #ffffff; display: flex; flex-direction: column; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);">
+  <!-- MODAL: System Update Progress & Version Rollback -->
+  <div class="system-update-backdrop" id="system-update-modal" style="display: none; position: fixed; inset: 0; background-color: rgba(15, 23, 42, 0.65); backdrop-filter: blur(4px); justify-content: center; align-items: center; z-index: 99999;">
+    <div style="width: 640px; max-width: 95%; max-height: 90vh; border-radius: 16px; overflow: hidden; background-color: #ffffff; display: flex; flex-direction: column; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);">
       <!-- Header -->
-      <div style="padding: 18px 24px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background-color: #f8fafc;">
+      <div style="padding: 16px 24px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background-color: #f8fafc;">
         <h3 style="font-size: 16px; font-weight: 700; margin: 0; color: #0f172a; display: flex; align-items: center; gap: 8px;">
-          <span>🔄 Cập nhật hệ thống</span>
+          <span>🔄 Cập nhật & Quản lý phiên bản</span>
         </h3>
         <span id="btn-close-update-modal" style="font-size: 24px; cursor: pointer; color: #64748b; font-weight: bold; line-height: 1;">&times;</span>
       </div>
-      <!-- Body -->
-      <div style="padding: 24px; display: flex; flex-direction: column; gap: 16px; box-sizing: border-box;">
+      <!-- Body (Scrollable) -->
+      <div style="padding: 20px 24px; display: flex; flex-direction: column; gap: 16px; box-sizing: border-box; overflow-y: auto; max-height: calc(90vh - 130px);">
         <!-- Status Info -->
-        <div style="display: flex; flex-direction: column; gap: 12px;">
+        <div style="display: flex; flex-direction: column; gap: 8px;">
           <div style="font-weight: 600; font-size: 14px; color: #1e293b;" id="update-status-text">Đang kiểm tra bản cập nhật trên Git...</div>
           
           <!-- Progress bar -->
-          <div id="update-progress-wrapper" style="width: 100%; height: 10px; background-color: #e2e8f0; border-radius: 5px; overflow: hidden; display: none; margin: 8px 0;">
+          <div id="update-progress-wrapper" style="width: 100%; height: 10px; background-color: #e2e8f0; border-radius: 5px; overflow: hidden; display: none; margin: 6px 0;">
             <div id="update-progress-bar" style="width: 0%; height: 100%; background: linear-gradient(90deg, #ea580c 0%, #db2777 100%); transition: width 0.3s ease; border-radius: 5px;"></div>
           </div>
           
           <!-- Log Console -->
-          <div id="update-log-console" style="background-color: #0f172a; color: #38bdf8; font-family: monospace; font-size: 12px; padding: 12px; border-radius: 8px; max-height: 180px; overflow-y: auto; white-space: pre-wrap; display: none; text-align: left;"></div>
+          <div id="update-log-console" style="background-color: #0f172a; color: #38bdf8; font-family: monospace; font-size: 12px; padding: 12px; border-radius: 8px; max-height: 160px; overflow-y: auto; white-space: pre-wrap; display: none; text-align: left;"></div>
         </div>
         
-        <!-- Commits list -->
-        <div id="update-commits-container" style="display: none; flex-direction: column; gap: 8px; border-top: 1px solid #e2e8f0; padding-top: 12px; text-align: left;">
-          <div style="font-weight: 700; font-size: 12px; color: #475569; letter-spacing: 0.5px;">CÁC THAY ĐỔI MỚI:</div>
-          <div id="update-commits-list" style="max-height: 120px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: #334155; font-family: inherit;">
+        <!-- New Commits Available Notification Block -->
+        <div id="update-commits-container" style="display: none; flex-direction: column; gap: 10px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; padding: 14px; text-align: left;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div style="font-weight: 700; font-size: 13px; color: #1e40af; display: flex; align-items: center; gap: 6px;">
+              <span>🚀 BẢN CẬP NHẬT MỚI:</span>
+            </div>
+            <button id="btn-start-update" style="height: 32px; padding: 0 16px; border: none; background: #0284c7; border-radius: 6px; font-size: 12.5px; font-weight: 600; color: #ffffff; cursor: pointer; display: none; transition: background 0.2s;">Cập nhật ngay</button>
+          </div>
+          <div id="update-commits-list" style="max-height: 120px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; font-size: 12.5px; color: #1e3a8a;">
+          </div>
+        </div>
+
+        <!-- Version History & Rollback Block -->
+        <div id="update-history-container" style="display: none; flex-direction: column; gap: 10px; border-top: 1px solid #e2e8f0; padding-top: 14px; text-align: left;">
+          <div style="display: flex; flex-direction: column; gap: 2px;">
+            <div style="font-weight: 700; font-size: 13px; color: #334155; display: flex; align-items: center; gap: 6px;">
+              <span>📜 LỊCH SỬ CÁC PHIÊN BẢN (ROLLBACK):</span>
+            </div>
+            <span style="font-size: 12px; color: #64748b;">Bạn có thể quay lại bất kỳ bản cũ nào bên dưới nếu phiên bản hiện tại gặp lỗi.</span>
+          </div>
+          <div id="update-history-list" style="max-height: 240px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding-right: 4px;">
+            <!-- Rendered dynamically -->
           </div>
         </div>
       </div>
       <!-- Footer -->
-      <div style="padding: 16px 24px; background-color: #f8fafc; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; gap: 12px; box-sizing: border-box;">
-        <button id="btn-cancel-update" style="height: 38px; padding: 0 16px; border: 1px solid #cbd5e1; background: #ffffff; border-radius: 6px; font-size: 13px; font-weight: 600; color: #475569; cursor: pointer;">Hủy bỏ</button>
-        <button id="btn-start-update" style="height: 38px; padding: 0 20px; border: none; background: #0066cc; border-radius: 6px; font-size: 13px; font-weight: 600; color: #ffffff; cursor: pointer; display: none;">Cập nhật ngay</button>
+      <div style="padding: 14px 24px; background-color: #f8fafc; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; gap: 12px; box-sizing: border-box;">
+        <button id="btn-cancel-update" style="height: 38px; padding: 0 18px; border: 1px solid #cbd5e1; background: #ffffff; border-radius: 6px; font-size: 13px; font-weight: 600; color: #475569; cursor: pointer;">Đóng</button>
       </div>
     </div>
   </div>

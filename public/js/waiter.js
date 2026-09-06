@@ -1,7 +1,6 @@
 // Waiter App Logic
 let socket = null;
 let isPollingMode = false;
-const isVercel = window.location.hostname.endsWith('vercel.app');
 
 // State variables
 let menu = [];
@@ -115,12 +114,8 @@ async function init() {
   }
 }
 
-// Dynamically load socket.io script when not on Vercel
+// Dynamically load socket.io script
 function loadSocketScript(callback) {
-  if (isVercel) {
-    callback();
-    return;
-  }
   const script = document.createElement('script');
   script.src = '/socket.io/socket.io.js';
   script.onload = () => callback();
@@ -133,7 +128,7 @@ function loadSocketScript(callback) {
 
 // Initialize WebSockets or HTTP Polling Fallback
 function initConnection() {
-  if (typeof io !== 'undefined' && !isVercel) {
+  if (typeof io !== 'undefined') {
     try {
       socket = io({
         reconnectionAttempts: 2,
@@ -226,7 +221,7 @@ function initConnection() {
       activatePolling();
     }
   } else {
-    console.log('🌐 Vercel or Socket.io not available. Active HTTP Polling Mode.');
+    console.log('🌐 Socket.io không khả dụng. Chuyển sang HTTP Polling Mode.');
     activatePolling();
   }
 }
